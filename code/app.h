@@ -1,5 +1,10 @@
 #include "helpers.h"
 #include "gltf_loader.h"
+// #pragma warning(push)
+// #pragma warning(disable: 4305)
+// #define USE_SSE2
+// #include "libraries/sse_mathfun.h"
+// #pragma warning(pop)
 
 #define update_type(name) void (*name)(App_memory*)
 #define render_type(name) void (*name)(App_memory*, Int2, List* )

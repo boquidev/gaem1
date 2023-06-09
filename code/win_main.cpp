@@ -379,6 +379,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	r32 fov = 1;
 	r32 fov2 = 1;
 	bool perspective_on = true;
+	Color bg_color = {0.1f, 0.4f, 0.5f, 1};
 
 	//TODO: delta_time
 	r32 delta = 0.0f;
@@ -388,6 +389,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	while(global_running)
 	{
 		arena_pop_size(temp_arena, temp_arena->used);
+
+		bg_color.r = (r32)sin(delta);
 		// HANDLE WINDOW RESIZING
 		Int2 current_client_size = win_get_client_sizes(global_main_window);
 		if(!dx->render_target_view || client_size.x != current_client_size.x || client_size.y != current_client_size.y)
@@ -545,7 +548,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		List render_list = {0};
 		app.render(&memory, client_size, &render_list);
 
-		Color bg_color = {0.1f, 0.4f, 0.5f, 1};
 		if(dx->render_target_view)
 		{
 			// apparently always need to clear this buffers before rendering to them
@@ -567,8 +569,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			view_matrix = 
 				XMMatrixTranslation( -memory.camera_pos.x, -memory.camera_pos.y,-memory.camera_pos.z )*
 				XMMatrixRotationZ( memory.camera_rotation.z )*
-				XMMatrixRotationY(-memory.camera_rotation.x)*
-				XMMatrixRotationX(-memory.camera_rotation.y) ;
+				XMMatrixRotationY(-memory.camera_rotation.y)*
+				XMMatrixRotationX(-memory.camera_rotation.x) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	
 			
 			// WORLD PROJECTION
@@ -591,7 +593,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					XMMatrixRotationZ(object->rotation.z) *
 					XMMatrixTranslation(object->pos.x,object->pos.y,object->pos.z);
 				// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
-				delta += 0.01f;
+
 				Dx_mesh* object_mesh = LIST_GET_DATA_AS(&meshes_list, object->mesh_uid, Dx_mesh);
 				Dx11_texture_view** texture_view = LIST_GET_DATA_AS(&textures_list, object->tex_uid,Dx11_texture_view*);
 				dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
@@ -629,6 +631,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}else{
 				//TODO: Missed Framerate
 			}
+			delta += 0.01f;
 		}
 #if DEBUGMODE
 		{// DEBUG FRAMERATE

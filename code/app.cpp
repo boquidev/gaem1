@@ -7,13 +7,13 @@ void update(App_memory* memory)
 	r32 delta_time = 1;
 	r32 camera_speed = 0.01f;
 
+	memory->camera_rotation.y += (r32)input->cursor_speed.x / 500;
+	memory->camera_rotation.x += (r32)input->cursor_speed.y / 500;
+	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
+
 	memory->camera_pos.x += (input->right - input->left) * delta_time * camera_speed;
 	memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 	memory->camera_pos.z += (input->forward - input->backward) * delta_time * camera_speed;
-
-	memory->camera_rotation.x += (r32)input->cursor_speed.x / 500;
-	memory->camera_rotation.y += (r32)input->cursor_speed.y / 500;
-
 
 	r32 green = 0;
 	r32 color_step = 1.0f/ARRAYCOUNT(memory->tilemap);
@@ -35,11 +35,19 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 	// Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 	// *triangle = {*memory->meshes.p_triangle_mesh_uid, {1,1,1}, {0,0,1}};
 
-	// Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	// *ogre = {*memory->meshes.p_ogre_mesh_uid,{1,1,1}, {0,0,1}};
+	Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	ogre->mesh_uid = *memory->meshes.p_ogre_mesh_uid;
+	ogre->tex_uid = *memory->textures.p_white_tex_uid;
+	ogre->scale = {1,1,1};
+	ogre->pos = {0,0,2};
+	ogre->color = {1,1,1,1};
 
-	// Object3d* female = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	// *female = {*memory->meshes.p_female_mesh_uid, {1,1,1}, {0,0,1}};
+	Object3d* female = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	female->mesh_uid = *memory->meshes.p_female_mesh_uid;
+	female->tex_uid = *memory->textures.p_white_tex_uid;
+	female->scale = {1,1,1};
+	female->pos = {0,0,2};
+	female->color = {1,1,1,1};
 
 	Object3d* big_plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 	big_plane->mesh_uid = *memory->meshes.p_plane_mesh_uid;
