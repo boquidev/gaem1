@@ -103,6 +103,7 @@ struct App_memory
 	Meshes meshes;
 	Textures textures;
 
+	r32 fov;
 	V3 camera_pos;
 	V3 camera_rotation;
 

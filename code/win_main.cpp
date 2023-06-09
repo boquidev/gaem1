@@ -379,7 +379,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 	r32 fov = 1;
-	r32 fov2 = 2;
+	memory.fov = 2;
 	bool perspective_on = false;
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
@@ -531,9 +531,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							// else if(message.wParam == 'I')
 							// else if(message.wParam == 'K')
 							else if(vkcode == 'J')
-								fov2 = fov2/2;
+								memory.fov = memory.fov/2;
 							else if(vkcode == 'L')
-								fov2 = fov2*2;
+								memory.fov = memory.fov*2;
 							// else if(message.wParam == 'T')
 							// else if(message.wParam == 'F')
 							else if(vkcode == 'M')
@@ -591,9 +591,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			
 			// WORLD PROJECTION
 			if(perspective_on)
-				projection_matrix = XMMatrixPerspectiveLH(fov2*aspect_ratio, fov2, fov, 100.0f);
+				projection_matrix = XMMatrixPerspectiveLH(memory.fov*aspect_ratio, memory.fov, fov, 100.0f);
 			else
-				projection_matrix = XMMatrixOrthographicLH(fov2*aspect_ratio, fov2, fov, 100.0f);
+				projection_matrix = XMMatrixOrthographicLH(memory.fov*aspect_ratio, memory.fov, fov, 100.0f);
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
 
 			// OBJECT TRANSFORM

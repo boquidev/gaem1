@@ -46,7 +46,7 @@ PSINPUT vs( VSINPUT input )
 	result.color = object_color;
 	// result.color = float4(
 	// 	vertex_world_pos.xyz, 1
-	// );
+	// );	
 	return result;
 }
 

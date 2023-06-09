@@ -13,6 +13,41 @@ void update(App_memory* memory)
 	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
 	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
 	// memory->camera_rotation.x = PI32/2;
+	
+	Object3d* turret = &memory->entities[1];
+	turret->visible = true;
+	turret->scale = {0.1f,0.1f,0.1f};
+	turret->rotation.y = 0;
+	turret->color = {1,1,1,1};
+	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
+	turret->p_tex_uid = memory->textures.p_white_tex_uid;
+
+	//TODO: make this into a function screen to world
+	{
+		r32 cos_rotation_y = COSF(memory->camera_rotation.y);
+		r32 sin_rotation_y = SINF(memory->camera_rotation.y);
+		r32 cos_rotation_x = COSF(memory->camera_rotation.x);
+		r32 sin_rotation_x = SINF(memory->camera_rotation.x);
+		
+		V2 cursor_pos = {memory->fov*input->cursor_pos.x, memory->fov*input->cursor_pos.y};
+
+		V3 x_direction = {cos_rotation_y*cursor_pos.x,0,-sin_rotation_y*cursor_pos.x};
+		V3 y_direction = {sin_rotation_y*sin_rotation_x*cursor_pos.y,cos_rotation_x*cursor_pos.y,cos_rotation_y*sin_rotation_x*cursor_pos.y};
+
+		if(!memory->lock_mouse)
+		{
+			turret->pos.x = x_direction.x + y_direction.x;
+			turret->pos.y = x_direction.y + y_direction.y;
+			turret->pos.z = x_direction.z + y_direction.z;
+		}
+	}
+	// turret->pos.x = cos_rotation_y*cursor_pos.x + 
+	// 	sin_rotation_x*sin_rotation_y*cursor_pos.y;
+	// turret->pos.z = -sin_rotation_y*cursor_pos.x +
+	// 	cos_rotation_y*cos_rotation_x*cursor_pos.y +
+	// 	cos_rotation_y*cursor_pos.y;
+	// turret->pos.y = SINF(memory->camera_rotation.x)*memory->fov*input->cursor_pos.y;
+	// turret->pos.x = SINF(memory->camera_rotation.y)*memory->fov*input->cursor_pos.x;
 
 	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
 	input_vector = normalize(input_vector);
@@ -37,15 +72,6 @@ void update(App_memory* memory)
 		if(input_vector.x || input_vector.y)
 			player->rotation.y = v2_angle(input_vector) +PI32/2;
 	}
-
-	Object3d* turret = &memory->entities[1];
-	turret->visible = true;
-	turret->scale = {0.1f,0.1f,0.1f};
-	turret->rotation.y = 0;
-	turret->color = {1,1,1,1};
-	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
-	turret->p_tex_uid = memory->textures.p_white_tex_uid;
-	turret->pos = {0,-1,0};
 
 }
 
