@@ -272,11 +272,13 @@ dx11_create_constant_buffer(
 	result->register_index = register_index;
 }
 
+// THIS FUNCTION BINDS INTO THE VERTEX SHADER SO I CAN'T ACCESS IT THROUGH THE PS
 internal void
 dx11_bind_constant_buffer(D3D* dx, D3D_constant_buffer* c)
 {
 	dx->context->VSSetConstantBuffers(c->register_index, 1, &c->buffer);
 }
+// THIS FUNCTION BINDS INTO THE VERTEX SHADER SO I CAN'T ACCESS IT THROUGH THE PS
 internal void
 dx11_create_and_bind_constant_buffer(
 	D3D* dx, D3D_constant_buffer* c, 

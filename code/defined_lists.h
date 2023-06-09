@@ -48,6 +48,3 @@ struct LIST(type){                              \
 		return result;                                                                                    \
 	}                                                            \
 }
-
-
-DEFINE_LIST(V3);
