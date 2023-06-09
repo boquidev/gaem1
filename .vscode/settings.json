@@ -27,7 +27,9 @@
         "tuple": "cpp",
         "xmemory": "cpp",
         "xtr1common": "cpp",
-        "pch.h": "c"
+        "pch.h": "c",
+        "system_error": "cpp",
+        "xlocale": "cpp"
     },
     "files.watcherExclude": {
         "**/target": true

@@ -1,6 +1,6 @@
 #include "pch.h"
+
 #include "app.h"
-#include "gltf_loader.h"
 
 #include "win_functions.h"
 
@@ -189,18 +189,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	dx11_create_ps(dx, shaders_3d_compiled_ps, &pipeline_3d.ps);
 
-	// DEFAULT TEXTURE
-	// u32 test_tex[] = {
-	// 	0x00000000, 0xffff0000,
-	// 	0xff00ff00, 0xff0000ff,
-	// };
-	u32 white_tex_pixels[] = {
-		0x00000000, 0xffff0000,
-		0xff00ff00, 0xff0000ff,
-	};
-	Surface white_texture = {2, 2, &white_tex_pixels};
-	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
-
 	// CREATING CONSTANT_BUFFER
 	D3D_constant_buffer object_buffer = {0};
 	dx11_create_and_bind_constant_buffer(
@@ -225,6 +213,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_and_bind_constant_buffer(
 		dx, &projection_buffer, sizeof(XMMATRIX), WORLD_PROJECTION_BUFFER_REGISTER_INDEX, 0
 	);
+
+	// DEFAULT TEXTURE
+	// u32 test_tex[] = {
+	// 	0x00000000, 0xffff0000,
+	// 	0xff00ff00, 0xff0000ff,
+	// };
+	u32 white_tex_pixels[] = {
+		0x00000000, 0xffff0000,
+		0xff00ff00, 0xff0000ff,
+	};
+	Surface white_texture = {2, 2, &white_tex_pixels};
+	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
+
 	
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
@@ -344,6 +345,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// APP INITIALIZE 
 	app.init(&memory);
 	
+	// TODO: input backbuffer
 	User_input input = {0};
 	memory.input = &input;
 
@@ -351,6 +353,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	r32 fov = 1;
 	r32 fov2 = 1;
 
+	//TODO: delta_time
 	r32 delta = 0.0f;
 	// MAIN LOOP ____________________________________________________________
 	global_running = 1;
