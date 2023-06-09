@@ -47,6 +47,8 @@ struct Meshes
 	u32* p_female_mesh_uid;
 	u32* p_turret_mesh_uid;
 	u32* p_plane_mesh_uid;
+	u32* p_test_orientation_uid;
+	u32* p_test_orientation2_uid;
 };
 
 struct Textures

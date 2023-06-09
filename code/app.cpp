@@ -41,6 +41,14 @@ void update(App_memory* memory)
 	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
 	turret->p_tex_uid = memory->textures.p_white_tex_uid;
 	turret->pos = {0,-1,0};
+
+	Object3d* test_orientation = &memory->entities[2];
+	test_orientation->visible = true;
+	test_orientation->scale = {0.3f, 0.3f, 0.3f};
+	test_orientation->color = {0.5,0.5,0.5,1};
+	test_orientation->p_mesh_uid = memory->meshes.p_test_orientation2_uid;
+	test_orientation->p_tex_uid = memory->textures.p_white_tex_uid;
+	test_orientation->pos = {-1, -1, 1};
 }
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)
@@ -165,12 +173,39 @@ void init(App_memory* memory, Init_data* init_data)
 	);
 	memory->meshes.p_plane_mesh_uid = push_mesh_from_primitives_request(memory, init_data,plane_primitives);
 
+	Vertex3d test_vertices[] =
+	{
+		{{-0.5, 0, 1}},
+		{{0.5, 0, 1}},
+		{{0, 1, 1}},
+		{{2, 0.5, 0.5}},
+		{{0, 0.5, -2}}
+	};
+	u16 test_indices[] = 
+	{
+		2,4,0,
+		4,1,0,
+		4,3,1,
+		4,2,3,
+		1,2,0,
+		1,3,2
+	};
+
+	Mesh_primitive* test_orientation_primitives = save_primitives(
+		memory->permanent_arena,
+		test_vertices, sizeof(test_vertices[0]), ARRAYCOUNT(test_vertices),
+		test_indices, ARRAYCOUNT(test_indices)
+	);
+	memory->meshes.p_test_orientation2_uid = push_mesh_from_primitives_request(memory,init_data, test_orientation_primitives);
+
 
 	memory->meshes.p_ogre_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/ogre.glb"));
 
 	memory->meshes.p_female_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/female.glb"));
 
 	memory->meshes.p_turret_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/turret.glb"));
+
+	memory->meshes.p_test_orientation_uid = push_mesh_from_file_request(memory, init_data, string("data/test_orientation.glb"));
 
 
 	memory->player_uid = 0;
