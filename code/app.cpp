@@ -6,28 +6,32 @@ void update(App_memory* memory)
 
 	r32 delta_time = 1;
 	r32 camera_speed = 0.01f;
+	r32 movement_speed = 0.01f;
 	r32 sensitivity = 1.0f;
 
-	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x / 500;
-	memory->camera_rotation.x += sensitivity*(r32)input->cursor_speed.y / 500;
-	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
+	// memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x / 500;
+	// memory->camera_rotation.x += sensitivity*(r32)input->cursor_speed.y / 500;
+	// memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
+	memory->camera_rotation.x = -PI32/2;
 
 	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
 	input_vector = normalize(input_vector);
-
 	{
-		V2 looking_direction = {cosf(memory->camera_rotation.y), sinf(memory->camera_rotation.y)};
-		V2 move_direction = {
-			input_vector.x*looking_direction.x + input_vector.y*looking_direction.y ,
-			-input_vector.x*looking_direction.y + input_vector.y*looking_direction.x
-		};
-		memory->camera_pos.x += move_direction.x * delta_time * camera_speed;
-		memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
+		// V2 looking_direction = {cosf(memory->camera_rotation.y), sinf(memory->camera_rotation.y)};
+		// V2 move_direction = {
+		// 	input_vector.x*looking_direction.x + input_vector.y*looking_direction.y ,
+		// 	-input_vector.x*looking_direction.y + input_vector.y*looking_direction.x
+		// };
+		// memory->camera_pos.x += move_direction.x * delta_time * camera_speed;
+		// memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
 
-		memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
+		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
+
+		memory->player.pos.x += input_vector.x *  movement_speed * delta_time;
+		memory->player.pos.z += input_vector.y * movement_speed * delta_time;
+		if(input_vector.x || input_vector.y)
+			memory->player.rotation.y = v2_angle(input_vector)+(PI32/2);
 	}
-
-
 
 	r32 green = 0;
 	r32 color_step = 1.0f/ARRAYCOUNT(memory->tilemap);
@@ -46,45 +50,9 @@ void update(App_memory* memory)
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)
 {
-	Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	ogre->mesh_uid = *memory->meshes.p_ogre_mesh_uid;
-	ogre->tex_uid = *memory->textures.p_white_tex_uid;
-	ogre->scale = {1,1,1};
-	ogre->pos = {0,0,2};
-	ogre->color = {1,1,1,1};
-
-	Object3d* female = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	female->mesh_uid = *memory->meshes.p_female_mesh_uid;
-	female->tex_uid = *memory->textures.p_white_tex_uid;
-	female->scale = {1,1,1};
-	female->pos = {0,0,2};
-	female->color = {1,1,1,1};
-
-	Object3d* big_plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	big_plane->mesh_uid = *memory->meshes.p_plane_mesh_uid;
-	big_plane->tex_uid = *memory->textures.p_white_tex_uid;
-	big_plane->scale = {1,1,1};
-	big_plane->pos = {0,0,2};
-	big_plane->color = {1,1,1,1};
-
-	until(y, ARRAYCOUNT(memory->tilemap))
-	{
-		until(x, ARRAYCOUNT(memory->tilemap[y]))
-		{
-
-			Object3d* plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-			*plane = {
-				*memory->meshes.p_plane_mesh_uid, *memory->textures.p_default_tex_uid,
-				{(r32)ARRAYCOUNT(memory->tilemap[y])/screen_size.x, (r32)ARRAYCOUNT(memory->tilemap)/screen_size.y, 1}, 
-				{(r32)x*ARRAYCOUNT(memory->tilemap[y])/screen_size.x,(r32)y*ARRAYCOUNT(memory->tilemap)/screen_size.y,  0.01f}, 
-				{0,0,0}, memory->tilemap[y][x]
-			};
-			//draw(rectangle_id, etc...); 
-		}
-	}
+	Object3d* player = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	*player = memory->player;
 	
-	Int2 rect_pos = memory->input->cursor_pos;
-	// draw_rectangle(rect_pos.x, rect_pos.y, 15,15);
 }
 
 void init(App_memory* memory, Init_data* init_data)
@@ -199,7 +167,7 @@ void init(App_memory* memory, Init_data* init_data)
 
 	memory->meshes.p_female_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/female.glb"));
 
+	memory->player = {memory->meshes.p_ogre_mesh_uid,memory->textures.p_white_tex_uid, {0.4f,0.4f,0.4f}, {}, {}, {1,1,1,1}};
 
-	
 
 }

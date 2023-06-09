@@ -1,8 +1,8 @@
+#include <math.h>
 #include "helpers.h"
 #include "gltf_loader.h"
 
 #include "defined_lists.h"
-#include <math.h>
 
 #define update_type(name) void (*name)(App_memory*)
 #define render_type(name) void (*name)(App_memory*, Int2, List* )
@@ -12,8 +12,8 @@
 // scale must be 1,1,1 by default
 struct Object3d
 {
-	u32 mesh_uid;
-	u32 tex_uid;
+	u32* mesh_uid;
+	u32* tex_uid;
 	V3 scale;
 	V3 pos;
 	V3 rotation;
@@ -106,6 +106,8 @@ struct App_memory
 
 	b32 is_window_in_focus;
 	b32 lock_mouse;
+
+	Object3d player;
 };
 
 internal u32

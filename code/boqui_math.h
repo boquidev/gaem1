@@ -149,6 +149,15 @@ union V4
     
 };
 
+internal r32
+v2_angle(V2 v)
+{
+    if(v.x < 0)
+        return atanf(v.y / v.x) -PI32;
+    else 
+        return atanf(v.y / v.x);
+}
+
 
 internal V2
 v2_addition(V2 v1, V2 v2)

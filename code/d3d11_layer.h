@@ -1,7 +1,8 @@
-
+//WHY DOES THIS GET PUT INSIDE THE PRECOMPILED HEADER
 #include <d3d11.h>
 #include <dxgi1_2.h>
 #include <D3DCompiler.h>
+#include <DirectXMath.h>
 
 using namespace DirectX; //TODO: THIS IS ONLY USED IN directxmath.h
 
