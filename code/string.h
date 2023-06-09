@@ -84,6 +84,15 @@ string_to_bool(String s)
 	}
 }
 
+internal String
+bool_to_string(b32 b)
+{
+	if(b)
+		return string("true");
+	else
+		return string("false");
+}
+
 
 // THIS NEEDS THE MEMORY ARENA
 internal String 

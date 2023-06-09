@@ -38,7 +38,11 @@ win_main_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 		case WM_CLOSE:
 			global_running = 0;
 		break;
-		
+		case WM_ACTIVATE:
+			// Check if the window is being activated or deactivated
+			
+			OutputDebugString(bool_to_string((wparam != WA_INACTIVE)).text);
+		break;
 		case WM_MOUSEWHEEL:
 		case WM_LBUTTONDBLCLK:
 		case WM_LBUTTONDOWN:
@@ -408,6 +412,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 
 		// MOUSE POSITION
+		HWND foreground_window = GetForegroundWindow();
+		memory.is_window_in_focus = (foreground_window == global_main_window);
 		{
 			POINT mousep;
 			GetCursorPos(&mousep);
@@ -423,8 +429,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			};
 			POINT center_point = { client_center_pos.x, client_center_pos.y };
 			ClientToScreen(global_main_window, &center_point);
-
-			if(input.test)
+			if(memory.is_window_in_focus && memory.lock_mouse)
 				SetCursorPos(center_point.x, center_point.y);
 
 			input.cursor_pos = client_center_pos;
@@ -439,11 +444,16 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				case WM_DESTROY:
 				case WM_CLOSE:
 				case WM_QUIT:
+					// THIS MESSAGES GO DIRECTLY INTO THE DEFAULT PROCEDURE
+				break;
+				case WM_ACTIVATE:
+				case WM_ENABLE:
+				case WM_SETFOCUS:
+				case WM_KILLFOCUS:
 				{
-					ASSERT(false);
-					global_running = 0;
+					// Check if the window is being activated or deactivated
+					memory.is_window_in_focus = (message.wParam == WA_INACTIVE);
 				}break;
-
 				case WM_LBUTTONDBLCLK:
 				break;
 				case WM_LBUTTONDOWN:// just when the buttom is pushed
@@ -502,7 +512,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							// else if(message.wParam == 'T')
 							// else if(message.wParam == 'F')
 							else if(vkcode == 'M')
-								input.test = !input.test;
+								memory.lock_mouse = !memory.lock_mouse;
 						}
 
 						b32 AltKeyWasDown = ((message.lParam & (1 << 29)));
@@ -621,7 +631,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 			char text_buffer[256];
 			wsprintfA(text_buffer, "%dms/f| %d f/s|  %d Mhz/f \n", (s32)ms_per_frame, (s32)FPS, MegaCyclesPF);
-			OutputDebugStringA(text_buffer);   
+			// OutputDebugStringA(text_buffer);   
 			last_cycles_count = __rdtsc();
 		}
 #endif

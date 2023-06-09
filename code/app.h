@@ -25,7 +25,7 @@ struct User_input
 	b32 left;
 	b32 right;
 
-	b32 test;
+	// b32 test;
 };
 
 //TODO: create a meshes array ??
@@ -90,6 +90,9 @@ struct App_memory
 
 	Color32 tilemap[32][32];
 	User_input* input;
+
+	b32 is_window_in_focus;
+	b32 lock_mouse;
 };
 
 internal u32
