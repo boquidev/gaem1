@@ -94,7 +94,7 @@ struct Int2
 };
 
 internal r32 magnitude(r32 x, r32 y){return SQRT(x*x + y*y);}
-internal r32 magnitude(V2 v){return magnitude(v.x, v.y);}
+internal r32 v2_magnitude(V2 v){return magnitude(v.x, v.y);}
 internal r32 magnitude(Int2 v){return magnitude((r32)v.x, (r32)v.y);}
 
 internal V2 normalize(r32 x, r32 y)
@@ -144,6 +144,38 @@ operator +(V3 v1, V3 v2)
 {
     return v3_addition(v1, v2);
 }
+
+internal V3
+v3_difference(V3 v1, V3 v2)
+{
+    V3 result = {0};
+    result.x = v1.x - v2.x;
+    result.y = v1.y - v2.y;
+    result.z = v1.z - v2.z;
+    // {v1.x-v2.x, v1.y-v2.y, v1.z-v2.z}
+    return result;
+}
+internal V3
+operator -(V3 v1, V3 v2)
+{
+    return v3_difference(v1, v2);
+}
+internal V3
+operator *(r32 e, V3 v)
+{
+    return {e * v.x, e * v.y, e*v.z};
+}
+
+internal r32 v3_magnitude(r32 x, r32 y, r32 z){return SQRT(x*x + y*y + z*z);}
+internal r32 v3_magnitude(V3 v){return v3_magnitude(v.x, v.y, v.z);}
+internal V3 
+v3_normalize(r32 x, r32 y, r32 z)
+{
+    r32 vlength = v3_magnitude(x,y,z);
+    if(vlength) return {x/vlength, y/vlength, z/vlength};
+    else return {0,0,0};
+}
+internal V3 v3_normalize(V3 v){return v3_normalize(v.x, v.y, v.z);}
 
 struct Int4
 {

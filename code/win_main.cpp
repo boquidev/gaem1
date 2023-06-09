@@ -231,7 +231,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// 3D SHADERS
 		// VERTEX SHADER	
 	String shaders_3d_filename = string("x:/source/code/shaders/3d_shaders.hlsl");
-	//TODO: remember the last write time of the file when doing runtime compiling
+	//TODO: remember the last write memory.time_ms of the file when doing runtime compiling
 
 	File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
 	
@@ -383,8 +383,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
 
-	//TODO: delta_time
-	r32 delta = 0.0f;
+	//TODO: memory.delta_time
 	// MAIN LOOP ____________________________________________________________
 	
 	global_running = 1;
@@ -455,7 +454,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					-(r32)(mousep.y - client_center_pos.y)/client_size.y};
 				
 		}
-		input.cursor_select += input.holding_select;
+		input.cursor_primary += input.holding_cursor_primary;
+		input.cursor_secondary += input.holding_cursor_secondary;
 
 		// HANDLING MESSAGES
 		MSG message;
@@ -478,16 +478,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				break;
 				case WM_LBUTTONDOWN:// just when the buttom is pushed
 				{
-					input.holding_select = 1;
+					input.holding_cursor_primary = 1;
 				}
 				break;
 				case WM_LBUTTONUP:
-					input.holding_select = 0;
-					input.cursor_select = 0;
+					input.holding_cursor_primary = 0;
+					input.cursor_primary = 0;
 				break;
 				case WM_RBUTTONDOWN:
+					input.holding_cursor_secondary = 1;
 				break;
 				case WM_RBUTTONUP:
+					input.holding_cursor_secondary = 0;
+					input.cursor_secondary = 0;
 				break;
 
 				case WM_MOUSEWHEEL:
@@ -518,6 +521,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							input.up = NEW_INPUT_VALUE(input.up);
 						else if(vkcode == VK_SHIFT)
 							input.down = NEW_INPUT_VALUE(input.down);
+						else if(vkcode == 'F')
+							input.x = NEW_INPUT_VALUE(input.x);
+						else if(vkcode == 'X')
+							input.shoot = NEW_INPUT_VALUE(input.shoot);
 						
 						if(is_down)
 						{
@@ -651,7 +658,14 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}else{
 				//TODO: Missed Framerate
 			}
-			delta += 0.01f;
+
+			memory.delta_time = frame_seconds_elapsed;
+			u32 frame_ms_elapsed = (u32)(frame_seconds_elapsed*1000);
+			memory.time_ms += frame_ms_elapsed;
+			
+			char text_buffer[256];
+			wsprintfA(text_buffer, "%d, %d \n", frame_ms_elapsed, memory.time_ms);
+			OutputDebugStringA(text_buffer);   
 		}
 #if DEBUGMODE
 		{// DEBUG FRAMERATE

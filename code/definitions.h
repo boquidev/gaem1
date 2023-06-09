@@ -12,7 +12,7 @@
 #define CHARS_COUNT (LAST_CHAR-FIRST_CHAR)
 #define CAPS_DIFFERENCE
 
-#define HOLDING_BUTTON_TIME 2
+#define HOLDING_BUTTON_TIME 10
 
 typedef char s8;
 typedef short s16;

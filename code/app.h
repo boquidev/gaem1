@@ -12,14 +12,28 @@
 // scale must be 1,1,1 by default
 struct Object3d
 {
-	b32 visible;
-
 	u32* p_mesh_uid;
 	u32* p_tex_uid;
 	V3 scale;
 	V3 pos;
 	V3 rotation;
+
 	Color color;
+};
+
+struct Entity
+{
+	b32 visible;
+	Object3d object3d;
+
+	V3 target_move_pos;
+	V3 velocity;
+	V3 target_pos;
+
+	r32 speed;
+
+	b32 is_bullet;
+	u32 parent_uid;
 };
 
 struct User_input
@@ -27,8 +41,13 @@ struct User_input
 	V2 cursor_pos;
 	V2 cursor_speed;
 
-	b32 cursor_select;
-	b32 holding_select;
+	b32 cursor_primary;
+	b32 holding_cursor_primary;
+	b32 cursor_secondary;
+	b32 holding_cursor_secondary;
+
+	b32 x;
+	b32 shoot;
 
 	b32 forward;
 	b32 backward;
@@ -50,8 +69,12 @@ struct Meshes
 	u32* p_female_mesh_uid;
 	u32* p_turret_mesh_uid;
 	u32* p_plane_mesh_uid;
+
+	u32* p_ball_uid;
+
 	u32* p_test_orientation_uid;
 	u32* p_test_orientation2_uid;
+
 };
 
 struct Textures
@@ -116,8 +139,15 @@ struct App_memory
 	b32 is_window_in_focus;
 	b32 lock_mouse;
 
+	u32 highlighted_uid;
+	u32 clicked_uid;
 	u32 selected_uid;
-	Object3d entities[MAX_ENTITIES];
+
+	r32 delta_time;
+	u64 time_ms;
+
+	u32 active_entities_count;
+	Entity entities[MAX_ENTITIES];
 };
 
 internal u32
