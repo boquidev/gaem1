@@ -67,7 +67,7 @@ win_main_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 int WINAPI 
 wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cmd_show)
 {
-	Int2 win_size = {800, 600};
+	Int2 win_size = {1000, 1000};
 
 	// WINDOW CREATION
 	WNDCLASSA window_class = {0};
@@ -379,7 +379,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 	r32 fov = 1;
-	r32 fov2 = 1;
+	r32 fov2 = 2;
 	bool perspective_on = false;
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
@@ -524,12 +524,18 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 								perspective_on = !perspective_on;
 							// else if(message.wParam == 'I')
 							// else if(message.wParam == 'K')
-							// else if(message.wParam == 'L')
-							// else if(message.wParam == 'J')
+							else if(vkcode == 'J')
+								fov2 = fov2/2;
+							else if(vkcode == 'L')
+								fov2 = fov2*2;
 							// else if(message.wParam == 'T')
 							// else if(message.wParam == 'F')
 							else if(vkcode == 'M')
 								memory.lock_mouse = !memory.lock_mouse;
+#if DEBUGMODE
+							else if(vkcode == VK_F5)
+								global_running = false;
+#endif
 						}
 
 						b32 AltKeyWasDown = ((message.lParam & (1 << 29)));
@@ -579,9 +585,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			
 			// WORLD PROJECTION
 			if(perspective_on)
-				projection_matrix = XMMatrixPerspectiveLH(fov2, fov2*aspect_ratio, fov, 100.0f);
+				projection_matrix = XMMatrixPerspectiveLH(fov2*aspect_ratio, fov2, fov, 100.0f);
 			else
-				projection_matrix = XMMatrixOrthographicLH(fov2*4, fov2*4*aspect_ratio, fov, 100.0f);
+				projection_matrix = XMMatrixOrthographicLH(fov2*aspect_ratio, fov2, fov, 100.0f);
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
 
 			// OBJECT TRANSFORM

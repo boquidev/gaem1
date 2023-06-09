@@ -27,28 +27,26 @@ void update(App_memory* memory)
 
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 		Object3d* player = &memory->entities[memory->player_uid];
+		player->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
+		player->p_tex_uid = memory->textures.p_white_tex_uid;
+		player->scale = {0.1f,0.1f,0.1f};
+		player->color = {1,1,1,1};
+		player->visible = true;
 		player->pos.x += input_vector.x *  movement_speed * delta_time;
 		player->pos.z += input_vector.y * movement_speed * delta_time;
 		if(input_vector.x || input_vector.y)
-			player->rotation.y = v2_angle(input_vector) -PI32/2;
+			player->rotation.y = v2_angle(input_vector) +PI32/2;
 	}
 
 	Object3d* turret = &memory->entities[1];
 	turret->visible = true;
-	turret->scale = {0.3f,0.3f,0.3f};
+	turret->scale = {0.1f,0.1f,0.1f};
 	turret->rotation.y = 0;
 	turret->color = {1,1,1,1};
 	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
 	turret->p_tex_uid = memory->textures.p_white_tex_uid;
 	turret->pos = {0,-1,0};
 
-	Object3d* test_orientation = &memory->entities[2];
-	test_orientation->visible = true;
-	test_orientation->scale = {0.3f, 0.3f, 0.3f};
-	test_orientation->color = {0.5,0.5,0.5,1};
-	test_orientation->p_mesh_uid = memory->meshes.p_test_orientation_uid;
-	test_orientation->p_tex_uid = memory->textures.p_white_tex_uid;
-	test_orientation->pos = {-1, -1, 1};
 }
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)
@@ -61,9 +59,7 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 			Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 			*render_object = memory->entities[i];
 		}
-
 	}
-	
 }
 
 void init(App_memory* memory, Init_data* init_data)
@@ -209,9 +205,6 @@ void init(App_memory* memory, Init_data* init_data)
 
 
 	memory->player_uid = 0;
-	memory->entities[memory->player_uid] = 
-		{memory->meshes.p_ogre_mesh_uid,memory->textures.p_white_tex_uid, 
-		{0.4f,0.4f,0.4f}, {}, {}, {1,1,1,1}, true};
 
 
 }

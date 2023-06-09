@@ -38,9 +38,16 @@ struct PSINPUT
 PSINPUT vs( VSINPUT input )
 {
 	PSINPUT result;
-	result.pos = mul( world_projection, mul( world_view, mul(transform, float4( input.pos, 1.0f ) ) ) );
+	float4 vertex_world_pos = mul(transform, float4( input.pos, 1.0f ) );
+	// vertex_world_pos.y += sin(vertex_world_pos.x*100)/100;
+	float4 pos_from_camera = mul( world_view, vertex_world_pos);
+	result.pos = mul( world_projection, pos_from_camera );
 	result.uv = input.uv;
 	result.color = object_color;
+	// result.color = float4(
+	// 	vertex_world_pos.xyz, 1
+	// );
+	// result.color = object_color;
 	return result;
 }
 
@@ -53,7 +60,8 @@ sampler sampler0 : register(s0);
 float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 {
 	float4 texcolor = texture0.Sample( sampler0, input.uv );
-	
+	float a = sin(input.color.r*100);
+	// float4 result = float4(1,1,1,1);
 	float4 result = float4(
 		texcolor.r * input.color.r, 
 		texcolor.g * input.color.g,
