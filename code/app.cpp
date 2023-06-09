@@ -22,32 +22,14 @@ void update(App_memory* memory)
 	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
 	turret->p_tex_uid = memory->textures.p_white_tex_uid;
 
-	//TODO: make this into a function screen to world
-	{
-		r32 cos_rotation_y = COSF(memory->camera_rotation.y);
-		r32 sin_rotation_y = SINF(memory->camera_rotation.y);
-		r32 cos_rotation_x = COSF(memory->camera_rotation.x);
-		r32 sin_rotation_x = SINF(memory->camera_rotation.x);
-		
-		V2 cursor_pos = {memory->fov*input->cursor_pos.x, memory->fov*input->cursor_pos.y};
-
-		V3 x_direction = {cos_rotation_y*cursor_pos.x,0,-sin_rotation_y*cursor_pos.x};
-		V3 y_direction = {sin_rotation_y*sin_rotation_x*cursor_pos.y,cos_rotation_x*cursor_pos.y,cos_rotation_y*sin_rotation_x*cursor_pos.y};
-
-		if(!memory->lock_mouse)
-		{
-			turret->pos.x = x_direction.x + y_direction.x;
-			turret->pos.y = x_direction.y + y_direction.y;
-			turret->pos.z = x_direction.z + y_direction.z;
-		}
-	}
-	// turret->pos.x = cos_rotation_y*cursor_pos.x + 
-	// 	sin_rotation_x*sin_rotation_y*cursor_pos.y;
-	// turret->pos.z = -sin_rotation_y*cursor_pos.x +
-	// 	cos_rotation_y*cos_rotation_x*cursor_pos.y +
-	// 	cos_rotation_y*cursor_pos.y;
-	// turret->pos.y = SINF(memory->camera_rotation.x)*memory->fov*input->cursor_pos.y;
-	// turret->pos.x = SINF(memory->camera_rotation.y)*memory->fov*input->cursor_pos.x;
+	Object3d* turret2 = &memory->entities[2];
+	turret2->visible = true;
+	turret2->scale = {0.1f,0.1f,0.1f};
+	turret2->rotation.y = 0;
+	turret2->color = {1,1,1,1};
+	turret2->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
+	turret2->p_tex_uid = memory->textures.p_white_tex_uid;
+	turret2->pos = {1,1,1};
 
 	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
 	input_vector = normalize(input_vector);
@@ -73,6 +55,38 @@ void update(App_memory* memory)
 			player->rotation.y = v2_angle(input_vector) +PI32/2;
 	}
 
+	//TODO: make this into a function screen to world
+	{
+		r32 cos_rotation_y = COSF(memory->camera_rotation.y);
+		r32 sin_rotation_y = SINF(memory->camera_rotation.y);
+		r32 cos_rotation_x = COSF(memory->camera_rotation.x);
+		r32 sin_rotation_x = SINF(memory->camera_rotation.x);
+		
+		V2 cursor_pos = {memory->fov*input->cursor_pos.x, memory->fov*input->cursor_pos.y};
+
+		V3 x_direction = {cos_rotation_y*cursor_pos.x,0,-sin_rotation_y*cursor_pos.x};
+		V3 y_direction = {sin_rotation_y*sin_rotation_x*cursor_pos.y,cos_rotation_x*cursor_pos.y,cos_rotation_y*sin_rotation_x*cursor_pos.y};
+
+		if(input->select)
+		{
+			V3 p_0;		
+			p_0.x = x_direction.x + y_direction.x ;
+			p_0.y = x_direction.y + y_direction.y ;
+			p_0.z = x_direction.z + y_direction.z ;
+
+			V3 z_direction = {sin_rotation_y,-sin_rotation_x,cos_rotation_y*cos_rotation_x};
+
+			V3 intersect = {0};
+			until(i, MAX_ENTITIES)
+			{
+				memory->entities[i];
+				if(line_vs_sphere(p_0, z_direction, memory->entities[i].pos, 0.1f, &intersect))
+				{
+					memory->entities[i].color = {0,1,0,1};
+				}
+			}
+		}
+	}
 }
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)

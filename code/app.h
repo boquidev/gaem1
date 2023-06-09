@@ -26,7 +26,7 @@ struct User_input
 	V2 cursor_pos;
 	V2 cursor_speed;
 
-	b32 A;
+	b32 select;
 	b32 forward;
 	b32 backward;
 	b32 left;

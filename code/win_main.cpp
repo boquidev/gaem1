@@ -478,11 +478,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				break;
 				case WM_LBUTTONDOWN:// just when the buttom is pushed
 				{
-					input.A = 1;
+					input.select = 1;
 				}
 				break;
 				case WM_LBUTTONUP:
-					input.A = 0;
+					input.select = 0;
 				break;
 				case WM_RBUTTONDOWN:
 				break;
