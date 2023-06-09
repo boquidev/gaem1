@@ -149,11 +149,14 @@ void update(App_memory* memory){
 		bullet2->velocity =  bullet2->speed * v3_normalize(target_direction);
 	}
 
-	until(i, MAX_ENTITIES){
+	for(u32 i = 1; i< MAX_ENTITIES; i++){
 		Entity* entity = &memory->entities[i];
 		if(entity->visible){
 			if(!entity->is_bullet){
-				entity->velocity = (entity->target_move_pos - entity->object3d.pos);
+				V3 move_distance = (entity->target_move_pos - entity->pos);
+				V3 difference = 10*(move_distance - (0.4f*entity->velocity));
+				entity->velocity = entity->velocity +( memory->delta_time * difference );
+
 				V3 target_direction = entity->target_pos - entity->object3d.pos;
 				entity->object3d.rotation.y = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
 			}else{
