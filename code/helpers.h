@@ -1,13 +1,8 @@
 #include "definitions.h"
-#include "string.h"
+// string.h IS INCLUDED IN THIS FILE AFTER MEMORY ARENAS
+// maybe with GUARDS i could include it just here
 // #include "math"
 // #include "color"
-
-struct File_data
-{
-	void* data;
-	u32 size;
-};
 
 // Byte/Memory operations
 internal void 
@@ -40,14 +35,6 @@ compare_mem(void* p1, void* p2, u32 size)
 	}
 	return true;
 }
-
-// Image / Texture / Screen / RectPixels
-struct Surface
-{
-	u32 width;
-	u32 height;
-	void* data;
-};
 
 // MEMORY ARENAS YEAH
 struct Memory_arena
@@ -84,44 +71,22 @@ arena_push_data(Memory_arena* arena, void* data, u32 size)
 #define ARENA_PUSH_STRUCT(arena, type) (type*)arena_push_size(arena, sizeof(type))
 #define ARENA_PUSH_STRUCTS(arena, type, count) (type*)arena_push_size(arena, count*sizeof(type))
 
-// TODO: test if this does need the memory arena
-// move it to string.h if not
-internal String 
-number_to_string(s32 n, Memory_arena* arena)
+#include "string.h"
+
+struct File_data
 {
-	u32 i=0;
-	String result = {0};
-	result.text = (char*)arena_push_size(arena, 0);
-	if(n < 0)
-	{ 
-		arena_push_data(arena, "-", 1);
-		n = -(n);
-		i++;
-	}
-	if(!n) // if number is 0
-	{
-		*(char*)arena_push_size(arena, 1) = 48;
-		arena_push_size(arena, 1); // 0 ending string
-		return result;
-	}
-	u8 digits = 0;
-	s32 temp = n;
-	while(temp)
-	{
-		temp = temp/10;
-		i++;
-		digits++;
-	}
-	arena_push_size(arena, digits);
-	for(;digits; digits--)
-	{
-		result.text[i-1] = 48 + (n%10);
-		n = n/10;
-		i--;
-	}
-	arena_push_data(arena, "\0", 1);
-	return result;
-}
+	void* data;
+	u32 size;
+};
+
+
+// Image / Texture / Screen / RectPixels
+struct Surface
+{
+	u32 width;
+	u32 height;
+	void* data;
+};
 
 // MY LINKED LIST IMPLEMENTATION
 

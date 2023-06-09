@@ -241,7 +241,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// 	0xff00ff00, 0xff0000ff,
 	// };
 	u32 white_tex_pixels[] = {
-		0x00000000, 0xffff0000,
+		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,
 	};
 	Surface white_texture = {2, 2, &white_tex_pixels};
@@ -251,79 +251,96 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state);
-	dx11_create_blend_state(dx, &pipeline_3d.blend_state, false);
+	dx11_create_blend_state(dx, &pipeline_3d.blend_state, true);
 	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, true);
 
 	// MESHES
 	List meshes_list = {0};
 
-	// TEST LOADING A MODEL
-
-	File_data ogre_file = win_read_file(string("data/ogre.glb"), temp_arena);
-	GLB glb = {0};
-	glb_get_chunks(ogre_file.data, 
-		&glb);
-	{ // THIS IS JUST FOR READABILITY OF THE JSON FILE
-		void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
-		u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
-		win_write_file(string("data/ogre.json"), formated_json, new_size);
-		arena_pop_size(temp_arena, MEGABYTES(4));
-	}
-	u32 meshes_count = 0;
-
-	Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
-
-	Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
-	for(u32 m=0; m<meshes_count; m++)
+	// LOADING MESHES FROM FILES
+	foreach(mff_request_node, &init_data.mesh_from_file_requests, i)
 	{
-		u32 primitives_count = meshes[m].primitives_count;
-		Gltf_primitive* Mesh_primitive = meshes[m].primitives;
-		//TODO: here i am assuming this mesh has only one primitive
-		primitives[m] = gltf_get_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
-		// for(u32 p=0; p<primitives_count; p++)
-		// {	
-		// }
+		Mesh_from_file_request* request = (Mesh_from_file_request*)mff_request_node->data;
+		nextnode(mff_request_node);
+		File_data glb_file = win_read_file(request->filename, temp_arena);
+		GLB glb = {0};
+		glb_get_chunks(glb_file.data, 
+			&glb);
+	#if DEBUGMODE
+		{ // THIS IS JUST FOR READABILITY OF THE JSON FILE
+			void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
+			u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
+			win_write_file(concat_strings(request->filename, string(".json"), temp_arena), formated_json, new_size);
+			arena_pop_size(temp_arena, MEGABYTES(4));
+		}
+	#endif
+		u32 meshes_count = 0;
+		Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
+		
+		Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
+		for(u32 m=0; m<meshes_count; m++)
+		{
+			u32 primitives_count = meshes[m].primitives_count;
+			Gltf_primitive* Mesh_primitive = meshes[m].primitives;
+			//TODO: here i am assuming this mesh has only one primitive
+			primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+			// for(u32 p=0; p<primitives_count; p++)
+			// {	
+			// }
+		}
+		// ADDING OGRE MESH TO THE MESHES LIST
+		
+		*request->p_mesh_uid = meshes_list.size;
+
+		Dx_mesh* current_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+		*current_mesh = dx11_init_mesh(dx, 
+		&primitives[0],
+		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	}
 
-	Vertex3d triangle_vertices [3] = {
-		{{0, 1, 0},{0.5, 0.0}},
-		{{1, 0, 0},{1, 1}},
-		{{-1, 0, 0},{0, 1}}
-	};
-	u16 triangle_indices[3] = {
-		0,1,2
-	};
-	Mesh_primitive triangle_primitives = {
-		triangle_vertices,
-		sizeof(Vertex3d),
-		3,
-		triangle_indices,
-		3,
-	};
-	// ADDING TRIANGLE TO THE MESHES LIST
-	u32* triangle_mesh_uid = LIST_GET_DATA_AS(&init_data.meshes_uid_list, 0, u32);
-	*triangle_mesh_uid = meshes_list.size;
-	Dx_mesh* triangle_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
-	*triangle_mesh = dx11_init_mesh(dx, &triangle_primitives, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// ADDING OGRE MESH TO THE MESHES LIST
-	u32* ogre_mesh_uid = LIST_GET_DATA_AS(&init_data.meshes_uid_list, 1, u32);
-	*ogre_mesh_uid = meshes_list.size;
-	Dx_mesh* ogre_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
-	*ogre_mesh = dx11_init_mesh(dx, 
-	&primitives[0],
-	D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	// Vertex3d triangle_vertices [3] = {
+	// 	{{0, 1, 0},{0.5, 0.0}},
+	// 	{{1, 0, 0},{1, 1}},
+	// 	{{-1, 0, 0},{0, 1}}
+	// };
+	// u16 triangle_indices[3] = {
+	// 	0,1,2
+	// };
+	// Mesh_primitive triangle_primitives = {
+	// 	triangle_vertices,
+	// 	sizeof(Vertex3d),
+	// 	3,
+	// 	triangle_indices,
+	// 	3,
+	// };
+	// // ADDING TRIANGLE TO THE MESHES LIST
+	// u32* triangle_mesh_uid = LIST_GET_DATA_AS(&init_data.meshes_uid_list, 0, u32);
+	// *triangle_mesh_uid = meshes_list.size;
+	// Dx_mesh* triangle_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+	// *triangle_mesh = dx11_init_mesh(dx, &triangle_primitives, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// ________________________
 	// Object3d* ogre2 =  LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
 	// *ogre2 = object3d(&ogre_mesh);
 
+	foreach(mfp_request_node, &init_data.mesh_from_primitives_requests, i)
+	{
+		Mesh_from_primitives_request* request = (Mesh_from_primitives_request*)mfp_request_node->data;
+		nextnode(mfp_request_node);
+
+		*request->p_mesh_uid = meshes_list.size;
+		Dx_mesh* current_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+		*current_mesh = dx11_init_mesh(dx, 
+		request->primitives,
+		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
+
 	Vertex3d test_plane_vertices[] =
 	{
-		{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f }},
-		{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f }},
-		{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f }},
-		{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f }}
+		{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f } },
+		{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f } },
+		{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f } },
+		{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f } }
 	};
 	u16 test_plane_indices[] =
 	{
@@ -364,10 +381,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	r32 fov = 1;
 	r32 fov2 = 1;
+	bool perspective_on = true;
 
 	//TODO: delta_time
 	r32 delta = 0.0f;
 	// MAIN LOOP ____________________________________________________________
+	
+	Object3d camera = {0};
 	global_running = 1;
 	while(global_running)
 	{
@@ -444,9 +464,44 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				case WM_SYSKEYUP:
 				case WM_KEYDOWN:
 				case WM_KEYUP:
-				break;
-				
-				break;
+				{
+                u32 vkcode = message.wParam;
+                u16 repeat_count = (u16)message.lParam;
+                b32 was_down = ((message.lParam & (1 <<  30)) != 0);
+                b32 is_down = ((message.lParam & (1 << 31)) == 0 );
+					if(message.message == WM_SYSKEYDOWN || message.message == WM_KEYDOWN)
+					{
+						if(message.wParam == 'A')
+							camera.pos.x += 1;
+						else if(message.wParam == 'D')
+							camera.pos.x -= 1;
+						else if(message.wParam == 'W')
+							camera.pos.z -= 1;
+						else if(message.wParam == 'S')
+							camera.pos.z += 1;
+						else if(message.wParam == 'Q')
+							camera.rotation.z -= PI32/180;
+						else if(message.wParam == 'E')
+							camera.rotation.z += PI32/180;
+						else if(message.wParam == 'U')
+							fov = fov/2;
+						else if(message.wParam == 'O')
+							fov = fov*2;
+						else if(message.wParam == 'P')
+							perspective_on = true;
+						// else if(message.wParam == 'I')
+						// else if(message.wParam == 'K')
+						// else if(message.wParam == 'L')
+						// else if(message.wParam == 'J')
+						// else if(message.wParam == 'T')
+						// else if(message.wParam == 'F')
+
+					}else{
+						// TranslateMessage(&message); 
+						// DispatchMessageA(&message); 
+					}
+
+				}break;
 				default:
 					TranslateMessage(&message);
 					DispatchMessageA(&message);
@@ -474,16 +529,16 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_bind_sampler(dx, &dx->sampler);
 
 			// RENDER HERE
+
 			// WORLD VIEW
 			view_matrix = 
-				XMMatrixTranslation( 0,0,0 )*
+				XMMatrixTranslation( camera.pos.x,camera.pos.y,camera.pos.z )*
 				XMMatrixRotationZ( 0 )*
 				XMMatrixRotationY(-(r32)input.cursor_pos.x / client_size.x )*
-				XMMatrixRotationX(-(r32)input.cursor_pos.y /client_size.y ) ;
+				XMMatrixRotationX(-(r32)input.cursor_pos.y / client_size.y ) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	
 			
 			// WORLD PROJECTION
-			bool perspective_on = false;
 			if(perspective_on)
 				projection_matrix = XMMatrixPerspectiveLH(fov2, fov2*aspect_ratio, fov, 100.0f);
 			else
@@ -499,9 +554,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					XMMatrixRotationX(0) *
 					XMMatrixRotationY(0) *
 					XMMatrixRotationZ(0) *
-					XMMatrixTranslation(0, 0, 1);
+					XMMatrixTranslation(0, 0, delta);
 				// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
-				// ogre->pos.z += 0.01f;
+				delta += 0.01f;
 				Dx_mesh* object_mesh = LIST_GET_DATA_AS(&meshes_list, object->mesh_uid, Dx_mesh);
 				dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, object_mesh, &object_transform_matrix);
 

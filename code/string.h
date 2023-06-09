@@ -83,3 +83,57 @@ string_to_bool(String s)
 			return false;
 	}
 }
+
+
+// THIS NEEDS THE MEMORY ARENA
+internal String 
+number_to_string(s32 n, Memory_arena* arena)
+{
+	u32 i=0;
+	String result = {0};
+	result.text = (char*)arena_push_size(arena, 0);
+	if(n < 0)
+	{ 
+		arena_push_data(arena, "-", 1);
+		n = -(n);
+		i++;
+	}
+	if(!n) // if number is 0
+	{
+		*(char*)arena_push_size(arena, 1) = '0';
+		arena_push_size(arena, 1); // 0 ending string
+		return result;
+	}
+	u8 digits = 0;
+	s32 temp = n;
+	while(temp)
+	{
+		temp = temp/10;
+		i++;
+		digits++;
+	}
+	arena_push_size(arena, digits);
+	result.length= i;
+	for(;digits; digits--)
+	{
+		result.text[i-1] = 48 + (n%10);
+		n = n/10;
+		i--;
+	}
+	arena_push_data(arena, "\0", 1);
+	return result;
+}
+
+// THIS NEEDS THE MEMORY ARENA
+internal String
+concat_strings(String s1, String s2, Memory_arena* arena)
+{
+	String result = {0};
+	result.length = s1.length + s2.length;
+	result.text = (char*)arena_push_size(arena, result.length);
+	copy_mem(s1.text, result.text, s1.length);
+	copy_mem(s2.text, &result.text[s1.length], s2.length);
+
+	arena_push_size(arena, 1); // 0 ending string
+	return result;
+}

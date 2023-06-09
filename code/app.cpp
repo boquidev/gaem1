@@ -20,10 +20,10 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 {
 
 	Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	triangle->mesh_uid = *memory->meshes.triangle_mesh_uid;
+	*triangle = object3d(*memory->meshes.triangle_mesh_uid, {}, {}, {1,1,1});
 
 	Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	ogre->mesh_uid = *memory->meshes.ogre_mesh_uid;
+	*ogre = object3d(*memory->meshes.ogre_mesh_uid,{}, {}, {1,1,1});
 	until(y, ARRAYCOUNT(memory->tilemap))
 	{
 		until(x, ARRAYCOUNT(memory->tilemap[y]))
@@ -123,7 +123,7 @@ void init(App_memory* memory, Init_data* init_data)
 		u32 primitives_count = meshes[m].primitives_count;
 		Gltf_primitive* Mesh_primitive = meshes[m].primitives;
 		//TODO: here i am assuming this mesh has only one primitive
-		primitives[m] = gltf_get_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+		primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
 		// for(u32 p=0; p<primitives_count; p++)
 		// {	
 		// }
@@ -146,19 +146,18 @@ void init(App_memory* memory, Init_data* init_data)
 	u16 triangle_indices[3] = {
 		0,1,2
 	};
-	Mesh_primitive triangle_primitives = {
-		triangle_vertices,
-		sizeof(Vertex3d),
+	
+	Mesh_primitive* triangle_primitives = ARENA_PUSH_STRUCT(memory->permanent_arena, Mesh_primitive);
+	*triangle_primitives = {
+		arena_push_data(memory->permanent_arena,&triangle_vertices,sizeof(triangle_vertices)),
+		sizeof(triangle_vertices[0]),
 		ARRAYCOUNT(triangle_vertices),
-		triangle_indices,
+		(u16*)arena_push_data(memory->permanent_arena, &triangle_indices, sizeof(triangle_indices)),
 		ARRAYCOUNT(triangle_indices),
 	};
+	memory->meshes.triangle_mesh_uid = push_mesh_from_primitives_request(memory, init_data, triangle_primitives);
 
-	u32* triangle_mesh_uid = LIST_PUSH_BACK_STRUCT(&init_data->meshes_uid_list, u32, memory->permanent_arena);
-	memory->meshes.triangle_mesh_uid = triangle_mesh_uid;
-
-	u32* ogre_mesh_uid = LIST_PUSH_BACK_STRUCT(&init_data->meshes_uid_list,u32, memory->permanent_arena);
-	memory->meshes.ogre_mesh_uid = ogre_mesh_uid;
+	memory->meshes.ogre_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/ogre.glb"));
 
 
 

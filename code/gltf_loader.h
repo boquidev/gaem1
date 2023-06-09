@@ -99,7 +99,7 @@ union Gltf_primitive
         u32 indices_count;
     };
     struct {
-        void* properties[7]; //TODO: update this each time a new var is added
+        void* properties[7]; //TODO: update this each time a new var is added to the struct above
     };
     //TODO:
     // V3* material; 
@@ -282,7 +282,7 @@ gltf_get_meshes(
 }
 
 internal Mesh_primitive
-gltf_get_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitive)
+gltf_primitives_to_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitive)
 {
     Mesh_primitive result = {0}; 
     result.vertex_size = sizeof(Vertex3d);
