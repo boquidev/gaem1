@@ -129,12 +129,12 @@ void init(App_memory* memory, Init_data* init_data)
 	memory->meshes.p_triangle_mesh_uid = push_mesh_from_primitives_request(memory, init_data, triangle_primitives);
 	
 	Vertex3d centered_plane_vertices[] =
-		{
-			{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f }},
-			{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f }},
-			{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f }},
-			{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f }}
-		};
+	{
+		{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f }},
+		{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f }},
+		{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f }},
+		{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f }}
+	};
 	Vertex3d plane_vertices[] = 
 	{
 		{ {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} },

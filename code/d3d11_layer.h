@@ -199,6 +199,9 @@ dx11_get_compiled_shader(String filename, Memory_arena* arena, char* entrypoint_
 		shader_compile_flags, 0,
 		&shader_blob, &error_blob
 	);
+	if(hr != S_OK){
+		OutputDebugStringA((char*)error_blob->GetBufferPointer());
+	}
 	ASSERTHR(hr);
 
 	File_data result =  {0};
@@ -311,7 +314,7 @@ dx11_create_rasterizer_state(D3D* dx, Dx11_rasterizer_state** result)
 	Dx11_rasterizer_desc desc = {0};
 	desc.FillMode = D3D11_FILL_SOLID; // WIREFRAME / SOLID
 	//D3D11_CULL_BACK | D3D11_CULL_FRONT | D3D11_CULL_NONE
-	desc.CullMode = D3D11_CULL_BACK; 
+	desc.CullMode = D3D11_CULL_NONE; 
 	hr = dx->device->CreateRasterizerState(&desc, result);
 	ASSERTHR(hr);
 }

@@ -365,6 +365,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	
 	// TODO: input backbuffer
 	User_input input = {0};
+	User_input last_input = {0};
 	memory.input = &input;
 
 
@@ -376,7 +377,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	r32 delta = 0.0f;
 	// MAIN LOOP ____________________________________________________________
 	
-	Object3d camera = {0};
 	global_running = 1;
 	while(global_running)
 	{
@@ -413,10 +413,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			GetCursorPos(&mousep);
 			ScreenToClient(global_main_window, &mousep);
 
-			input.cursor_pos.x = mousep.x;
-			input.cursor_pos.y = mousep.y;
+			// TODO: THIS IS TEMPORAL
+			RECT client_rect;
+			GetClientRect(global_main_window, &client_rect); 
+
+			Int2 client_center_pos = {
+				client_rect.left + ((client_rect.right - client_rect.left)/2),
+				client_rect.top + ((client_rect.bottom - client_rect.top)/2),
+			};
+			POINT center_point = { client_center_pos.x, client_center_pos.y };
+			ClientToScreen(global_main_window, &center_point);
+
+			if(input.test)
+				SetCursorPos(center_point.x, center_point.y);
+
+			input.cursor_pos = client_center_pos;
 		}
-		
+
 		// HANDLING MESSAGES
 		MSG message;
 		while(PeekMessageA(&message, NULL, 0, 0, PM_REMOVE))
@@ -435,11 +448,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				break;
 				case WM_LBUTTONDOWN:// just when the buttom is pushed
 				{
-					input.A = true;
+					input.A = 1;
 				}
 				break;
 				case WM_LBUTTONUP:
-					input.A = false;
+					input.A = 0;
 				break;
 				case WM_RBUTTONDOWN:
 				break;
@@ -454,36 +467,43 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				case WM_KEYDOWN:
 				case WM_KEYUP:
 				{
-                u32 vkcode = message.wParam;
-                u16 repeat_count = (u16)message.lParam;
-                b32 was_down = ((message.lParam & (1 <<  30)) != 0);
-                b32 is_down = ((message.lParam & (1 << 31)) == 0 );
-					if(message.message == WM_SYSKEYDOWN || message.message == WM_KEYDOWN)
+					u32 vkcode = message.wParam;
+					u16 repeat_count = (u16)message.lParam;
+					b32 was_down = ((message.lParam & (1 <<  30)) != 0);
+					b32 is_down = ((message.lParam & (1 << 31)) == 0 );
+					if(is_down != was_down)
 					{
+						OutputDebugStringA("aaaaaaaaaaaaaaaaaaaaaaa \n");
 						if(vkcode == 'A')
-							camera.pos.x += 1;
+							input.left = is_down;
 						else if(vkcode == 'D')
-							camera.pos.x -= 1;
+							input.right = is_down;
 						else if(vkcode == 'W')
-							camera.pos.z -= 1;
+							input.forward = is_down;
 						else if(vkcode == 'S')
-							camera.pos.z += 1;
-						else if(vkcode == 'Q')
-							camera.rotation.z -= PI32/180;
-						else if(vkcode == 'E')
-							camera.rotation.z += PI32/180;
-						else if(vkcode == 'U')
-							fov = fov/2;
-						else if(vkcode == 'O')
-							fov = fov*2;
-						else if(vkcode == 'P')
-							perspective_on = !perspective_on;
-						// else if(message.wParam == 'I')
-						// else if(message.wParam == 'K')
-						// else if(message.wParam == 'L')
-						// else if(message.wParam == 'J')
-						// else if(message.wParam == 'T')
-						// else if(message.wParam == 'F')
+							input.backward = is_down;
+						
+						if(is_down)
+						{
+							if(vkcode == 'Q')
+								memory.camera_rotation.z -= PI32/180;
+							else if(vkcode == 'E')
+								memory.camera_rotation.z += PI32/180;
+							else if(vkcode == 'U')
+								fov = fov/2;
+							else if(vkcode == 'O')
+								fov = fov*2;
+							else if(vkcode == 'P')
+								perspective_on = !perspective_on;
+							// else if(message.wParam == 'I')
+							// else if(message.wParam == 'K')
+							// else if(message.wParam == 'L')
+							// else if(message.wParam == 'J')
+							// else if(message.wParam == 'T')
+							// else if(message.wParam == 'F')
+							else if(vkcode == 'M')
+								input.test = !input.test;
+						}
 
 						b32 AltKeyWasDown = ((message.lParam & (1 << 29)));
 						if ((vkcode == VK_F4) && AltKeyWasDown)
@@ -523,8 +543,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 			// WORLD VIEW
 			view_matrix = 
-				XMMatrixTranslation( camera.pos.x,camera.pos.y,camera.pos.z )*
-				XMMatrixRotationZ( 0 )*
+				XMMatrixTranslation( memory.camera_pos.x,memory.camera_pos.y,memory.camera_pos.z )*
+				XMMatrixRotationZ( memory.camera_rotation.z )*
 				XMMatrixRotationY(-(r32)input.cursor_pos.x / client_size.x )*
 				XMMatrixRotationX(-(r32)input.cursor_pos.y / client_size.y ) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	

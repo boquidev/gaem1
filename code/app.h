@@ -20,6 +20,12 @@ struct User_input
 {
 	Int2 cursor_pos;
 	b32 A;
+	b32 forward;
+	b32 backward;
+	b32 left;
+	b32 right;
+
+	b32 test;
 };
 
 //TODO: create a meshes array ??
@@ -78,6 +84,9 @@ struct App_memory
 
 	Meshes meshes;
 	Textures textures;
+
+	V3 camera_pos;
+	V3 camera_rotation;
 
 	Color32 tilemap[32][32];
 	User_input* input;
