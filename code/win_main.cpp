@@ -347,7 +347,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
-	dx11_create_rasterizer_state(dx, &dx->rasterizer_state);
+	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_NONE);
 	dx11_create_blend_state(dx, &pipeline_3d.blend_state, true);
 	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, true);
 

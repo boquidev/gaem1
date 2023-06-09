@@ -32,9 +32,6 @@ void update(App_memory* memory)
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)
 {
-	// Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	// *triangle = {*memory->meshes.p_triangle_mesh_uid, {1,1,1}, {0,0,1}};
-
 	Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 	ogre->mesh_uid = *memory->meshes.p_ogre_mesh_uid;
 	ogre->tex_uid = *memory->textures.p_white_tex_uid;
@@ -63,7 +60,7 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 
 			Object3d* plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 			*plane = {
-				*memory->meshes.p_plane_mesh_uid, *memory->textures.p_white_tex_uid,
+				*memory->meshes.p_plane_mesh_uid, *memory->textures.p_default_tex_uid,
 				{(r32)ARRAYCOUNT(memory->tilemap[y])/screen_size.x, (r32)ARRAYCOUNT(memory->tilemap)/screen_size.y, 1}, 
 				{(r32)x*ARRAYCOUNT(memory->tilemap[y])/screen_size.x,(r32)y*ARRAYCOUNT(memory->tilemap)/screen_size.y,  0.01f}, 
 				{0,0,0}, memory->tilemap[y][x]
@@ -71,6 +68,7 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 			//draw(rectangle_id, etc...); 
 		}
 	}
+	
 	Int2 rect_pos = memory->input->cursor_pos;
 	// draw_rectangle(rect_pos.x, rect_pos.y, 15,15);
 }
@@ -127,12 +125,6 @@ void init(App_memory* memory, Init_data* init_data)
 	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
 
 */
-	
-	// DEFAULT TEXTURE
-	// u32 test_tex[] = {
-	// 	0x00000000, 0xffff0000,
-	// 	0xff00ff00, 0xff0000ff,
-	// };
 	u32 default_tex_pixels[] = {
 		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,

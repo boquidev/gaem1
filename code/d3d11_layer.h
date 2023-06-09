@@ -308,15 +308,14 @@ dx11_create_sampler(D3D* dx, Dx11_sampler_state** result)
 	HRESULT hr = dx->device->CreateSamplerState(&desc, result);
 	ASSERTHR(hr);
 }
-
+// fill modes: D3D11_FILL_WIREFRAME / D3D11_FILL_SOLID ;  cull modes: D3D11_CULL_BACK | D3D11_CULL_FRONT | D3D11_CULL_NONE
 internal void
-dx11_create_rasterizer_state(D3D* dx, Dx11_rasterizer_state** result)
+dx11_create_rasterizer_state(D3D* dx, Dx11_rasterizer_state** result, D3D11_FILL_MODE fill_mode, D3D11_CULL_MODE cull_mode)
 {
 	HRESULT hr = {0};
 	Dx11_rasterizer_desc desc = {0};
-	desc.FillMode = D3D11_FILL_SOLID; // WIREFRAME / SOLID
-	//D3D11_CULL_BACK | D3D11_CULL_FRONT | D3D11_CULL_NONE
-	desc.CullMode = D3D11_CULL_BACK; 
+	desc.FillMode = fill_mode;
+	desc.CullMode = cull_mode;
 	hr = dx->device->CreateRasterizerState(&desc, result);
 	ASSERTHR(hr);
 }
@@ -346,10 +345,11 @@ dx11_create_depth_stencil_state(D3D* dx, Dx11_depth_stencil_state** result, bool
 {
 	HRESULT hr = {0};
 	D3D11_DEPTH_STENCIL_DESC desc = {0};
-	desc.StencilEnable = false;
-	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	desc.DepthEnable = enable; //TODO: TEST THIS
-	desc.DepthFunc = D3D11_COMPARISON_LESS;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	// D3D11_COMPARISON_GREATER/D3D11_COMPARISON_LESS/D3D11_COMPARISON_EQUAL
+	desc.DepthFunc = D3D11_COMPARISON_LESS; 
+	desc.StencilEnable = false; // define FrontFace and BackFace if i want to enable
 	desc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK,
 	desc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK,
 	// to enable must set this 2
