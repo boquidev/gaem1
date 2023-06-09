@@ -33,8 +33,9 @@ typedef double r64;
 #else
     #define ASSERT(expression)
 #endif
+#define ASSERTHR(hr) ASSERT(SUCCEEDED(hr))
 
-#define until(i, range) for(int i=0; i<range;i++)
+#define until(i, range) for(u32 i=0; i<range;i++)
 
 #define KILOBYTES(value) ((value) * 1024LL)
 #define MEGABYTES(value) (KILOBYTES(value) * 1024LL)
@@ -52,3 +53,5 @@ typedef double r64;
 #define c_linkage extern "C"
 #define c_linkage_begin extern "C"{
 #define c_linkage_end }
+
+#endif
