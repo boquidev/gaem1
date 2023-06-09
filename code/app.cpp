@@ -4,10 +4,10 @@ void update(App_memory* memory)
 {
 	u8 red = 0;
 	u8 green = 0;
-	u8 color_step = 255/ARRAY_COUNT(memory->tilemap);
-	until(y, ARRAY_COUNT(memory->tilemap))
+	u8 color_step = 255/ARRAYCOUNT(memory->tilemap);
+	until(y, ARRAYCOUNT(memory->tilemap))
 	{
-		until(x, ARRAY_COUNT(memory->tilemap[y]))
+		until(x, ARRAYCOUNT(memory->tilemap[y]))
 		{
 			memory->tilemap[y][x] = {red, green, 128, 255};
 			red += color_step;
@@ -16,12 +16,14 @@ void update(App_memory* memory)
 	}
 }
 
-void render(App_memory* memory, Int2 screen_size)
+void render(App_memory* memory, Int2 screen_size, List* render_list)
 {
-	until(y, ARRAY_COUNT(memory->tilemap))
+	until(y, ARRAYCOUNT(memory->tilemap))
 	{
-		until(x, ARRAY_COUNT(memory->tilemap[y]))
+		until(x, ARRAYCOUNT(memory->tilemap[y]))
 		{
+			Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+
 			//draw_rectangle(x, y, 10,10, tilemap[y][x]);
 			// or maybe
 			//draw(rectangle_id, etc...);
@@ -50,7 +52,7 @@ void init(App_memory* memory, Init_data* init_data)
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
 	};
 	
-	dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAY_COUNT(ied), &pipeline_3d.input_layout);
+	dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &pipeline_3d.input_layout);
 	
 		// PIXEL SHADER
 	File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
@@ -125,10 +127,11 @@ void init(App_memory* memory, Init_data* init_data)
 	primitives[0].vertices, primitives[0].vertices_count, primitives[0].vertex_size,
 	primitives[0].indices, primitives[0].indices_count,
 	D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	Object3d* ogre = list_push_back_struct(&pipeline_3d.list, Object3d, permanent_arena);
+	Object3d* ogre = LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
 	*ogre = object3d(&ogre_mesh);
-	// Object3d* ogre2 =  list_push_back_struct(&pipeline_3d.list, Object3d, permanent_arena);
+	// Object3d* ogre2 =  LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
 	// *ogre2 = object3d(&ogre_mesh);
+*/
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
@@ -141,10 +144,11 @@ void init(App_memory* memory, Init_data* init_data)
 	Mesh_primitive triangle_primitives = {
 		triangle_vertices,
 		sizeof(Vertex3d),
-		3,
+		ARRAYCOUNT(triangle_vertices),
 		triangle_indices,
-		3,
+		ARRAYCOUNT(triangle_indices),
 	};
+/*
 	Dx_mesh triangle_mesh = dx11_init_mesh(dx, 
 		triangle_vertices, 3, sizeof(Vertex3d), 
 		triangle_indices, 3, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -162,8 +166,8 @@ void init(App_memory* memory, Init_data* init_data)
 		1,3,2
 	};
 	Dx_mesh plane_mesh = dx11_init_mesh(dx,
-		test_plane_vertices, ARRAY_COUNT(test_plane_vertices), sizeof(Vertex3d),
-		test_plane_indices, ARRAY_COUNT(test_plane_indices), 
+		test_plane_vertices, ARRAYCOUNT(test_plane_vertices), sizeof(Vertex3d),
+		test_plane_indices, ARRAYCOUNT(test_plane_indices), 
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
 	);
 	

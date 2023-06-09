@@ -244,7 +244,7 @@ scan_json_to_structure(Json_buffer* buffer, Memory_arena* arena, Json_var* curre
                 }
                 case '\"':
                 {
-                    Json_var* new_var = list_push_back_struct(&current_var->object_keys, Json_var, arena);
+                    Json_var* new_var = LIST_PUSH_BACK_STRUCT(&current_var->object_keys, Json_var, arena);
                     json_scan_string(buffer, arena, &new_var->key);
 
                     scan_json_to_structure(buffer, arena, new_var);
@@ -289,7 +289,7 @@ scan_json_to_structure(Json_buffer* buffer, Memory_arena* arena, Json_var* curre
                 case '{':
                 {   //TODO: this is useless for now
                     // current_var->list_type = JSON_VAR_OBJECT;
-                    Json_var* new_var = list_push_back_struct(&current_var->list,Json_var, arena); 
+                    Json_var* new_var = LIST_PUSH_BACK_STRUCT(&current_var->list,Json_var, arena); 
                     ASSERT(current_var->list.size);
                     new_var->key = number_to_string(current_var->list.size-1, arena);
                     scan_json_to_structure(buffer, arena, new_var);
@@ -308,7 +308,7 @@ scan_json_to_structure(Json_buffer* buffer, Memory_arena* arena, Json_var* curre
                         )
                     { //TODO: this is useless for now
                         // current_var->list_type = JSON_VAR_VALUE;
-                        Json_var* new_var = list_push_back_struct(&current_var->list, Json_var, arena); 
+                        Json_var* new_var = LIST_PUSH_BACK_STRUCT(&current_var->list, Json_var, arena); 
                         ASSERT(current_var->list.size);
                         new_var->key = number_to_string(current_var->list.size-1, arena);
                         scan_json_to_structure(buffer, arena, new_var);

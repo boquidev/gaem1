@@ -98,32 +98,6 @@ struct Dx_mesh
 	ID3D11ShaderResourceView* texture_view;
 };
 
-// scale must be 1,1,1 by default
-struct Object3d
-{
-	Dx_mesh* mesh;
-	V3 pos;
-	V3 rotation;
-	V3 scale;
-};
-internal Object3d
-object3d(Dx_mesh* mesh, V3 pos, V3 rotation, V3 scale)
-{
-	return {mesh, pos, rotation, scale};
-}
-// this is to set the scale to 1 by default
-internal Object3d
-object3d(Dx_mesh* mesh)
-{
-    return {mesh, {0}, {0}, {1,1,1}};
-}
-// this is to set the scale to 1 by default
-internal Object3d
-init_object3d()
-{
-    return {{0}, {0}, {0}, {1,1,1}};
-}
-
 internal Dx_mesh
 OLD_dx11_init_mesh(D3D* dx, Mesh_primitive* data, D3D11_PRIMITIVE_TOPOLOGY topology)
 {
@@ -190,6 +164,15 @@ dx11_init_mesh(D3D* dx, void* vertices, u32 v_count, int v_size, u16* indices, u
 	result.vertex_size = v_size;
 	result.indices_count = i_count;
 	return result;
+}
+internal Dx_mesh
+dx11_init_mesh(D3D* dx, Mesh_primitive* primitives, D3D11_PRIMITIVE_TOPOLOGY topology)
+{
+	return dx11_init_mesh(dx, 
+		primitives->vertices, primitives->vertices_count, primitives->vertex_size, 
+		primitives->indices, primitives->indices_count,
+		topology
+	);
 }
 
 internal File_data

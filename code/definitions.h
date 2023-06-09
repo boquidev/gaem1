@@ -37,6 +37,12 @@ typedef double r64;
 
 #define until(i, range) for(u32 i=0; i<range;i++)
 
+// node is the name you want to use, list is a List*, i is the iterator name
+#define foreach(node_name, list, i) \
+    List_node* node_name = (list)->root; \
+    for(s32 i=0; i<(s32)(list)->size; i++)
+#define nextnode(node) node = node->next_node
+
 #define KILOBYTES(value) ((value) * 1024LL)
 #define MEGABYTES(value) (KILOBYTES(value) * 1024LL)
 #define GIGABYTES(value) (MEGABYTES(value) * 1024LL)
@@ -48,7 +54,7 @@ typedef double r64;
 #define SCAN(p, type) *(type*)p; \
     p+=sizeof(type);
 
-#define ARRAY_COUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
+#define ARRAYCOUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))

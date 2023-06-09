@@ -104,6 +104,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	Memory_arena* temp_arena = &arena2;
 
 	App_memory memory = {0};
+	memory.temp_arena = temp_arena;
+	memory.permanent_arena = permanent_arena;
 
 	// DIRECTX11
 	// INITIALIZE DIRECT3D
@@ -166,6 +168,25 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dxgi_adapter->Release();
 		dxgi_device->Release();
 	}
+	
+	// LOADING APP DLL
+	App_dll app = {0};
+	{
+		String dll_name = string("app.dll");
+		HMODULE dll = LoadLibraryA(dll_name.text);
+		ASSERT(dll);
+		app.update = (update_type())GetProcAddress(dll, "update");
+		app.render = (render_type())GetProcAddress(dll, "render");
+		app.init = (init_type())GetProcAddress(dll, "init");
+		ASSERT(app.update);
+		ASSERT(app.render);
+		ASSERT(app.init);
+	}
+
+	// APP INITIALIZE 
+	Init_data init_data = {0};
+	app.init(&memory, &init_data);
+
 	//TODO: FIND A WAY TO MAKE THIS CALLS FROM THE APP LAYER
 	Dx11_render_pipeline pipeline_3d = {0};
 	// GETTING COMPILED SHADERS
@@ -182,7 +203,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
 	};
 	
-	dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAY_COUNT(ied), &pipeline_3d.input_layout);
+	dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &pipeline_3d.input_layout);
 	
 		// PIXEL SHADER
 	File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
@@ -233,40 +254,46 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_blend_state(dx, &pipeline_3d.blend_state, false);
 	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, true);
 
+	// MESHES
+	List meshes_list = {0};
+
 	// TEST LOADING A MODEL
 
-	File_data ogre_file = win_read_file(string("data/ogre.glb"), temp_arena);
-	GLB glb = {0};
-	glb_get_chunks(ogre_file.data, 
-		&glb);
-	{ // THIS IS JUST FOR READABILITY OF THE JSON FILE
-		void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
-		u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
-		win_write_file(string("data/ogre.json"), formated_json, new_size);
-		arena_pop_size(temp_arena, MEGABYTES(4));
-	}
-	u32 meshes_count = 0;
+	// File_data ogre_file = win_read_file(string("data/ogre.glb"), temp_arena);
+	// GLB glb = {0};
+	// glb_get_chunks(ogre_file.data, 
+	// 	&glb);
+	// { // THIS IS JUST FOR READABILITY OF THE JSON FILE
+	// 	void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
+	// 	u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
+	// 	win_write_file(string("data/ogre.json"), formated_json, new_size);
+	// 	arena_pop_size(temp_arena, MEGABYTES(4));
+	// }
+	// u32 meshes_count = 0;
 
-	Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
+	// Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
 
-	Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
-	for(u32 m=0; m<meshes_count; m++)
-	{
-		u32 primitives_count = meshes[m].primitives_count;
-		Gltf_primitive* Mesh_primitive = meshes[m].primitives;
-		//TODO: here i am assuming this mesh has only one primitive
-		primitives[m] = gltf_get_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
-		// for(u32 p=0; p<primitives_count; p++)
-		// {	
-		// }
-	}
-	Dx_mesh ogre_mesh = dx11_init_mesh(dx, 
-	primitives[0].vertices, primitives[0].vertices_count, primitives[0].vertex_size,
-	primitives[0].indices, primitives[0].indices_count,
-	D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	Object3d* ogre = list_push_back_struct(&pipeline_3d.list, Object3d, permanent_arena);
-	*ogre = object3d(&ogre_mesh);
-	// Object3d* ogre2 =  list_push_back_struct(&pipeline_3d.list, Object3d, permanent_arena);
+	// Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
+	// for(u32 m=0; m<meshes_count; m++)
+	// {
+	// 	u32 primitives_count = meshes[m].primitives_count;
+	// 	Gltf_primitive* Mesh_primitive = meshes[m].primitives;
+	// 	//TODO: here i am assuming this mesh has only one primitive
+	// 	primitives[m] = gltf_get_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+	// 	// for(u32 p=0; p<primitives_count; p++)
+	// 	// {	
+	// 	// }
+	// }
+
+	// // ADDING OGRE MESH TO THE MESHES LIST
+	// Dx_mesh* ogre_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+	// *ogre_mesh = dx11_init_mesh(dx, 
+	// primitives[0].vertices, primitives[0].vertices_count, primitives[0].vertex_size,
+	// primitives[0].indices, primitives[0].indices_count,
+	// D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// ________________________
+	// Object3d* ogre2 =  LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
 	// *ogre2 = object3d(&ogre_mesh);
 
 	Vertex3d triangle_vertices [3] = {
@@ -284,9 +311,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		triangle_indices,
 		3,
 	};
-	Dx_mesh triangle_mesh = dx11_init_mesh(dx, 
-		triangle_vertices, 3, sizeof(Vertex3d), 
-		triangle_indices, 3, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	init_data.test_mesh_uid = meshes_list.size;
+	Dx_mesh* triangle_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+	*triangle_mesh = dx11_init_mesh(dx, &triangle_primitives, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	Vertex3d test_plane_vertices[] =
 	{
@@ -301,25 +328,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		1,3,2
 	};
 	Dx_mesh plane_mesh = dx11_init_mesh(dx,
-		test_plane_vertices, ARRAY_COUNT(test_plane_vertices), sizeof(Vertex3d),
-		test_plane_indices, ARRAY_COUNT(test_plane_indices), 
+		test_plane_vertices, ARRAYCOUNT(test_plane_vertices), sizeof(Vertex3d),
+		test_plane_indices, ARRAYCOUNT(test_plane_indices), 
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
 	);
-	
-
-	// LOADING APP DLL
-	App_dll app = {0};
-	{
-		String dll_name = string("app.dll");
-		HMODULE dll = LoadLibraryA(dll_name.text);
-		ASSERT(dll);
-		app.update = (update_type())GetProcAddress(dll, "update");
-		app.render = (render_type())GetProcAddress(dll, "render");
-		app.init = (init_type())GetProcAddress(dll, "init");
-		ASSERT(app.update);
-		ASSERT(app.render);
-		ASSERT(app.init);
-	}
 
 	// FRAME CAPPING SETUP
 	UINT desired_scheduler_ms = 1;
@@ -341,9 +353,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 #endif
 	LARGE_INTEGER last_counter;
 	QueryPerformanceCounter(&last_counter);
-
-	// APP INITIALIZE 
-	app.init(&memory);
 	
 	// TODO: input backbuffer
 	User_input input = {0};
@@ -444,7 +453,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		app.update(&memory);
 
 		// APP RENDER
-		app.render(&memory, client_size);
+		List render_list = {0};
+		app.render(&memory, client_size, &render_list);
 
 		Color bg_color = {0.1f, 0.4f, 0.5f, 1};
 		if(dx->render_target_view)
@@ -461,32 +471,39 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_bind_sampler(dx, &dx->sampler);
 
 			// RENDER HERE
+			// WORLD VIEW
 			view_matrix = 
 				XMMatrixTranslation( 0,0,0 )*
 				XMMatrixRotationZ( 0 )*
 				XMMatrixRotationY(-(r32)input.cursor_pos.x / client_size.x )*
-				XMMatrixRotationX((r32)input.cursor_pos.y /client_size.y ) ;
+				XMMatrixRotationX(-(r32)input.cursor_pos.y /client_size.y ) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	
 			
-			
-			bool perspective_on = true;
+			// WORLD PROJECTION
+			bool perspective_on = false;
 			if(perspective_on)
 				projection_matrix = XMMatrixPerspectiveLH(fov2, fov2*aspect_ratio, fov, 100.0f);
 			else
 				projection_matrix = XMMatrixOrthographicLH(fov2*4, fov2*4*aspect_ratio, fov, 100.0f);
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
 
-			XMMATRIX object_transform_matrix =   //IDENTITY_MATRIX;
-				XMMatrixScaling(1,1,1)*
-				XMMatrixRotationX(0) *
-				XMMatrixRotationY(0) *
-				XMMatrixRotationZ(0) *
-				XMMatrixTranslation(0, 0, ogre->pos.z);
-			dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
-			ogre->pos.z += 0.01f;
+			// OBJECT TRANSFORM
+			foreach(object_node, &render_list, i)
+			{
+				Object3d* object = (Object3d*)object_node->data;
+				XMMATRIX object_transform_matrix =   //IDENTITY_MATRIX;
+					XMMatrixScaling(1,1,1)*
+					XMMatrixRotationX(0) *
+					XMMatrixRotationY(0) *
+					XMMatrixRotationZ(0) *
+					XMMatrixTranslation(0, 0, 1);
+				// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
+				// ogre->pos.z += 0.01f;
+				Dx_mesh* object_mesh = LIST_GET_DATA_AS(&meshes_list, object->mesh_uid, Dx_mesh);
+				dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, object_mesh, &object_transform_matrix);
 
-			dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &triangle_mesh, &object_transform_matrix);
-
+				nextnode(object_node);
+			}
 			// PRESENT RENDERING
 			hr = dx->swap_chain->Present(1,0);
 			ASSERTHR(hr);

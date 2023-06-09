@@ -182,7 +182,7 @@ list_push_back_size(List* list, u32 size, Memory_arena* arena)
 	new_node->size = size;
 	return new_node->data;
 }
-#define list_push_back_struct(list, type, arena) (type*)list_push_back_size(list, sizeof(type), arena);
+#define LIST_PUSH_BACK_STRUCT(list, type, arena) (type*)list_push_back_size(list, sizeof(type), arena);
 
 internal void*
 list_push_back_data(List* list,void* data, u32 size, Memory_arena* arena)
@@ -217,7 +217,7 @@ list_push_front_size(List* list, u32 size, Memory_arena* arena)
 	new_node->size = size;
 	return new_node->data;
 }
-#define list_push_front_struct(list, type, arena) (type*)list_push_front_size(list, sizeof(type), arena);
+#define LIST_PUSH_FRONT_STRUCT(list, type, arena) (type*)list_push_front_size(list, sizeof(type), arena);
 
 internal void*
 list_push_front_data(List* list,void* data, u32 size, Memory_arena* arena)
