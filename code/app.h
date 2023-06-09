@@ -94,7 +94,7 @@ struct App_memory
 	V3 camera_pos;
 	V3 camera_rotation;
 
-	Color32 tilemap[32][32];
+	Color tilemap[32][32];
 	User_input* input;
 
 	b32 is_window_in_focus;

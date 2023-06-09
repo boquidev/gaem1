@@ -5,7 +5,7 @@ void update(App_memory* memory)
 	User_input* input = memory->input;
 
 	r32 delta_time = 1;
-	r32 camera_speed = 0.001f;
+	r32 camera_speed = 0.01f;
 
 	memory->camera_pos.x += (input->right - input->left) * delta_time * camera_speed;
 	memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
@@ -15,14 +15,14 @@ void update(App_memory* memory)
 	memory->camera_rotation.y += (r32)input->cursor_speed.y / 500;
 
 
-	u8 red = 0;
-	u8 green = 0;
-	u8 color_step = 255/ARRAYCOUNT(memory->tilemap);
+	r32 green = 0;
+	r32 color_step = 1.0f/ARRAYCOUNT(memory->tilemap);
 	until(y, ARRAYCOUNT(memory->tilemap))
 	{
+		r32 red = 0;
 		until(x, ARRAYCOUNT(memory->tilemap[y]))
 		{
-			memory->tilemap[y][x] = {red, green, 128, 255};
+			memory->tilemap[y][x] = {red, green, 0, 1};
 			red += color_step;
 		}
 		green += color_step;
@@ -55,10 +55,10 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 
 			Object3d* plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 			*plane = {
-				*memory->meshes.p_plane_mesh_uid, *memory->textures.p_test_uid,
+				*memory->meshes.p_plane_mesh_uid, *memory->textures.p_white_tex_uid,
 				{(r32)ARRAYCOUNT(memory->tilemap[y])/screen_size.x, (r32)ARRAYCOUNT(memory->tilemap)/screen_size.y, 1}, 
 				{(r32)x*ARRAYCOUNT(memory->tilemap[y])/screen_size.x,(r32)y*ARRAYCOUNT(memory->tilemap)/screen_size.y,  0.01f}, 
-				{0,0,0},
+				{0,0,0}, memory->tilemap[y][x]
 			};
 			//draw(rectangle_id, etc...); 
 		}

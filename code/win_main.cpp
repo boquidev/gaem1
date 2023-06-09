@@ -41,7 +41,7 @@ win_main_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 		case WM_ACTIVATE:
 			// Check if the window is being activated or deactivated
 			
-			OutputDebugString(bool_to_string((wparam != WA_INACTIVE)).text);
+			// OutputDebugString(bool_to_string((wparam != WA_INACTIVE)).text);
 		break;
 		case WM_MOUSEWHEEL:
 		case WM_LBUTTONDBLCLK:
@@ -248,12 +248,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	dx11_create_ps(dx, shaders_3d_compiled_ps, &pipeline_3d.ps);
 
-	// CREATING CONSTANT_BUFFER
+	// CREATING CONSTANT BUFFER
+	// OBJECT TRANSFORM CONSTANT BUFFER
 	D3D_constant_buffer object_buffer = {0};
 	dx11_create_and_bind_constant_buffer(
 		dx, &object_buffer, sizeof(XMMATRIX), OBJECT_BUFFER_REGISTER_INDEX, 0
 	);
-	// WORLD_VIEW_BUFFER_REGISTER_INDEX
+	// WORLD VIEW BUFFER
 	XMMATRIX IDENTITY_MATRIX = {
 		1,0,0,0,
 		0,1,0,0,
@@ -261,23 +262,25 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		0,0,0,1
 	};
 	D3D_constant_buffer view_buffer = {0};
-	XMMATRIX view_matrix; // this will change in main loop
+	XMMATRIX view_matrix; // this will be updated in main loop
 	dx11_create_and_bind_constant_buffer(
 		dx, &view_buffer, sizeof(XMMATRIX), WORLD_VIEW_BUFFER_REGISTER_INDEX, 0
 	);
 
-	// WORLD_PROJECTION_BUFFER_REGISTER_INDEX
+	// WORLD PROJECTION BUFFER
 	D3D_constant_buffer projection_buffer = {0};
-	XMMATRIX projection_matrix;
+	XMMATRIX projection_matrix; // this will be updated in main loop
 	dx11_create_and_bind_constant_buffer(
 		dx, &projection_buffer, sizeof(XMMATRIX), WORLD_PROJECTION_BUFFER_REGISTER_INDEX, 0
 	);
 
-	// DEFAULT TEXTURE
-	// u32 test_tex[] = {
-	// 	0x00000000, 0xffff0000,
-	// 	0xff00ff00, 0xff0000ff,
-	// };
+	D3D_constant_buffer object_color_buffer = {0};
+	Color white = {1.0f, 1.0f, 1.0f, 1.0f};
+	dx11_create_and_bind_constant_buffer(
+		dx, &object_color_buffer, sizeof(Color), OBJECT_COLOR_BUFFER_REGISTER_INDEX, &white
+	);
+	
+	// TODO: move this to the app side when i am able to create pipelines there
 	u32 white_tex_pixels[] = {
 		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,
@@ -487,7 +490,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					b32 is_down = ((message.lParam & (1 << 31)) == 0 );
 					if(is_down != was_down)
 					{
-						OutputDebugStringA("aaaaaaaaaaaaaaaaaaaaaaa \n");
 						if(vkcode == 'A')
 							input.left = is_down;
 						else if(vkcode == 'D')
@@ -580,6 +582,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			foreach(object_node, &render_list, i)
 			{
 				Object3d* object = (Object3d*)object_node->data;
+				ASSERT(object->color.a); // FORGOR TO SET THE COLOR
+				ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
 				XMMATRIX object_transform_matrix =   //IDENTITY_MATRIX;
 					XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
 					XMMatrixRotationX(object->rotation.x) *
@@ -589,8 +593,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
 				delta += 0.01f;
 				Dx_mesh* object_mesh = LIST_GET_DATA_AS(&meshes_list, object->mesh_uid, Dx_mesh);
-
 				Dx11_texture_view** texture_view = LIST_GET_DATA_AS(&textures_list, object->tex_uid,Dx11_texture_view*);
+				dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 				
 				//TODO: maybe(actually probably should do it) decouple mesh with texture
 				dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, object_mesh, texture_view, &object_transform_matrix);
