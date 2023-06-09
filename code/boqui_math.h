@@ -1,6 +1,17 @@
 #ifndef MATH_H
 #define MATH_H
 
+#define POW(a, b) math_pow(a, b)
+#define SQRT(a) math_sqrt(a)
+#define ABS(x) math_abs(x)
+#define SINF(a) sinf(a)
+#define COSF(a) cosf(a)
+#define TANF(a) tanf(a)
+#define ASINF(a) asinf(a)
+#define ACOSF(a) acosf(a)
+#define ATANF(a) atanf(a)
+#define ATAN2F(y,x) atan2f(y,x)
+
 internal u32
 round_to_ui32(r32 n)
 {
@@ -59,7 +70,7 @@ math_sqrt(r32 n)
     ASSERT(n >= 0);
     r32 r = n/2;
     r32 precision = n/1000;
-    while(math_abs(n-(r*r)) > precision)
+    while(ABS(n-(r*r)) > precision)
     {
         r = (r+(n/r))/2;
     }
@@ -85,7 +96,7 @@ struct Int2
     s32 y;
 };
 
-internal r32 magnitude(r32 x, r32 y){return math_sqrt(x*x + y*y);}
+internal r32 magnitude(r32 x, r32 y){return SQRT(x*x + y*y);}
 internal r32 magnitude(V2 v){return magnitude(v.x, v.y);}
 internal r32 magnitude(Int2 v){return magnitude((r32)v.x, (r32)v.y);}
 
@@ -156,9 +167,9 @@ v2_angle(V2 v)
         // if(v.y < 0)
         //     return atanf(-v.y / v.x);
         // else
-            return atan2f(v.y, -v.x) ;
+            return ATAN2F(v.y, -v.x) ;
     else 
-        return atan2f(v.y, -v.x);
+        return ATAN2F(v.y, -v.x);
 }
 
 
@@ -255,10 +266,45 @@ rect(u32 px, u32 py, u32 sx, u32 sy)
 }
 
 internal r32
-snap_to_pixel_grid(r32 value, r32 delta)
+snap_to_grid(r32 value, r32 delta)
 {
     r32 difference = value - (r32)((s32)(value/delta));
     return value - difference;
 }
+
+bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3* closes_point) {
+    r32 a = POW(line_v.x, 2) + POW(line_v.y, 2) + POW(line_v.z, 2);
+    r32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
+                    line_v.y * (line_0.y - sphere_center.y) +
+                    line_v.z * (line_0.z - sphere_center.z));
+    r32 c = POW(line_0.x - sphere_center.x, 2) +
+               POW(line_0.y - sphere_center.y, 2) +
+               POW(line_0.z - sphere_center.z, 2) -
+               POW(sphere_radius, 2);
+
+    r32 discriminant = POW(b, 2) - 4 * a * c;
+
+    b32 result = false;
+    if (discriminant < 0) {
+        result = false;
+    } else {
+        r32 discriminant_sqrt = SQRT(discriminant);
+
+        r32 t1 = (-b + discriminant_sqrt) / (2 * a);
+        r32 t2 = (-b - discriminant_sqrt) / (2 * a);
+
+        if( t1 > 0 && t2 > 0)
+        {
+            r32 t = MIN(t1,t2);
+            *closes_point = {
+                line_0.x + t*line_v.x,
+                line_0.y + t*line_v.y,
+                line_0.z + t*line_v.z
+            };
+        }
+    }
+    return result;
+}
+
 
 #endif
