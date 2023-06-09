@@ -42,6 +42,12 @@ typedef double r64;
 #define GIGABYTES(value) (MEGABYTES(value) * 1024LL)
 #define TERABYTES(value) (GIGABYTES(value) * 1024LL)
 
+#define BUFFER_GET_POS(buffer) (buffer->data+buffer->pos)
+
+
+#define SCAN(p, type) *(type*)p; \
+    p+=sizeof(type);
+
 #define ARRAY_COUNT(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 #define MIN(a,b) (((a)<(b))?(a):(b))

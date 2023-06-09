@@ -1,18 +1,14 @@
 #include "pch.h"
-#include "definitions.h"
 #include "app.h"
+#include "gltf_loader.h"
+
+#include "win_functions.h"
 
 #include "d3d11_layer.h"
 
 
 HWND global_main_window = 0;
 b32 global_running = 0;
-
-struct File_data
-{
-	void* data;
-	u32 size;
-};
 
 struct App_dll
 {
@@ -58,37 +54,6 @@ win_main_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 	return result;
 }
 
-internal File_data 
-win_read_file(String filename, Memory_arena* arena)
-{
-	File_data result = {0};
-
-	HANDLE file_handle = CreateFileA(filename.text, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-	if(file_handle == INVALID_HANDLE_VALUE)
-	{
-		DWORD error = GetLastError();
-		ASSERT(false);
-	}
-	LARGE_INTEGER file_size;
-	if( GetFileSizeEx(file_handle, &file_size) )
-	{
-		u32 file_size_32 = (u32)file_size.QuadPart;
-		result.data = arena_push_size(arena, file_size_32);
-		if(result.data)
-		{
-			DWORD bytes_read;
-			if(ReadFile(file_handle, result.data, file_size_32, &bytes_read, 0) && (file_size_32 == bytes_read))
-				result.size = file_size_32;
-			else
-				arena_pop_size(arena, file_size_32);
-		}
-	}
-	ASSERT(result.size);
-	CloseHandle(file_handle);
-
-	return result;
-}
-
 int WINAPI 
 wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cmd_show)
 {
@@ -124,12 +89,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	ASSERT(global_main_window);
 
 	// GETTING CLIENT SIZES
-	Int2 client_size = {0};
-	RECT rect;
-	GetClientRect(global_main_window, &rect);
-	client_size.x = rect.right - rect.left;
-	client_size.y = rect.bottom - rect.top;
-
+	Int2 client_size = win_get_client_sizes(global_main_window);
+	r32 aspect_ratio =  1;
+	if(client_size.y) aspect_ratio = (r32)client_size.x / (r32)client_size.y;
 	// MAIN MEMORY BLOCKS
 	Memory_arena arena1 = {0};
 	arena1.size = MEGABYTES(256);
@@ -143,24 +105,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	App_memory memory = {0};
 
-	// LOADING APP DLL
-	App_dll app = {0};
-	{
-		String dll_name = string("app.dll");
-		HMODULE dll = LoadLibraryA(dll_name.text);
-		ASSERT(dll);
-		app.update = (update_type())GetProcAddress(dll, "update");
-		app.render = (render_type())GetProcAddress(dll, "render");
-		app.init = (init_type())GetProcAddress(dll, "init");
-		ASSERT(app.update);
-		ASSERT(app.render);
-		ASSERT(app.init);
-	}
-
 	// DIRECTX11
 	// INITIALIZE DIRECT3D
 
-	D3D dx = {0};
+	D3D d3d = {0};
+	D3D* dx = &d3d;
 	HRESULT hr;
 	// CREATE DEVICE AND SWAPCHAIN
 	{
@@ -170,13 +119,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		u32 create_device_flags = DX11_CREATE_DEVICE_DEBUG_FLAG;
 
 		hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, create_device_flags, feature_levels, 
-			ARRAYSIZE(feature_levels), D3D11_SDK_VERSION, &dx.device, &result_feature_level, &dx.context);
+			ARRAYSIZE(feature_levels), D3D11_SDK_VERSION, &dx->device, &result_feature_level, &dx->context);
 		ASSERTHR(hr);
 
 	#if DEBUGMODE
 		//for debug builds enable debug break on API errors
 		ID3D11InfoQueue* info;
-		dx.device->QueryInterface(IID_ID3D11InfoQueue, (void**)&info);
+		dx->device->QueryInterface(IID_ID3D11InfoQueue, (void**)&info);
 		info->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 		info->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
 		info->Release();
@@ -186,7 +135,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	#endif
 
 		IDXGIDevice* dxgi_device;
-		hr = dx.device->QueryInterface(IID_IDXGIDevice, (void**)&dxgi_device);
+		hr = dx->device->QueryInterface(IID_IDXGIDevice, (void**)&dxgi_device);
 		ASSERTHR(hr);
 		
 		IDXGIAdapter* dxgi_adapter;
@@ -207,7 +156,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		scd.BufferCount = 2;
 		scd.Scaling = DXGI_SCALING_NONE;
 		scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		hr = factory->CreateSwapChainForHwnd(dx.device, global_main_window, &scd, 0, 0, &dx.swap_chain);
+		hr = factory->CreateSwapChainForHwnd(dx->device, global_main_window, &scd, 0, 0, &dx->swap_chain);
 		ASSERTHR(hr);
 
 		// disable Alt+Enter changing monitor resolution to match window size
@@ -217,13 +166,169 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dxgi_adapter->Release();
 		dxgi_device->Release();
 	}
-
+	//TODO: FIND A WAY TO MAKE THIS CALLS FROM THE APP LAYER
+	Render_pipeline pipeline_3d = {0};
 	// GETTING COMPILED SHADERS
-	String source_shaders_filename = string("x:/source/code/shaders/simple_shaders.hlsl");
+	// 3D SHADERS
+		// VERTEX SHADER	
+	String shaders_3d_filename = string("x:/source/code/shaders/3d_shaders.hlsl");
+	//TODO: remember the last write time of the file when doing runtime compiling
 
-	// SHADERS
+	File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
+	
+	dx11_create_vs(dx, shaders_3d_compiled_vs, &pipeline_3d.vs);
+	D3D11_INPUT_ELEMENT_DESC ied[] = {
+		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
+		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
+	};
+	
+	dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAY_COUNT(ied), &pipeline_3d.input_layout);
+	
+		// PIXEL SHADER
+	File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
+
+	dx11_create_ps(dx, shaders_3d_compiled_ps, &pipeline_3d.ps);
+
+	// DEFAULT TEXTURE
+	// u32 test_tex[] = {
+	// 	0x00000000, 0xffff0000,
+	// 	0xff00ff00, 0xff0000ff,
+	// };
+	u32 white_tex_pixels[] = {
+		0x00000000, 0xffff0000,
+		0xff00ff00, 0xff0000ff,
+	};
+	Surface white_texture = {2, 2, &white_tex_pixels};
+	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
+
+	// CREATING CONSTANT_BUFFER
+	D3D_constant_buffer object_buffer = {0};
+	dx11_create_and_bind_constant_buffer(
+		dx, &object_buffer, sizeof(XMMATRIX), OBJECT2D_BUFFER_REGISTER_INDEX, 0
+	);
+	// WORLD_VIEW_BUFFER_REGISTER_INDEX
+	XMMATRIX IDENTITY_MATRIX = {
+		1,0,0,0,
+		0,1,0,0,
+		0,0,1,0,
+		0,0,0,1
+	};
+	D3D_constant_buffer view_buffer = {0};
+	XMMATRIX view_matrix; // this will change in main loop
+	dx11_create_and_bind_constant_buffer(
+		dx, &view_buffer, sizeof(XMMATRIX), WORLD_VIEW_BUFFER_REGISTER_INDEX, 0
+	);
+
+	// WORLD_PROJECTION_BUFFER_REGISTER_INDEX
+	D3D_constant_buffer projection_buffer = {0};
+	XMMATRIX projection_matrix;
+	dx11_create_and_bind_constant_buffer(
+		dx, &projection_buffer, sizeof(XMMATRIX), WORLD_PROJECTION_BUFFER_REGISTER_INDEX, 0
+	);
+	
+	// CREATING  D3D PIPELINES
+	dx11_create_sampler(dx, &dx->sampler);
+	dx11_create_rasterizer_state(dx, &dx->rasterizer_state);
+	dx11_create_blend_state(dx, &pipeline_3d.blend_state, false);
+	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, false);
+
+	// TEST LOADING A MODEL
+
+	File_data ogre_file = win_read_file(string("data/ogre.glb"), temp_arena);
+	GLB glb = {0};
+	glb_get_chunks(ogre_file.data, 
+		&glb);
+	{ // THIS IS JUST FOR READABILITY OF THE JSON FILE
+		void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
+		u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
+		win_write_file(string("data/ogre.json"), formated_json, new_size);
+		arena_pop_size(temp_arena, MEGABYTES(4));
+	}
+	u32 meshes_count = 0;
+
+	Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
+
+	Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
+	for(u32 m=0; m<meshes_count; m++)
 	{
-		File_data source_shaders_file = win_read_file(source_shaders_filename, temp_arena);
+		u32 primitives_count = meshes[m].primitives_count;
+		Gltf_primitive* Mesh_primitive = meshes[m].primitives;
+		//TODO: here i am assuming this mesh has only one primitive
+		primitives[m] = gltf_get_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+		// for(u32 p=0; p<primitives_count; p++)
+		// {	
+		// }
+	}
+	Dx_mesh ogre_mesh = dx11_init_mesh(dx, 
+	primitives[0].vertices, primitives[0].vertices_count, primitives[0].vertex_size,
+	primitives[0].indices, primitives[0].indices_count,
+	D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	Object3d* ogre = list_push_back_struct(&pipeline_3d.list, Object3d, permanent_arena);
+	*ogre = object3d(&ogre_mesh);
+	// Object3d* ogre2 =  list_push_back_struct(&pipeline_3d.list, Object3d, permanent_arena);
+	// *ogre2 = object3d(&ogre_mesh);
+
+	Vertex3d triangle_vertices [3] = {
+		{{0, 1, 0},{0.5, 0.0}},
+		{{1, 0, 0},{1, 1}},
+		{{-1, 0, 0},{0, 1}}
+	};
+	u16 triangle_indices[3] = {
+		0,1,2
+	};
+	Mesh_primitive triangle_primitives = {
+		triangle_vertices,
+		sizeof(Vertex3d),
+		3,
+		triangle_indices,
+		3,
+	};
+	Dx_mesh triangle_mesh = dx11_init_mesh(dx, 
+		triangle_vertices, 3, sizeof(Vertex3d), 
+		triangle_indices, 3, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	Vertex3d test_plane_vertices[] =
+	{
+		{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f }},
+		{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f }},
+		{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f }},
+		{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f }}
+	};
+	u16 test_plane_indices[] =
+	{
+		0,1,2,
+		1,3,2
+	};
+	Dx_mesh plane_mesh = dx11_init_mesh(dx,
+		test_plane_vertices, ARRAY_COUNT(test_plane_vertices), sizeof(Vertex3d),
+		test_plane_indices, ARRAY_COUNT(test_plane_indices), 
+		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+	);
+	
+
+	// TEST RENDERING MODEL
+	
+	// Input Assembler STAGE
+	dx11_bind_input_layout(dx, pipeline_3d.input_layout);
+	// VERTEX SHADER STAGE
+	// RASTERIZER STAGE
+	dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
+	// PIXEL SHADER STAGE
+	dx11_bind_sampler(dx, &dx->sampler);
+	// OUTPUT MERGER
+
+	// LOADING APP DLL
+	App_dll app = {0};
+	{
+		String dll_name = string("app.dll");
+		HMODULE dll = LoadLibraryA(dll_name.text);
+		ASSERT(dll);
+		app.update = (update_type())GetProcAddress(dll, "update");
+		app.render = (render_type())GetProcAddress(dll, "render");
+		app.init = (init_type())GetProcAddress(dll, "init");
+		ASSERT(app.update);
+		ASSERT(app.render);
+		ASSERT(app.init);
 	}
 
 	// FRAME CAPPING SETUP
@@ -254,10 +359,42 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	memory.input = &input;
 
 
-	// MAIN LOOP
+	r32 fov = 1;
+	r32 fov2 = 1;
+
+	r32 delta = 0.0f;
+	// MAIN LOOP ____________________________________________________________
 	global_running = 1;
 	while(global_running)
 	{
+		arena_pop_size(temp_arena, temp_arena->used);
+		// HANDLE WINDOW RESIZING
+		Int2 current_client_size = win_get_client_sizes(global_main_window);
+		if(!dx->render_target_view || client_size.x != current_client_size.x || client_size.y != current_client_size.y)
+		{
+			client_size = current_client_size;
+			if(dx->render_target_view)
+			{
+				dx->render_target_view->Release();
+				dx->render_target_view = 0;
+			}
+			
+			if(client_size.x != 0 && client_size.y != 0)
+			{
+				ASSERT(client_size.x < 4000 && client_size.y < 4000);
+				aspect_ratio = (r32)client_size.y / (r32) client_size.x;
+				hr = dx->swap_chain->ResizeBuffers(0, client_size.x, client_size.y, DXGI_FORMAT_UNKNOWN, 0);
+				ASSERTHR(hr);
+
+				dx11_create_render_target_view(dx, &dx->render_target_view);
+				dx11_create_depth_stencil_view(dx, &pipeline_3d.depth_stencil_view, client_size.x, client_size.y);
+				
+				dx11_create_viewport(dx, (r32)client_size.x, (r32)client_size.y);
+    			dx11_bind_viewport(dx, &dx->viewport);
+			}
+		}
+
+		// MOUSE POSITION
 		{
 			POINT mousep;
 			GetCursorPos(&mousep);
@@ -267,6 +404,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			input.cursor_pos.y = mousep.y;
 		}
 		
+		// HANDLING MESSAGES
 		MSG message;
 		while(PeekMessageA(&message, NULL, 0, 0, PM_REMOVE))
 		{
@@ -315,6 +453,44 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		// APP RENDER
 		app.render(&memory, client_size);
+
+		Color bg_color = {0.1f, 0.4f, 0.5f, 1};
+		if(dx->render_target_view)
+		{
+			// apparently always need to clear this buffers before rendering to them
+			dx->context->ClearRenderTargetView(dx->render_target_view, (float*)&bg_color);
+			dx->context->ClearDepthStencilView(
+				pipeline_3d.depth_stencil_view, 
+				D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 
+				1, 0);   
+			dx11_bind_render_target_view(dx, &dx->render_target_view, pipeline_3d.depth_stencil_view);
+			// RENDER HERE
+			view_matrix = IDENTITY_MATRIX;
+				// XMMatrixTranslation( 0,0,0 )*
+				// XMMatrixRotationZ( 0 )*
+				// XMMatrixRotationY((r32)input.cursor_pos.x / client_size.x )*
+				// XMMatrixRotationX((r32)input.cursor_pos.y /client_size.y ) ;
+			dx11_modify_resource(dx, view_buffer.buffer, &IDENTITY_MATRIX, sizeof(IDENTITY_MATRIX));	
+			
+			
+			projection_matrix = XMMatrixOrthographicLH(fov2, fov2*aspect_ratio, fov, 100.0f);
+			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
+
+			XMMATRIX object_transform_matrix =   
+				XMMatrixScaling(1,1,1)*
+				XMMatrixRotationX(0) *
+				XMMatrixRotationY(0) *
+				XMMatrixRotationZ(0) *
+				XMMatrixTranslation(0, 0, ogre->pos.z);
+			// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
+			ogre->pos.z += 0.01f;
+
+			dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &triangle_mesh, &IDENTITY_MATRIX);
+
+			// PRESENT RENDERING
+			hr = dx->swap_chain->Present(1,0);
+			ASSERTHR(hr);
+		}
 
 		{//FRAME CAPPING
 			LARGE_INTEGER current_wall_clock;
