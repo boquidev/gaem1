@@ -64,20 +64,20 @@ struct User_input
 
 	union{
 		struct {
-			u32 cursor_primary;
-			u32 cursor_secondary;
+			s32 cursor_primary;
+			s32 cursor_secondary;
 
-			u32 aim;
-			u32 shoot;
+			s32 aim;
+			s32 shoot;
 
-			u32 forward;
-			u32 backward;
-			u32 left;
-			u32 right;
-			u32 up;
-			u32 down;
+			s32 forward;
+			s32 backward;
+			s32 left;
+			s32 right;
+			s32 up;
+			s32 down;
 		};
-		u32 buttons[10];
+		s32 buttons[10];
 	};
 };
 
@@ -157,6 +157,7 @@ struct App_memory
 	V3 camera_rotation;
 
 	User_input* input;
+	User_input* holding_inputs;
 
 	b32 is_window_in_focus;
 	b32 lock_mouse;

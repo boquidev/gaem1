@@ -374,7 +374,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// TODO: input backbuffer
 	User_input input = {0};
 	memory.input = &input;
-	User_input holding = {0};
+	User_input holding_inputs = {0};
+	memory.holding_inputs = &holding_inputs;
 
 	r32 fov = 1;
 	memory.fov = 32;
@@ -472,17 +473,17 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				break;
 				case WM_LBUTTONDOWN:// just when the buttom is pushed
 				{
-					holding.cursor_primary = 1;
+					holding_inputs.cursor_primary = 1;
 				}
 				break;
 				case WM_LBUTTONUP:
-					holding.cursor_primary = 0;
+					holding_inputs.cursor_primary = 0;
 				break;
 				case WM_RBUTTONDOWN:
-					holding.cursor_secondary = 1;
+					holding_inputs.cursor_secondary = 1;
 				break;
 				case WM_RBUTTONUP:
-					holding.cursor_secondary = 0;
+					holding_inputs.cursor_secondary = 0;
 				break;
 
 				case WM_MOUSEWHEEL:
@@ -501,21 +502,21 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					if(is_down != was_down)
 					{
 						if(vkcode == 'A')
-							holding.left = is_down;
+							holding_inputs.left = is_down;
 						else if(vkcode == 'D')
-							holding.right = is_down;
+							holding_inputs.right = is_down;
 						else if(vkcode == 'W')
-							holding.forward = is_down;
+							holding_inputs.forward = is_down;
 						else if(vkcode == 'S')
-							holding.backward = is_down;
+							holding_inputs.backward = is_down;
 						else if(vkcode == VK_SPACE)
-							holding.up = is_down;
+							holding_inputs.up = is_down;
 						else if(vkcode == VK_SHIFT)
-							holding.down = is_down;
+							holding_inputs.down = is_down;
 						else if(vkcode == 'F')
-							holding.aim = is_down;
+							holding_inputs.aim = is_down;
 						else if(vkcode == 'X')
-							holding.shoot = is_down;
+							holding_inputs.shoot = is_down;
 						
 						
 						if(is_down)
@@ -561,7 +562,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 		until(i, ARRAYCOUNT(input.buttons))
 		{
-			input.buttons[i] = holding.buttons[i] + input.buttons[i]*holding.buttons[i];
+			input.buttons[i] = holding_inputs.buttons[i] + input.buttons[i]*holding_inputs.buttons[i];
 		}
 		// APP UPDATE
 		app.update(&memory);

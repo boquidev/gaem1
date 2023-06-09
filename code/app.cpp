@@ -2,6 +2,7 @@
 
 void update(App_memory* memory){
 	User_input* input = memory->input;
+	User_input* holding_inputs = memory->holding_inputs;
 
 	r32 delta_time = 1;
 	r32 camera_speed = 1.0f;
@@ -29,7 +30,7 @@ void update(App_memory* memory){
 	turret_object->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
 	turret_object->p_tex_uid = memory->textures.p_white_tex_uid;
 
-	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
+	V2 input_vector = {(r32)(holding_inputs->right - holding_inputs->left),(r32)(holding_inputs->forward - holding_inputs->backward)};
 	input_vector = normalize(input_vector);
 	{
 		// MOVE CAMERA IN THE DIRECTION I AM LOOKING
@@ -45,16 +46,15 @@ void update(App_memory* memory){
 
 		Entity* ogre = &memory->entities[0];
 		ogre->visible = true;
-		ogre->speed = 0.5f;
+		ogre->speed = 10.0f;
 		Object3d* ogre_object = &ogre->object3d;
 		ogre_object->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
 		ogre_object->p_tex_uid = memory->textures.p_white_tex_uid;
 		ogre_object->scale = {1.0f,1.0f,1.0f};
 		ogre_object->color = {1,1,1,1};
-		ogre_object->pos.x += input_vector.x *  ogre->speed * delta_time;
-		ogre_object->pos.z += input_vector.y * ogre->speed * delta_time;
-		if(input_vector.x || input_vector.y)
-			ogre_object->rotation.y = v2_angle(input_vector) + PI32/2;
+		// ogre_object->pos.x += input_vector.x *  ogre->speed * delta_time;
+		// ogre_object->pos.z += input_vector.y * ogre->speed * delta_time;
+		ogre->target_move_pos = v3_addition(ogre->pos, {input_vector.x*ogre->speed, 0, input_vector.y*ogre->speed});
 	}
 
 	//TODO: make this into a function screen to world
@@ -149,20 +149,27 @@ void update(App_memory* memory){
 		bullet2->velocity =  bullet2->speed * v3_normalize(target_direction);
 	}
 
-	for(u32 i = 1; i< MAX_ENTITIES; i++){
+	until(i, MAX_ENTITIES){
 		Entity* entity = &memory->entities[i];
 		if(entity->visible){
-			if(!entity->is_bullet){
-				V3 move_distance = (entity->target_move_pos - entity->pos);
-				V3 difference = 10*(move_distance - (0.4f*entity->velocity));
-				entity->velocity = entity->velocity +( memory->delta_time * difference );
+			if(i == 0)
+			{
+				V3 move_v = (entity->target_move_pos - entity->pos);
+				V3 accel = 10*(move_v - entity->velocity);
+				entity->velocity = entity->velocity + (memory->delta_time * accel);
+				if(entity->velocity.x || entity->velocity.z)
+					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
+			}else if(!entity->is_bullet){
+				V3 move_v = (entity->target_move_pos - entity->pos);
+				V3 accel = 10*(move_v - (0.4f*entity->velocity));
+				entity->velocity = entity->velocity +( memory->delta_time * accel );
 
 				V3 target_direction = entity->target_pos - entity->object3d.pos;
 				entity->object3d.rotation.y = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
 			}else{
 				until(i2, MAX_ENTITIES){
 					Entity* entity2 = &memory->entities[i2];
-					if(i2 != entity->parent_uid && entity2->parent_uid   != entity->parent_uid)
+					if(i2 != entity->parent_uid && entity2->parent_uid != entity->parent_uid && entity2->visible)
 					{
 						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 						if(intersect > 0){
