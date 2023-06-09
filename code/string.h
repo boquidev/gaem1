@@ -111,6 +111,7 @@ number_to_string(s32 n, Memory_arena* arena)
 	{
 		*(char*)arena_push_size(arena, 1) = '0';
 		arena_push_size(arena, 1); // 0 ending string
+		result.length = 1;
 		return result;
 	}
 	u8 digits = 0;

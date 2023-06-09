@@ -290,7 +290,9 @@ gltf_primitives_to_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitiv
     Vertex3d* vertices = (Vertex3d*)result.vertices;
     for(u32 i = 0; i<primitive->vertices_count; i++)
     {
-        vertices[i].pos = primitive->vertices[i];
+        vertices[i].pos.x = primitive->vertices[i].x;
+        vertices[i].pos.y = primitive->vertices[i].y;
+        vertices[i].pos.z = -primitive->vertices[i].z;
         V2* texcoords = primitive->texcoords;
         if(texcoords)
             vertices[i].texcoord = texcoords[i];

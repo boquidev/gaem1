@@ -46,7 +46,7 @@ void update(App_memory* memory)
 	test_orientation->visible = true;
 	test_orientation->scale = {0.3f, 0.3f, 0.3f};
 	test_orientation->color = {0.5,0.5,0.5,1};
-	test_orientation->p_mesh_uid = memory->meshes.p_test_orientation2_uid;
+	test_orientation->p_mesh_uid = memory->meshes.p_test_orientation_uid;
 	test_orientation->p_tex_uid = memory->textures.p_white_tex_uid;
 	test_orientation->pos = {-1, -1, 1};
 }
