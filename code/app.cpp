@@ -9,10 +9,10 @@ void update(App_memory* memory)
 	r32 movement_speed = 0.01f;
 	r32 sensitivity = 1.0f;
 
-	// memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x / 500;
-	// memory->camera_rotation.x += sensitivity*(r32)input->cursor_speed.y / 500;
-	// memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
-	memory->camera_rotation.x = -PI32/2;
+	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x / 500;
+	memory->camera_rotation.x += sensitivity*(r32)input->cursor_speed.y / 500;
+	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
+	// memory->camera_rotation.x = PI32/2;
 
 	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
 	input_vector = normalize(input_vector);
@@ -26,32 +26,35 @@ void update(App_memory* memory)
 		// memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
 
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
-
-		memory->player.pos.x += input_vector.x *  movement_speed * delta_time;
-		memory->player.pos.z += input_vector.y * movement_speed * delta_time;
+		Object3d* player = &memory->entities[memory->player_uid];
+		player->pos.x += input_vector.x *  movement_speed * delta_time;
+		player->pos.z += input_vector.y * movement_speed * delta_time;
 		if(input_vector.x || input_vector.y)
-			memory->player.rotation.y = v2_angle(input_vector)+(PI32/2);
+			player->rotation.y = v2_angle(input_vector) -PI32/2;
 	}
 
-	r32 green = 0;
-	r32 color_step = 1.0f/ARRAYCOUNT(memory->tilemap);
-	until(y, ARRAYCOUNT(memory->tilemap))
-	{
-		r32 red = 0;
-		until(x, ARRAYCOUNT(memory->tilemap[y]))
-		{
-			memory->tilemap[y][x] = {red, green, 0, 1};
-			red += color_step;
-		}
-		green += color_step;
-	}
-
+	Object3d* turret = &memory->entities[1];
+	turret->visible = true;
+	turret->scale = {0.3f,0.3f,0.3f};
+	turret->rotation.y = 0;
+	turret->color = {1,1,1,1};
+	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
+	turret->p_tex_uid = memory->textures.p_white_tex_uid;
+	turret->pos = {0,-1,0};
 }
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)
 {
-	Object3d* player = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	*player = memory->player;
+
+	until(i, MAX_ENTITIES)
+	{
+		if(memory->entities[i].visible)
+		{
+			Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+			*render_object = memory->entities[i];
+		}
+
+	}
 	
 }
 
@@ -167,7 +170,13 @@ void init(App_memory* memory, Init_data* init_data)
 
 	memory->meshes.p_female_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/female.glb"));
 
-	memory->player = {memory->meshes.p_ogre_mesh_uid,memory->textures.p_white_tex_uid, {0.4f,0.4f,0.4f}, {}, {}, {1,1,1,1}};
+	memory->meshes.p_turret_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/turret.glb"));
+
+
+	memory->player_uid = 0;
+	memory->entities[memory->player_uid] = 
+		{memory->meshes.p_ogre_mesh_uid,memory->textures.p_white_tex_uid, 
+		{0.4f,0.4f,0.4f}, {}, {}, {1,1,1,1}, true};
 
 
 }

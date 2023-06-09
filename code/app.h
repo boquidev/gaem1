@@ -12,12 +12,13 @@
 // scale must be 1,1,1 by default
 struct Object3d
 {
-	u32* mesh_uid;
-	u32* tex_uid;
+	u32* p_mesh_uid;
+	u32* p_tex_uid;
 	V3 scale;
 	V3 pos;
 	V3 rotation;
 	Color color;
+	b32 visible;
 };
 
 struct User_input
@@ -44,6 +45,7 @@ struct Meshes
 	u32* p_triangle_mesh_uid;
 	u32* p_ogre_mesh_uid;
 	u32* p_female_mesh_uid;
+	u32* p_turret_mesh_uid;
 	u32* p_plane_mesh_uid;
 };
 
@@ -90,6 +92,7 @@ struct Init_data
 	LIST(Tex_from_file_request) tex_from_file_requests;
 };
 
+#define MAX_ENTITIES 100
 struct App_memory
 {
 	Memory_arena* permanent_arena;
@@ -101,13 +104,13 @@ struct App_memory
 	V3 camera_pos;
 	V3 camera_rotation;
 
-	Color tilemap[32][32];
 	User_input* input;
 
 	b32 is_window_in_focus;
 	b32 lock_mouse;
 
-	Object3d player;
+	u32 player_uid;
+	Object3d entities[MAX_ENTITIES];
 };
 
 internal u32

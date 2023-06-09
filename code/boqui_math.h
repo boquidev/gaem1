@@ -153,9 +153,12 @@ internal r32
 v2_angle(V2 v)
 {
     if(v.x < 0)
-        return atanf(v.y / v.x) -PI32;
+        // if(v.y < 0)
+        //     return atanf(-v.y / v.x);
+        // else
+            return atan2f(v.y, -v.x) ;
     else 
-        return atanf(v.y / v.x);
+        return atan2f(v.y, -v.x);
 }
 
 
