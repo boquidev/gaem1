@@ -24,7 +24,6 @@ struct Object3d
 struct Entity
 {
 	b32 visible;
-	Object3d object3d;
 
 	V3 target_move_pos;
 	V3 velocity;
@@ -34,6 +33,19 @@ struct Entity
 
 	b32 is_bullet;
 	u32 parent_uid;
+
+	union{
+		Object3d object3d;
+		struct{
+			u32* p_mesh_uid;
+			u32* p_tex_uid;
+			V3 scale;
+			V3 pos;
+			V3 rotation;
+
+			Color color;
+		};
+	};
 };
 
 struct User_input
@@ -55,8 +67,6 @@ struct User_input
 	b32 right;
 	b32 up;
 	b32 down;
-
-	// b32 test;
 };
 
 //TODO: create a meshes array ??
@@ -144,7 +154,7 @@ struct App_memory
 	u32 selected_uid;
 
 	r32 delta_time;
-	u64 time_ms;
+	u32 time_ms; // this goes up to 1200 hours more or less 
 
 	u32 active_entities_count;
 	Entity entities[MAX_ENTITIES];

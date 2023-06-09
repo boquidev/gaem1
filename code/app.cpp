@@ -1,7 +1,6 @@
 #include "app.h"
 
-void update(App_memory* memory)
-{
+void update(App_memory* memory){
 	User_input* input = memory->input;
 
 	r32 delta_time = 1;
@@ -12,12 +11,11 @@ void update(App_memory* memory)
 	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x;
 	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
 	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
-	// memory->camera_rotation.x = PI32/2;
 	
 	Entity* turret = &memory->entities[1];
 	turret->visible = true;
 	Object3d* turret_object = &turret->object3d;
-	turret_object->scale = {0.1f,0.1f,0.1f};
+	turret_object->scale = {1.0f,1.0f,1.0f};
 	turret_object->rotation.y = 0;
 	turret_object->color = {1,1,1,1};
 	turret_object->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
@@ -26,7 +24,7 @@ void update(App_memory* memory)
 	Entity* turret2 = &memory->entities[2];
 	turret2->visible = true;
 	turret_object = &turret2->object3d;
-	turret_object->scale = {0.1f,0.1f,0.1f};
+	turret_object->scale = {1.0f,1.0f,1.0f};
 	turret_object->rotation.y = 0;
 	turret_object->color = {1,1,1,1};
 	turret_object->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
@@ -49,7 +47,7 @@ void update(App_memory* memory)
 		Object3d* ogre_object = &ogre->object3d;
 		ogre_object->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
 		ogre_object->p_tex_uid = memory->textures.p_white_tex_uid;
-		ogre_object->scale = {0.1f,0.1f,0.1f};
+		ogre_object->scale = {1.0f,1.0f,1.0f};
 		ogre_object->color = {1,1,1,1};
 		ogre_object->pos.x += input_vector.x *  movement_speed * delta_time;
 		ogre_object->pos.z += input_vector.y * movement_speed * delta_time;
@@ -78,7 +76,7 @@ void update(App_memory* memory)
 			continue;
 
 		r32 intersected_t = 0;
-		if(line_vs_sphere(cursor_world_point, z_direction, memory->entities[i].object3d.pos, 0.1f, &intersected_t)){
+		if(line_vs_sphere(cursor_world_point, z_direction, memory->entities[i].object3d.pos, 1.0f, &intersected_t)){
 			if(!first_intersection){
 				first_intersection = true;
 				closest_t = intersected_t;
@@ -130,26 +128,23 @@ void update(App_memory* memory)
 	bullet2->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
 	bullet2->object3d.color = {1,0,0,1};
 
-	if( input->shoot == 1)
-	{
+	if( input->shoot == 1){
 		Entity* parent = &memory->entities[bullet->parent_uid];
 		bullet->visible = 1;
 		bullet->object3d.pos = parent->object3d.pos;
 		bullet->target_pos = parent->target_pos;
-		bullet->object3d.scale = {0.05f,0.05f,0.05f};
+		bullet->object3d.scale = {1.0f,1.0f,1.0f};
 		parent = &memory->entities[bullet2->parent_uid];
 		bullet2->visible = 1;
 		bullet2->object3d.pos = parent->object3d.pos;
 		bullet2->target_pos = parent->target_pos;
-		bullet2->object3d.scale = {0.05f,0.05f,0.05f};
+		bullet2->object3d.scale = {1.0f,1.0f,1.0f};
 	}
 
-	for(u32 i=1; i<MAX_ENTITIES; i++)
-	{
+	for(u32 i=1; i<MAX_ENTITIES; i++){
 		Entity* entity = &memory->entities[i];
 		
-		if(!entity->is_bullet)
-		{
+		if(!entity->is_bullet){
 			entity->velocity = (entity->target_move_pos - entity->object3d.pos);
 			V3 target_direction = entity->target_pos - entity->object3d.pos;
 			entity->object3d.rotation.y = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
@@ -157,8 +152,7 @@ void update(App_memory* memory)
 			V3 target_direction = v3_difference(entity->target_pos, entity->object3d.pos);
 			entity->velocity =  entity->speed * v3_normalize(target_direction);
 
-			if(v2_magnitude({target_direction.x, target_direction.z}) < 0.1f)
-			{
+			if(v2_magnitude({target_direction.x, target_direction.z}) < 0.1f){
 				entity->object3d.scale = 2 * entity->object3d.scale;
 			}
 			// if collides with a non parent destroy
@@ -169,8 +163,7 @@ void update(App_memory* memory)
 	}
 }
 
-void render(App_memory* memory, Int2 screen_size, List* render_list)
-{
+void render(App_memory* memory, Int2 screen_size, List* render_list){
 	until(i, MAX_ENTITIES)
 	{
 		if(memory->entities[i].visible)
@@ -181,8 +174,9 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 	}
 }
 
-void init(App_memory* memory, Init_data* init_data)
-{
+void init(App_memory* memory, Init_data* init_data){
+	memory->camera_rotation.x = PI32/2;
+	memory->camera_pos.y = 15.0f;
 	
 /*
 	// GETTING COMPILED SHADERS
@@ -243,8 +237,6 @@ void init(App_memory* memory, Init_data* init_data)
 	memory->textures.p_white_tex_uid = push_tex_from_surface_request(memory, init_data, 1, 1, white_tex_pixels);
 
 	memory->textures.p_test_uid = push_tex_from_file_request(memory, init_data, string("data/test_atlas.png"));
-
-
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},

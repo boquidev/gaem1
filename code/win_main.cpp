@@ -378,7 +378,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 	r32 fov = 1;
-	memory.fov = 2;
+	memory.fov = 32;
 	bool perspective_on = false;
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
