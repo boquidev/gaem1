@@ -1,5 +1,7 @@
 #include "helpers.h"
 #include "gltf_loader.h"
+
+#include "defined_lists.h"
 // #pragma warning(push)
 // #pragma warning(disable: 4305)
 // #define USE_SSE2

@@ -65,5 +65,4 @@ typedef double r64;
 #define c_linkage extern "C"
 #define c_linkage_begin extern "C"{
 #define c_linkage_end }
-
 #endif
