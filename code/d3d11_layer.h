@@ -52,7 +52,6 @@ enum CONSTANT_BUFFER_REGISTER_INDEX
 	OBJECT_BUFFER_REGISTER_INDEX = 0,
 	WORLD_VIEW_BUFFER_REGISTER_INDEX = 1,
 	WORLD_PROJECTION_BUFFER_REGISTER_INDEX = 2,
-	OBJECT2D_BUFFER_REGISTER_INDEX = 3,
 };
 
 struct D3D_constant_buffer
@@ -434,18 +433,18 @@ dx11_create_render_target_view(D3D* dx, Dx11_render_target_view** result)
 	ASSERTHR(hr);
 	back_buffer->Release();
 }
-internal void //TODO: GET VIEWPORT OUT OF dx
-dx11_create_viewport(D3D* dx, r32 width, r32 height)
+internal void
+dx11_set_viewport(D3D* dx, s32 posx, s32 posy, u32 width, u32 height)
 {
-    //Viewport
     D3D11_VIEWPORT vp = {0};
-    vp.TopLeftX = 0;
-    vp.TopLeftY = 0;
-    vp.Width = width;
-    vp.Height = height;
+    vp.TopLeftX = (r32)posx;
+    vp.TopLeftY = (r32)posy;
+    vp.Width = (r32)width;
+    vp.Height = (r32)height;
     vp.MinDepth = 0;
     vp.MaxDepth = 1;
     dx->viewport = vp;
+    dx->context->RSSetViewports(1, &vp);
 }
 // BINDING FUNCTIONS
 internal void
@@ -513,13 +512,7 @@ dx11_bind_render_target_view(D3D* dx,Dx11_render_target_view** render_target_vie
     //TODO: i think this fixed it
     dx->context->OMSetRenderTargets(1, render_target_view, depth_stencil_view); 
 }
-internal void
-dx11_bind_viewport(D3D* dx, Dx11_viewport* viewport)
-{
-	dx->context->RSSetViewports(1, viewport);
-}
 
-//TODO: speedrun
 internal void
 dx11_modify_resource(D3D* dx, ID3D11Resource* resource, void* data, u32 size)
 {
@@ -555,16 +548,7 @@ dx11_draw_mesh(D3D* dx, Render_pipeline* pipeline, ID3D11Buffer* object_buffer, 
 
 	dx->context->IASetIndexBuffer(mesh->index_buffer, DXGI_FORMAT_R16_UINT, 0);
 	// FINALLY DRAW
-	dx->context->Draw(mesh->vertices_count, 0);
-	dx->context->DrawIndexed(mesh->indices_count, 0, 0);
-	
-	dx->context->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
-	dx->context->Draw(mesh->vertices_count, 0);
-	dx->context->DrawIndexed(mesh->indices_count, 0, 0);
-	
-	dx->context->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_LINESTRIP );
-
-	dx->context->Draw(mesh->vertices_count, 0);
 	dx->context->DrawIndexed(mesh->indices_count, 0, 0);
 
 }
+

@@ -28,8 +28,8 @@ struct VSOUTPUT
 VSOUTPUT vs( VSINPUT input )
 {
 	VSOUTPUT result;
-	result.pos =  mul(transform, float4( input.pos, 1.0f ) );
-	// result.pos = mul( world_projection, mul( world_view, mul(transform, float4( input.pos, 1.0f ) ) ) );
+	// result.pos =  mul(transform, float4( input.pos, 1.0f ) );
+	result.pos = mul( world_projection, mul( world_view, mul(transform, float4( input.pos, 1.0f ) ) ) );
 	result.uv = input.uv;
 	return result;
 }

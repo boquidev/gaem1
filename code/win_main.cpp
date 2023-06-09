@@ -204,7 +204,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// CREATING CONSTANT_BUFFER
 	D3D_constant_buffer object_buffer = {0};
 	dx11_create_and_bind_constant_buffer(
-		dx, &object_buffer, sizeof(XMMATRIX), OBJECT2D_BUFFER_REGISTER_INDEX, 0
+		dx, &object_buffer, sizeof(XMMATRIX), OBJECT_BUFFER_REGISTER_INDEX, 0
 	);
 	// WORLD_VIEW_BUFFER_REGISTER_INDEX
 	XMMATRIX IDENTITY_MATRIX = {
@@ -230,7 +230,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_sampler(dx, &dx->sampler);
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state);
 	dx11_create_blend_state(dx, &pipeline_3d.blend_state, false);
-	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, false);
+	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, true);
 
 	// TEST LOADING A MODEL
 
@@ -306,17 +306,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	);
 	
 
-	// TEST RENDERING MODEL
-	
-	// Input Assembler STAGE
-	dx11_bind_input_layout(dx, pipeline_3d.input_layout);
-	// VERTEX SHADER STAGE
-	// RASTERIZER STAGE
-	dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
-	// PIXEL SHADER STAGE
-	dx11_bind_sampler(dx, &dx->sampler);
-	// OUTPUT MERGER
-
 	// LOADING APP DLL
 	App_dll app = {0};
 	{
@@ -376,21 +365,21 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(dx->render_target_view)
 			{
 				dx->render_target_view->Release();
+				pipeline_3d.depth_stencil_view->Release();
 				dx->render_target_view = 0;
 			}
 			
 			if(client_size.x != 0 && client_size.y != 0)
 			{
 				ASSERT(client_size.x < 4000 && client_size.y < 4000);
-				aspect_ratio = (r32)client_size.y / (r32) client_size.x;
+				aspect_ratio = (r32)client_size.x / (r32) client_size.y;
 				hr = dx->swap_chain->ResizeBuffers(0, client_size.x, client_size.y, DXGI_FORMAT_UNKNOWN, 0);
 				ASSERTHR(hr);
 
 				dx11_create_render_target_view(dx, &dx->render_target_view);
 				dx11_create_depth_stencil_view(dx, &pipeline_3d.depth_stencil_view, client_size.x, client_size.y);
 				
-				dx11_create_viewport(dx, (r32)client_size.x, (r32)client_size.y);
-    			dx11_bind_viewport(dx, &dx->viewport);
+				dx11_set_viewport(dx, 0, 0, client_size.x, client_size.y);
 			}
 		}
 
@@ -463,29 +452,37 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				pipeline_3d.depth_stencil_view, 
 				D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 
 				1, 0);   
+
 			dx11_bind_render_target_view(dx, &dx->render_target_view, pipeline_3d.depth_stencil_view);
+			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
+			dx11_bind_sampler(dx, &dx->sampler);
+
 			// RENDER HERE
-			view_matrix = IDENTITY_MATRIX;
-				// XMMatrixTranslation( 0,0,0 )*
-				// XMMatrixRotationZ( 0 )*
-				// XMMatrixRotationY((r32)input.cursor_pos.x / client_size.x )*
-				// XMMatrixRotationX((r32)input.cursor_pos.y /client_size.y ) ;
-			dx11_modify_resource(dx, view_buffer.buffer, &IDENTITY_MATRIX, sizeof(IDENTITY_MATRIX));	
+			view_matrix = 
+				XMMatrixTranslation( 0,0,0 )*
+				XMMatrixRotationZ( 0 )*
+				XMMatrixRotationY(-(r32)input.cursor_pos.x / client_size.x )*
+				XMMatrixRotationX((r32)input.cursor_pos.y /client_size.y ) ;
+			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	
 			
 			
-			projection_matrix = XMMatrixOrthographicLH(fov2, fov2*aspect_ratio, fov, 100.0f);
+			bool perspective_on = true;
+			if(perspective_on)
+				projection_matrix = XMMatrixPerspectiveLH(fov2, fov2*aspect_ratio, fov, 100.0f);
+			else
+				projection_matrix = XMMatrixOrthographicLH(fov2*4, fov2*4*aspect_ratio, fov, 100.0f);
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
 
-			XMMATRIX object_transform_matrix =   
+			XMMATRIX object_transform_matrix =   //IDENTITY_MATRIX;
 				XMMatrixScaling(1,1,1)*
 				XMMatrixRotationX(0) *
 				XMMatrixRotationY(0) *
 				XMMatrixRotationZ(0) *
 				XMMatrixTranslation(0, 0, ogre->pos.z);
-			// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
+			dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
 			ogre->pos.z += 0.01f;
 
-			dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &triangle_mesh, &IDENTITY_MATRIX);
+			dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &triangle_mesh, &object_transform_matrix);
 
 			// PRESENT RENDERING
 			hr = dx->swap_chain->Present(1,0);
