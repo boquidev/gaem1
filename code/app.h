@@ -29,10 +29,13 @@ struct Entity
 	V3 velocity;
 	V3 target_pos;
 
+	//TODO: i don't like this
 	r32 speed;
 
 	b32 is_bullet;
 	u32 parent_uid;
+
+	r32 radius;
 
 	union{
 		Object3d object3d;
@@ -53,20 +56,23 @@ struct User_input
 	V2 cursor_pos;
 	V2 cursor_speed;
 
-	b32 cursor_primary;
-	b32 holding_cursor_primary;
-	b32 cursor_secondary;
-	b32 holding_cursor_secondary;
+	union{
+		struct {
+			u32 cursor_primary;
+			u32 cursor_secondary;
 
-	b32 x;
-	b32 shoot;
+			u32 x;
+			u32 shoot;
 
-	b32 forward;
-	b32 backward;
-	b32 left;
-	b32 right;
-	b32 up;
-	b32 down;
+			u32 forward;
+			u32 backward;
+			u32 left;
+			u32 right;
+			u32 up;
+			u32 down;
+		};
+		u32 buttons[10];
+	};
 };
 
 //TODO: create a meshes array ??
@@ -153,6 +159,7 @@ struct App_memory
 	u32 clicked_uid;
 	u32 selected_uid;
 
+	r32 update_hz;
 	r32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
 

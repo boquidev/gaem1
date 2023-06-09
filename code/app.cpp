@@ -4,8 +4,7 @@ void update(App_memory* memory){
 	User_input* input = memory->input;
 
 	r32 delta_time = 1;
-	r32 camera_speed = 0.01f;
-	r32 movement_speed = 0.01f;
+	r32 camera_speed = 1.0f;
 	r32 sensitivity = 1.0f;
 
 	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x;
@@ -44,13 +43,14 @@ void update(App_memory* memory){
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 		Entity* ogre = &memory->entities[0];
 		ogre->visible = true;
+		ogre->speed = 0.5f;
 		Object3d* ogre_object = &ogre->object3d;
 		ogre_object->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
 		ogre_object->p_tex_uid = memory->textures.p_white_tex_uid;
 		ogre_object->scale = {1.0f,1.0f,1.0f};
 		ogre_object->color = {1,1,1,1};
-		ogre_object->pos.x += input_vector.x *  movement_speed * delta_time;
-		ogre_object->pos.z += input_vector.y * movement_speed * delta_time;
+		ogre_object->pos.x += input_vector.x *  ogre->speed * delta_time;
+		ogre_object->pos.z += input_vector.y * ogre->speed * delta_time;
 		if(input_vector.x || input_vector.y)
 			ogre_object->rotation.y = v2_angle(input_vector) + PI32/2;
 	}
@@ -74,9 +74,11 @@ void update(App_memory* memory){
 	for(u32 i=1; i < MAX_ENTITIES; i++){
 		if(!memory->entities[i].visible)
 			continue;
+		Entity* entity = &memory->entities[i];
+		entity->radius = 1.0f;
 
 		r32 intersected_t = 0;
-		if(line_vs_sphere(cursor_world_point, z_direction, memory->entities[i].object3d.pos, 1.0f, &intersected_t)){
+		if(line_vs_sphere(cursor_world_point, z_direction, entity->object3d.pos, entity->radius, &intersected_t)){
 			if(!first_intersection){
 				first_intersection = true;
 				closest_t = intersected_t;

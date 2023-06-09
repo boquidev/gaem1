@@ -371,6 +371,10 @@ bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3
     }
     return result;
 }
+internal r32 // return value = overlap, if overlap < 0 then they don't overlap
+sphere_vs_sphere(V3 c1,r32 r1, V3 c2, r32 r2){
+    return ((r1+r2) - v3_magnitude(c1-c2));
+}
 
 // Function to rotate a vector using a rotation matrix
 internal V3 

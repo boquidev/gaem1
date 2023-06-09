@@ -155,7 +155,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		ASSERTHR(hr);
 
 		IDXGIFactory2* factory;
-		hr = dxgi_adapter->GetParent(IID_IDXGIFactory, (void**)&factory);
+		hr = dxgi_adapter->GetParent(IID_PPV_ARGS(&factory));
 		ASSERTHR(hr);
 		
 		DXGI_SWAP_CHAIN_DESC1 scd = {0};
@@ -174,9 +174,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		// disable Alt+Enter changing monitor resolution to match window size
 		factory->MakeWindowAssociation(global_main_window, DXGI_MWA_NO_ALT_ENTER);
 
-		factory->Release();
-		dxgi_adapter->Release();
 		dxgi_device->Release();
+		dxgi_adapter->Release();
+		factory->Release();
 	}
 	
 	// LOADING APP DLL
@@ -362,9 +362,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	//TODO: maybe in the future use GetDeviceCaps() to get the monitor hz
 	int monitor_refresh_hz = 60;
 	
-	//TODO: this should be = monitor_refresh_hz;
-	r32 update_hz = (r32)monitor_refresh_hz;
-	r32 target_seconds_per_frame = 1.0f / update_hz;
+	memory.update_hz = (r32)monitor_refresh_hz;
+	r32 target_seconds_per_frame = 1.0f / memory.update_hz;
 
 #if DEBUGMODE
 	u64 last_cycles_count = __rdtsc();
@@ -375,15 +374,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// TODO: input backbuffer
 	User_input input = {0};
 	memory.input = &input;
-
+	User_input holding = {0};
 
 	r32 fov = 1;
 	memory.fov = 32;
 	bool perspective_on = false;
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
-
-	//TODO: memory.delta_time
 	// MAIN LOOP ____________________________________________________________
 	
 	global_running = 1;
@@ -454,9 +451,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					-(r32)(mousep.y - client_center_pos.y)/client_size.y};
 				
 		}
-		input.cursor_primary += input.holding_cursor_primary;
-		input.cursor_secondary += input.holding_cursor_secondary;
-
 		// HANDLING MESSAGES
 		MSG message;
 		while(PeekMessageA(&message, NULL, 0, 0, PM_REMOVE))
@@ -478,18 +472,18 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				break;
 				case WM_LBUTTONDOWN:// just when the buttom is pushed
 				{
-					input.holding_cursor_primary = 1;
+					holding.cursor_primary = 1;
 				}
 				break;
 				case WM_LBUTTONUP:
-					input.holding_cursor_primary = 0;
+					holding.cursor_primary = 0;
 					input.cursor_primary = 0;
 				break;
 				case WM_RBUTTONDOWN:
-					input.holding_cursor_secondary = 1;
+					holding.cursor_secondary = 1;
 				break;
 				case WM_RBUTTONUP:
-					input.holding_cursor_secondary = 0;
+					holding.cursor_secondary = 0;
 					input.cursor_secondary = 0;
 				break;
 
@@ -508,23 +502,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					ASSERT(is_down == 0 || is_down == 1);
 					if(is_down != was_down)
 					{
-#define NEW_INPUT_VALUE(old_input) old_input+is_down - old_input*was_down
 						if(vkcode == 'A')
-							input.left = NEW_INPUT_VALUE(input.left);
+							holding.left = is_down;
 						else if(vkcode == 'D')
-							input.right = NEW_INPUT_VALUE(input.right);
+							holding.right = is_down;
 						else if(vkcode == 'W')
-							input.forward = NEW_INPUT_VALUE(input.forward);
+							holding.forward = is_down;
 						else if(vkcode == 'S')
-							input.backward = NEW_INPUT_VALUE(input.backward);
+							holding.backward = is_down;
 						else if(vkcode == VK_SPACE)
-							input.up = NEW_INPUT_VALUE(input.up);
+							holding.up = is_down;
 						else if(vkcode == VK_SHIFT)
-							input.down = NEW_INPUT_VALUE(input.down);
+							holding.down = is_down;
 						else if(vkcode == 'F')
-							input.x = NEW_INPUT_VALUE(input.x);
+							holding.x = is_down;
 						else if(vkcode == 'X')
-							input.shoot = NEW_INPUT_VALUE(input.shoot);
+							holding.shoot = is_down;
+						
 						
 						if(is_down)
 						{
@@ -566,6 +560,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					TranslateMessage(&message);
 					DispatchMessageA(&message);
 			}
+		}
+		until(i, ARRAYCOUNT(input.buttons))
+		{
+			input.buttons[i] = holding.buttons[i] + input.buttons[i]*holding.buttons[i];
 		}
 		// APP UPDATE
 		app.update(&memory);
@@ -663,9 +661,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			u32 frame_ms_elapsed = (u32)(frame_seconds_elapsed*1000);
 			memory.time_ms += frame_ms_elapsed;
 			
-			char text_buffer[256];
-			wsprintfA(text_buffer, "%d, %d \n", frame_ms_elapsed, memory.time_ms);
-			OutputDebugStringA(text_buffer);   
+			//PRINT TIME AND DELTA_TIME
+			// char text_buffer[256];
+			// wsprintfA(text_buffer, "%d, %d \n", frame_ms_elapsed, memory.time_ms);
+			// OutputDebugStringA(text_buffer);   
 		}
 #if DEBUGMODE
 		{// DEBUG FRAMERATE
@@ -688,5 +687,57 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 #endif
 		QueryPerformanceCounter(&last_counter);
 	}
+
+	//TODO: this is dumb but i don't want dumb messages each time i close
+	dx->device->Release();
+	dx->context->Release();
+	dx->swap_chain->Release();
+	dx->rasterizer_state->Release();
+	dx->sampler->Release();
+	dx->render_target_view->Release();
+
+	object_buffer.buffer->Release();
+	view_buffer.buffer->Release();
+	projection_buffer.buffer->Release();
+	object_color_buffer.buffer->Release();
+
+	foreach(mesh_node, &meshes_list, i)
+	{
+		Dx_mesh* current_mesh = (Dx_mesh*)mesh_node->data;
+		nextnode(mesh_node);
+		current_mesh->vertex_buffer->Release();
+		current_mesh->index_buffer->Release();
+	}
+	foreach(texture_node, &textures_list, i)
+	{
+		Dx11_texture_view** current_tex = (Dx11_texture_view**)texture_node->data;
+		nextnode(texture_node);
+		(*current_tex)->Release();
+	}
+
+	pipeline_3d.vs->Release();
+	pipeline_3d.ps->Release();
+	pipeline_3d.input_layout->Release();
+	pipeline_3d.blend_state->Release();
+	pipeline_3d.depth_stencil_state->Release();
+	pipeline_3d.depth_stencil_view->Release();
+	pipeline_3d.default_texture_view->Release();
+
+#if DEBUGMODE
+	// Create an instance of the DXGI debug interface
+	IDXGIDebug1* p_debug = nullptr;
+
+	hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&p_debug));
+	ASSERTHR(hr);
+	// Enable DXGI object tracking
+	p_debug->EnableLeakTrackingForThread();
+
+	// Call the ReportLiveObjects() function to report live DXGI objects
+	hr = p_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+	ASSERTHR(hr);
+	// Release the DXGI debug interface
+	p_debug->Release();
+
+#endif
 	return 0;
 }
