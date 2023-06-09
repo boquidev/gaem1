@@ -259,42 +259,31 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// TEST LOADING A MODEL
 
-	// File_data ogre_file = win_read_file(string("data/ogre.glb"), temp_arena);
-	// GLB glb = {0};
-	// glb_get_chunks(ogre_file.data, 
-	// 	&glb);
-	// { // THIS IS JUST FOR READABILITY OF THE JSON FILE
-	// 	void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
-	// 	u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
-	// 	win_write_file(string("data/ogre.json"), formated_json, new_size);
-	// 	arena_pop_size(temp_arena, MEGABYTES(4));
-	// }
-	// u32 meshes_count = 0;
+	File_data ogre_file = win_read_file(string("data/ogre.glb"), temp_arena);
+	GLB glb = {0};
+	glb_get_chunks(ogre_file.data, 
+		&glb);
+	{ // THIS IS JUST FOR READABILITY OF THE JSON FILE
+		void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
+		u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
+		win_write_file(string("data/ogre.json"), formated_json, new_size);
+		arena_pop_size(temp_arena, MEGABYTES(4));
+	}
+	u32 meshes_count = 0;
 
-	// Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
+	Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
 
-	// Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
-	// for(u32 m=0; m<meshes_count; m++)
-	// {
-	// 	u32 primitives_count = meshes[m].primitives_count;
-	// 	Gltf_primitive* Mesh_primitive = meshes[m].primitives;
-	// 	//TODO: here i am assuming this mesh has only one primitive
-	// 	primitives[m] = gltf_get_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
-	// 	// for(u32 p=0; p<primitives_count; p++)
-	// 	// {	
-	// 	// }
-	// }
-
-	// // ADDING OGRE MESH TO THE MESHES LIST
-	// Dx_mesh* ogre_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
-	// *ogre_mesh = dx11_init_mesh(dx, 
-	// primitives[0].vertices, primitives[0].vertices_count, primitives[0].vertex_size,
-	// primitives[0].indices, primitives[0].indices_count,
-	// D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// ________________________
-	// Object3d* ogre2 =  LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
-	// *ogre2 = object3d(&ogre_mesh);
+	Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
+	for(u32 m=0; m<meshes_count; m++)
+	{
+		u32 primitives_count = meshes[m].primitives_count;
+		Gltf_primitive* Mesh_primitive = meshes[m].primitives;
+		//TODO: here i am assuming this mesh has only one primitive
+		primitives[m] = gltf_get_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+		// for(u32 p=0; p<primitives_count; p++)
+		// {	
+		// }
+	}
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
@@ -311,9 +300,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		triangle_indices,
 		3,
 	};
-	init_data.test_mesh_uid = meshes_list.size;
+	// ADDING TRIANGLE TO THE MESHES LIST
+	u32* triangle_mesh_uid = LIST_GET_DATA_AS(&init_data.meshes_uid_list, 0, u32);
+	*triangle_mesh_uid = meshes_list.size;
 	Dx_mesh* triangle_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
 	*triangle_mesh = dx11_init_mesh(dx, &triangle_primitives, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// ADDING OGRE MESH TO THE MESHES LIST
+	u32* ogre_mesh_uid = LIST_GET_DATA_AS(&init_data.meshes_uid_list, 1, u32);
+	*ogre_mesh_uid = meshes_list.size;
+	Dx_mesh* ogre_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+	*ogre_mesh = dx11_init_mesh(dx, 
+	&primitives[0],
+	D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// ________________________
+	// Object3d* ogre2 =  LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
+	// *ogre2 = object3d(&ogre_mesh);
 
 	Vertex3d test_plane_vertices[] =
 	{

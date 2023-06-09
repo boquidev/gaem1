@@ -14,11 +14,6 @@ struct Object3d
 	V3 scale;
 };
 
-struct Init_data
-{
-	u32 test_mesh_uid; //TODO: this will be a list
-};
-
 struct User_input
 {
 	Int2 cursor_pos;
@@ -28,10 +23,23 @@ struct User_input
 //TODO: create a meshes array ??
 // or make all render calls for each mesh
 
+struct Meshes
+{
+	u32* triangle_mesh_uid;
+	u32* ogre_mesh_uid;
+};
+
+struct Init_data
+{
+	List meshes_uid_list;
+};
+
 struct App_memory
 {
 	Memory_arena* permanent_arena;
 	Memory_arena* temp_arena;
+
+	Meshes meshes;
 
 	Color32 tilemap[32][32];
 	User_input* input;

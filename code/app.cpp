@@ -18,11 +18,16 @@ void update(App_memory* memory)
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)
 {
+
+	Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	triangle->mesh_uid = *memory->meshes.triangle_mesh_uid;
+
+	Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	ogre->mesh_uid = *memory->meshes.ogre_mesh_uid;
 	until(y, ARRAYCOUNT(memory->tilemap))
 	{
 		until(x, ARRAYCOUNT(memory->tilemap[y]))
 		{
-			Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 
 			//draw_rectangle(x, y, 10,10, tilemap[y][x]);
 			// or maybe
@@ -148,6 +153,15 @@ void init(App_memory* memory, Init_data* init_data)
 		triangle_indices,
 		ARRAYCOUNT(triangle_indices),
 	};
+
+	u32* triangle_mesh_uid = LIST_PUSH_BACK_STRUCT(&init_data->meshes_uid_list, u32, memory->permanent_arena);
+	memory->meshes.triangle_mesh_uid = triangle_mesh_uid;
+
+	u32* ogre_mesh_uid = LIST_PUSH_BACK_STRUCT(&init_data->meshes_uid_list,u32, memory->permanent_arena);
+	memory->meshes.ogre_mesh_uid = ogre_mesh_uid;
+
+
+
 /*
 	Dx_mesh triangle_mesh = dx11_init_mesh(dx, 
 		triangle_vertices, 3, sizeof(Vertex3d), 
