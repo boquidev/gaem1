@@ -29,7 +29,9 @@ struct Entity
 	b32 visible;
 	r32 lifetime;
 
-	b32 is_bullet;
+	b32 selectable;
+
+	b32 is_bullet;//TODO: make this the identifier of what kind of entity it is
 
 	V3 target_move_pos;
 	V3 velocity;
@@ -92,7 +94,7 @@ struct User_input
 			s32 cursor_primary;
 			s32 cursor_secondary;
 
-			s32 aim;
+			s32 cancel;
 			s32 shoot;
 
 			s32 forward;

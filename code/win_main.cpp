@@ -514,7 +514,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 						else if(vkcode == VK_SHIFT)
 							holding_inputs.down = is_down;
 						else if(vkcode == 'F')
-							holding_inputs.aim = is_down;
+							holding_inputs.cancel = is_down;
 						else if(vkcode == 'X')
 							holding_inputs.shoot = is_down;
 						

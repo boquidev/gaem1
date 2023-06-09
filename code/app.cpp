@@ -14,6 +14,7 @@ void update(App_memory* memory){
 	
 	Entity* turret = &memory->entities[1];
 	turret->visible = true;
+	turret->selectable = true;
 
 	turret->team_uid = 0;
 	turret->shooting_cooldown = 0.2f;
@@ -26,6 +27,7 @@ void update(App_memory* memory){
 
 	Entity* turret2 = &memory->entities[2];
 	turret2->visible = true;
+	turret2->selectable = true;
 	
 	turret2->team_uid = 0;
 	turret2->shooting_cooldown = 0.2f;
@@ -34,7 +36,7 @@ void update(App_memory* memory){
 	turret2->color = {1,1,1,1};
 	turret2->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
 	turret2->p_tex_uid = memory->textures.p_white_tex_uid;
-	turret2->target_pos = v3_addition(turret2->pos, {0, 0, 10.0f});
+	turret2->target_pos = v3_addition(turret2->pos, {0, 0, 10.0f});	
 
 	V2 input_vector = {(r32)(holding_inputs->right - holding_inputs->left),(r32)(holding_inputs->forward - holding_inputs->backward)};
 	input_vector = normalize(input_vector);
@@ -98,30 +100,32 @@ void update(App_memory* memory){
 			}
 		}
 	}
-	if( !input->cursor_primary ){
-		if(memory->clicked_uid)
-		{
-			if(memory->highlighted_uid == memory->clicked_uid){
-				memory->selected_uid = memory->clicked_uid;
-			}
-			memory->clicked_uid = 0;
-		}
-	}else{
-		if(input->cursor_primary == 1)
-			memory->clicked_uid = memory->highlighted_uid;
-	}
-	Entity* highlighted_entity = &memory->entities[memory->highlighted_uid];
-	Entity* selected_entity = &memory->entities[memory->selected_uid];
-		
-	highlighted_entity->object3d.color = {1,1,0,1};
-	selected_entity->object3d.color = {0,1,0,1};
 
-	if( input->cursor_secondary == 1){
-		selected_entity->target_move_pos = cursor_world_point;
-	}
-	if( input->aim){
-		selected_entity->target_pos = cursor_world_point;
-	}
+	Entity* highlighted_entity = &memory->entities[memory->highlighted_uid];
+	if(memory->selected_uid == memory->player_uid){
+		if( !input->cursor_primary ){
+			if(memory->clicked_uid){
+				if(memory->highlighted_uid == memory->clicked_uid){
+					memory->selected_uid = memory->clicked_uid;
+				}
+				memory->clicked_uid = 0;
+			}
+		}else{
+			if(input->cursor_primary == 1)
+				memory->clicked_uid = memory->highlighted_uid;
+		}
+	} else {
+		Entity* selected_entity = &memory->entities[memory->selected_uid];
+		highlighted_entity->object3d.color = {1,1,0,1};
+		selected_entity->object3d.color = {0,1,0,1};
+
+		if( input->cursor_secondary == 1 )
+			selected_entity->target_move_pos = cursor_world_point;
+		else if( input->cursor_primary )
+			selected_entity->target_pos = cursor_world_point;
+		else if( input->cancel == 1)
+			memory->selected_uid = memory->player_uid;
+	}	
 
 	until(i, MAX_ENTITIES){
 		Entity* entity = &memory->entities[i]; 
@@ -154,7 +158,7 @@ void update(App_memory* memory){
 	until(i, MAX_ENTITIES){
 		Entity* entity = &memory->entities[i];
 		if(entity->visible){
-			if(i == 0)
+			if(i == memory->player_uid)
 			{
 				V3 move_v = (entity->target_move_pos - entity->pos);
 				V3 accel = 10*(move_v - entity->velocity);
@@ -174,7 +178,6 @@ void update(App_memory* memory){
 					entity->visible = 0;
 					memory->entity_generations[i]++;
 				}else{
-
 					entity->lifetime -= memory->delta_time;
 					until(i2, MAX_ENTITIES){
 						Entity* entity2 = &memory->entities[i2];
