@@ -1,4 +1,5 @@
 #include "definitions.h"
+#include "boqui_math.h"
 // string.h IS INCLUDED IN THIS FILE AFTER MEMORY ARENAS
 // maybe with GUARDS i could include it just here
 // #include "math"
@@ -195,32 +196,6 @@ list_push_front_data(List* list,void* data, u32 size, Memory_arena* arena)
 
 // TEMPORARILY ORPHAN 
 
-struct Int2
-{
-	s32 x;
-	s32 y;
-};
-
-struct V2
-{
-	r32 x;
-	r32 y;
-};
-
-struct V3
-{
-	r32 x;
-	r32 y;
-	r32 z;
-};
-
-struct V4
-{
-	r32 x;
-	r32 y;
-	r32 z;
-	r32 w;
-};
 
 struct Color
 {

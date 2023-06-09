@@ -6,14 +6,28 @@ void update(App_memory* memory)
 
 	r32 delta_time = 1;
 	r32 camera_speed = 0.01f;
+	r32 sensitivity = 1.0f;
 
-	memory->camera_rotation.y += (r32)input->cursor_speed.x / 500;
-	memory->camera_rotation.x += (r32)input->cursor_speed.y / 500;
+	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x / 500;
+	memory->camera_rotation.x += sensitivity*(r32)input->cursor_speed.y / 500;
 	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
 
-	memory->camera_pos.x += (input->right - input->left) * delta_time * camera_speed;
-	memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
-	memory->camera_pos.z += (input->forward - input->backward) * delta_time * camera_speed;
+	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
+	input_vector = normalize(input_vector);
+
+	{
+		V2 looking_direction = {cosf(memory->camera_rotation.y), sinf(memory->camera_rotation.y)};
+		V2 move_direction = {
+			input_vector.x*looking_direction.x + input_vector.y*looking_direction.y ,
+			-input_vector.x*looking_direction.y + input_vector.y*looking_direction.x
+		};
+		memory->camera_pos.x += move_direction.x * delta_time * camera_speed;
+		memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
+
+		memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
+	}
+
+
 
 	r32 green = 0;
 	r32 color_step = 1.0f/ARRAYCOUNT(memory->tilemap);
