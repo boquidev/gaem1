@@ -117,36 +117,29 @@ void update(App_memory* memory){
 		selected_entity->target_pos = cursor_world_point;
 	}
 
-	Entity* bullet = &memory->entities[3];
-	bullet->parent_uid = 1;
-	bullet->is_bullet = 1;
-	bullet->speed = 50;
-	bullet->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
-	bullet->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
-	bullet->object3d.color = {1,0,0,1};
-	Entity* bullet2 = &memory->entities[4];
-	bullet2->parent_uid = 2;
-	bullet2->is_bullet = 1;
-	bullet2->speed = 50;
-	bullet2->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
-	bullet2->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
-	bullet2->object3d.color = {1,0,0,1};
-
 	if( input->shoot == 1){
-		Entity* parent = &memory->entities[bullet->parent_uid];
-		bullet->visible = 1;
-		bullet->object3d.pos = parent->object3d.pos;
-		bullet->target_pos = parent->target_pos;
-		bullet->object3d.scale = {0.5f,0.5f,0.5f};
-		V3 target_direction = v3_difference(bullet->target_pos, bullet->object3d.pos);
-		bullet->velocity =  bullet->speed * v3_normalize(target_direction);
-		parent = &memory->entities[bullet2->parent_uid];
-		bullet2->visible = 1;
-		bullet2->object3d.pos = parent->object3d.pos;
-		bullet2->target_pos = parent->target_pos;
-		bullet2->object3d.scale = {0.5f,0.5f,0.5f};
-		target_direction = v3_difference(bullet2->target_pos, bullet2->object3d.pos);
-		bullet2->velocity =  bullet2->speed * v3_normalize(target_direction);
+		until(i, MAX_ENTITIES)
+		{
+			Entity* entity = &memory->entities[i];
+			if(i==0 || !entity->visible || entity->is_bullet) 
+				continue;
+			u32 new_entity_index = next_inactive_entity(memory->entities,&memory->last_inactive_entity);
+			Entity* new_bullet = &memory->entities[new_entity_index];
+			new_bullet->lifetime = 10.0f;
+			new_bullet->visible = 1;
+			new_bullet->parent_uid = i;
+			new_bullet->is_bullet = 1;
+			new_bullet->speed = 50;
+			new_bullet->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
+			new_bullet->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
+			new_bullet->object3d.color = {0.8f,0,0,1};
+			Entity* parent = &memory->entities[new_bullet->parent_uid];
+			new_bullet->object3d.pos = parent->object3d.pos;
+			new_bullet->target_pos = parent->target_pos;
+			new_bullet->object3d.scale = {0.5f,0.5f,0.5f};
+			V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
+			new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
+		}
 	}
 
 	until(i, MAX_ENTITIES){
@@ -167,13 +160,23 @@ void update(App_memory* memory){
 				V3 target_direction = entity->target_pos - entity->object3d.pos;
 				entity->object3d.rotation.y = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
 			}else{
-				until(i2, MAX_ENTITIES){
-					Entity* entity2 = &memory->entities[i2];
-					if(i2 != entity->parent_uid && entity2->parent_uid != entity->parent_uid && entity2->visible)
-					{
-						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
-						if(intersect > 0){
-							entity->visible = 0;
+				if( entity->lifetime < 0 )
+				{
+					entity->visible = 0;
+					memory->entity_generations[i]++;
+				}else{
+
+					entity->lifetime -= memory->delta_time;
+					until(i2, MAX_ENTITIES){
+						Entity* entity2 = &memory->entities[i2];
+						if(i2 != entity->parent_uid && entity2->parent_uid != entity->parent_uid && entity2->visible)
+						{
+							r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
+							if(intersect > 0){//TODO: damage entity
+								entity->visible = 0;
+								memory->entity_generations[i]++;
+								break;
+							}
 						}
 					}
 				}

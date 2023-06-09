@@ -21,9 +21,12 @@ struct Object3d
 	Color color;
 };
 
+#define MAX_ENTITIES 1000
 struct Entity
 {
 	b32 visible;
+	r32 lifetime;
+	b32 is_bullet;
 
 	V3 target_move_pos;
 	V3 velocity;
@@ -32,7 +35,6 @@ struct Entity
 	//TODO: i don't like this
 	r32 speed;
 
-	b32 is_bullet;
 	u32 parent_uid;
 
 	r32 radius;
@@ -51,11 +53,33 @@ struct Entity
 	};
 };
 
+internal u32
+next_inactive_entity(Entity entities[], u32* last_inactive_i){
+	u32 i = *last_inactive_i+1;
+	for(; i != *last_inactive_i; i++){
+		if(i == MAX_ENTITIES)
+			i = 0;
+		if(!entities[i].visible) break;
+	}
+	ASSERT(i != *last_inactive_i);// there was no inactive entity
+	*last_inactive_i = i;
+	return i; 
+}
+
 struct Entity_handle
 {
-	u32 uid;
-	u32 gen;
+	u32 index;
+	u32 generation;
 };
+
+//TODO: use this
+internal b32
+is_handle_valid(u32 entity_generations[], Entity_handle handle)
+{
+	b32 result = entity_generations[handle.index] == handle.generation;
+	ASSERT(result);
+	return result;
+}
 
 struct User_input
 {
@@ -142,7 +166,6 @@ struct Init_data
 	LIST(Tex_from_file_request) tex_from_file_requests;
 };
 
-#define MAX_ENTITIES 100
 struct App_memory
 {
 	Memory_arena* permanent_arena;
@@ -170,8 +193,9 @@ struct App_memory
 	r32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
 
-	u32 active_entities_count;
+	u32 last_inactive_entity;
 	Entity entities[MAX_ENTITIES];
+	u32 entity_generations[MAX_ENTITIES];
 };
 
 internal u32
