@@ -12,13 +12,15 @@
 // scale must be 1,1,1 by default
 struct Object3d
 {
-	u32* p_mesh_uid;
-	u32* p_tex_uid;
-	V3 scale;
-	V3 pos;
-	V3 rotation;
-
+#define OBJECT3D_STRUCTURE \
+	u32* p_mesh_uid;\
+	u32* p_tex_uid;\
+	V3 scale;\
+	V3 pos;\
+	V3 rotation;\
 	Color color;
+
+	OBJECT3D_STRUCTURE
 };
 
 #define MAX_ENTITIES 1000
@@ -26,29 +28,28 @@ struct Entity
 {
 	b32 visible;
 	r32 lifetime;
+
 	b32 is_bullet;
 
 	V3 target_move_pos;
 	V3 velocity;
+
 	V3 target_pos;
+	r32 shooting_cooldown;
+	r32 shooting_cd_time_left;
 
 	//TODO: i don't like this
 	r32 speed;
 
-	u32 parent_uid;
+	// u32 parent_uid;
+	u32 team_uid;
 
 	r32 radius;
 
 	union{
 		Object3d object3d;
 		struct{
-			u32* p_mesh_uid;
-			u32* p_tex_uid;
-			V3 scale;
-			V3 pos;
-			V3 rotation;
-
-			Color color;
+			OBJECT3D_STRUCTURE
 		};
 	};
 };
@@ -192,6 +193,8 @@ struct App_memory
 	r32 update_hz;
 	r32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
+
+	u32 player_uid;
 
 	u32 last_inactive_entity;
 	Entity entities[MAX_ENTITIES];

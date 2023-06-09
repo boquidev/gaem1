@@ -14,21 +14,27 @@ void update(App_memory* memory){
 	
 	Entity* turret = &memory->entities[1];
 	turret->visible = true;
-	Object3d* turret_object = &turret->object3d;
-	turret_object->scale = {1.0f,1.0f,1.0f};
-	turret_object->rotation.y = 0;
-	turret_object->color = {1,1,1,1};
-	turret_object->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
-	turret_object->p_tex_uid = memory->textures.p_white_tex_uid;
+
+	turret->team_uid = 0;
+	turret->shooting_cooldown = 0.2f;
+	turret->scale = {1.0f,1.0f,1.0f};
+	turret->rotation.y = 0;
+	turret->color = {1,1,1,1};
+	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
+	turret->p_tex_uid = memory->textures.p_white_tex_uid;
+	turret->target_pos = v3_addition(turret->pos, {0, 0, 10.0f});
 
 	Entity* turret2 = &memory->entities[2];
 	turret2->visible = true;
-	turret_object = &turret2->object3d;
-	turret_object->scale = {1.0f,1.0f,1.0f};
-	turret_object->rotation.y = 0;
-	turret_object->color = {1,1,1,1};
-	turret_object->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
-	turret_object->p_tex_uid = memory->textures.p_white_tex_uid;
+	
+	turret2->team_uid = 0;
+	turret2->shooting_cooldown = 0.2f;
+	turret2->scale = {1.0f,1.0f,1.0f};
+	turret2->rotation.y = 0;
+	turret2->color = {1,1,1,1};
+	turret2->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
+	turret2->p_tex_uid = memory->textures.p_white_tex_uid;
+	turret2->target_pos = v3_addition(turret2->pos, {0, 0, 10.0f});
 
 	V2 input_vector = {(r32)(holding_inputs->right - holding_inputs->left),(r32)(holding_inputs->forward - holding_inputs->backward)};
 	input_vector = normalize(input_vector);
@@ -46,14 +52,14 @@ void update(App_memory* memory){
 
 		Entity* ogre = &memory->entities[0];
 		ogre->visible = true;
+		ogre->team_uid = 0;
 		ogre->speed = 10.0f;
-		Object3d* ogre_object = &ogre->object3d;
-		ogre_object->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
-		ogre_object->p_tex_uid = memory->textures.p_white_tex_uid;
-		ogre_object->scale = {1.0f,1.0f,1.0f};
-		ogre_object->color = {1,1,1,1};
-		// ogre_object->pos.x += input_vector.x *  ogre->speed * delta_time;
-		// ogre_object->pos.z += input_vector.y * ogre->speed * delta_time;
+		ogre->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
+		ogre->p_tex_uid = memory->textures.p_white_tex_uid;
+		ogre->scale = {1.0f,1.0f,1.0f};
+		ogre->color = {1,1,1,1};
+		// ogre->pos.x += input_vector.x *  ogre->speed * delta_time;
+		// ogre->pos.z += input_vector.y * ogre->speed * delta_time;
 		ogre->target_move_pos = v3_addition(ogre->pos, {input_vector.x*ogre->speed, 0, input_vector.y*ogre->speed});
 	}
 
@@ -117,28 +123,31 @@ void update(App_memory* memory){
 		selected_entity->target_pos = cursor_world_point;
 	}
 
-	if( input->shoot == 1){
-		until(i, MAX_ENTITIES)
-		{
-			Entity* entity = &memory->entities[i];
-			if(i==0 || !entity->visible || entity->is_bullet) 
-				continue;
-			u32 new_entity_index = next_inactive_entity(memory->entities,&memory->last_inactive_entity);
-			Entity* new_bullet = &memory->entities[new_entity_index];
-			new_bullet->lifetime = 10.0f;
-			new_bullet->visible = 1;
-			new_bullet->parent_uid = i;
-			new_bullet->is_bullet = 1;
-			new_bullet->speed = 50;
-			new_bullet->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
-			new_bullet->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
-			new_bullet->object3d.color = {0.8f,0,0,1};
-			Entity* parent = &memory->entities[new_bullet->parent_uid];
-			new_bullet->object3d.pos = parent->object3d.pos;
-			new_bullet->target_pos = parent->target_pos;
-			new_bullet->object3d.scale = {0.5f,0.5f,0.5f};
-			V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
-			new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
+	until(i, MAX_ENTITIES){
+		Entity* entity = &memory->entities[i]; 
+		if( entity->visible && !entity->is_bullet && i!=memory->player_uid) {
+			// IF IT IS A TURRET
+			entity->shooting_cd_time_left -= memory->delta_time;
+			if(entity->shooting_cd_time_left < 0){
+				entity->shooting_cd_time_left = entity->shooting_cooldown;
+
+				u32 new_entity_index = next_inactive_entity(memory->entities,&memory->last_inactive_entity);
+				Entity* new_bullet = &memory->entities[new_entity_index];
+				new_bullet->lifetime = 10.0f;
+				new_bullet->visible = 1;
+				new_bullet->is_bullet = 1;
+				new_bullet->speed = 50;
+				new_bullet->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
+				new_bullet->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
+				new_bullet->object3d.color = {0.8f,0,0,1};
+				Entity* parent = &memory->entities[i];
+				new_bullet->team_uid = parent->team_uid;
+				new_bullet->object3d.pos = parent->object3d.pos;
+				new_bullet->target_pos = parent->target_pos;
+				new_bullet->object3d.scale = {0.5f,0.5f,0.5f};
+				V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
+				new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
+			}
 		}
 	}
 
@@ -169,8 +178,9 @@ void update(App_memory* memory){
 					entity->lifetime -= memory->delta_time;
 					until(i2, MAX_ENTITIES){
 						Entity* entity2 = &memory->entities[i2];
-						if(i2 != entity->parent_uid && entity2->parent_uid != entity->parent_uid && entity2->visible)
-						{
+						if(entity2->visible && 
+							entity->team_uid != entity2->team_uid
+						){
 							r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 							if(intersect > 0){//TODO: damage entity
 								entity->visible = 0;
@@ -180,7 +190,6 @@ void update(App_memory* memory){
 						}
 					}
 				}
-				// if collides with a non parent destroy
 			}
 		}
 		
