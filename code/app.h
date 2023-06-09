@@ -23,8 +23,8 @@ struct Object3d
 
 struct User_input
 {
-	Int2 cursor_pos;
-	Int2 cursor_speed;
+	V2 cursor_pos;
+	V2 cursor_speed;
 
 	b32 A;
 	b32 forward;

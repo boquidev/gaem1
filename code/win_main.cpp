@@ -438,16 +438,22 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			};
 			
 			POINT center_point = { client_center_pos.x, client_center_pos.y };
+
 			ClientToScreen(global_main_window, &center_point);
 
 			input.cursor_speed = {0};
 			if(memory.lock_mouse)
 			{
 				SetCursorPos(center_point.x, center_point.y);
-				input.cursor_speed = {mousep.x - input.cursor_pos.x, mousep.y - input.cursor_pos.y};
-				input.cursor_pos = client_center_pos;
+				r32 px = (r32)(mousep.x-client_center_pos.x)/client_size.x;
+				r32 py = -(r32)(mousep.y-client_center_pos.y)/client_size.y;
+				input.cursor_speed.x = px - input.cursor_pos.x;
+				input.cursor_speed.y = py - input.cursor_pos.y;
+				input.cursor_pos = {0,0};
 			}else
-				input.cursor_pos = {mousep.x, mousep.y};
+				input.cursor_pos = {
+					(r32)(mousep.x - client_center_pos.x)/client_size.x, 
+					-(r32)(mousep.y - client_center_pos.y)/client_size.y};
 				
 		}
 

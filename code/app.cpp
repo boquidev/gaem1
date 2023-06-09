@@ -9,8 +9,8 @@ void update(App_memory* memory)
 	r32 movement_speed = 0.01f;
 	r32 sensitivity = 1.0f;
 
-	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x / 500;
-	memory->camera_rotation.x += sensitivity*(r32)input->cursor_speed.y / 500;
+	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x;
+	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
 	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
 	// memory->camera_rotation.x = PI32/2;
 

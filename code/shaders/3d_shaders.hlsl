@@ -47,7 +47,6 @@ PSINPUT vs( VSINPUT input )
 	// result.color = float4(
 	// 	vertex_world_pos.xyz, 1
 	// );
-	// result.color = object_color;
 	return result;
 }
 
@@ -60,7 +59,7 @@ sampler sampler0 : register(s0);
 float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 {
 	float4 texcolor = texture0.Sample( sampler0, input.uv );
-	float a = sin(input.color.r*100);
+	// float a = sin(input.color.x*500);
 	// float4 result = float4(1,1,1,1);
 	float4 result = float4(
 		texcolor.r * input.color.r, 
