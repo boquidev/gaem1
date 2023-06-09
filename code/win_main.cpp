@@ -198,11 +198,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	app.init(&memory, &init_data);
 	
 	// CREATING TEXTURES
-	List textures_list = {0};
-	foreach(tex_from_surface_request_node, &init_data.tex_from_surface_requests, i)
+	List textures_list = {0};// fuck this is too long
+	Tex_from_surface_request_List_node* tex_from_surface_request_node = init_data.tex_from_surface_requests.root;
+	until(i, init_data.tex_from_surface_requests.size)
 	{
-		Tex_from_surface_request* request = 
-			(Tex_from_surface_request*)tex_from_surface_request_node->data;
+		Tex_from_surface_request* request = tex_from_surface_request_node->value;
 		nextnode(tex_from_surface_request_node);
 
 		*request->p_tex_uid = textures_list.size;
@@ -210,10 +210,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dx11_create_texture_view(dx, &request->surface, texture_view);
 	}
 
-	foreach(tex_from_file_request_node, &init_data.tex_from_file_requests, i)
+	Tex_from_file_request_List_node* tex_from_file_request_node = init_data.tex_from_file_requests.root;
+	until(i, init_data.tex_from_file_requests.size)
 	{
-		Tex_from_file_request* request = 
-			(Tex_from_file_request*)tex_from_file_request_node->data;
+		Tex_from_file_request* request = tex_from_file_request_node->value;
 		nextnode(tex_from_file_request_node);
 
 		int comp;
@@ -292,9 +292,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	List meshes_list = {0};
 
 	// LOADING MESHES FROM FILES
-	foreach(mff_request_node, &init_data.mesh_from_file_requests, i)
+	Mesh_from_file_request_List_node* mff_request_node = init_data.mesh_from_file_requests.root;
+	until(i, init_data.mesh_from_file_requests.size)
 	{
-		Mesh_from_file_request* request = (Mesh_from_file_request*)mff_request_node->data;
+		Mesh_from_file_request* request = mff_request_node->value;
 		nextnode(mff_request_node);
 		File_data glb_file = win_read_file(request->filename, temp_arena);
 		GLB glb = {0};
@@ -332,9 +333,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		
 	}
 	// CREATING MESHES FROM MANUALLY DEFINED PRIMITIVES
-	foreach(mfp_request_node, &init_data.mesh_from_primitives_requests, i)
+	Mesh_from_primitives_request_List_node* mfp_request_node = init_data.mesh_from_primitives_requests.root;
+	until(i, init_data.mesh_from_primitives_requests.size)
 	{
-		Mesh_from_primitives_request* request = (Mesh_from_primitives_request*)mfp_request_node->data;
+		Mesh_from_primitives_request* request = mfp_request_node->value;
 		nextnode(mfp_request_node);
 
 		*request->p_mesh_uid = meshes_list.size;

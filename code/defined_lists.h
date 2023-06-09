@@ -1,6 +1,6 @@
 
-#define NODE(x) x##_list_node
-#define LIST(x) x##_list 
+#define NODE(x) x##_List_node
+#define LIST(x) x##_List 
 #define DEFINE_LIST(type) \
 struct NODE(type){NODE(type)* next_node; type* value; }; \
 struct LIST(type){                              \
@@ -10,7 +10,7 @@ struct LIST(type){                              \
 	type* push_back(Memory_arena* arena)                              \
 	{                              \
 		type* result = ARENA_PUSH_STRUCT(arena, type);                              \
-		if(size)                              \
+		if(!size)                              \
 		{                              \
 			root = ARENA_PUSH_STRUCT(arena, NODE(type));                              \
 			last = root;                              \
@@ -47,7 +47,7 @@ struct LIST(type){                              \
 		}                                                                                          \
 		return result;                                                                                    \
 	}                                                            \
-};\
+}
 
 
-DEFINE_LIST(V3)
+DEFINE_LIST(V3);

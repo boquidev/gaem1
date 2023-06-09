@@ -82,12 +82,16 @@ struct Tex_from_file_request
 	String filename;
 };
 
+DEFINE_LIST(Mesh_from_file_request);
+DEFINE_LIST(Mesh_from_primitives_request);
+DEFINE_LIST(Tex_from_surface_request);
+DEFINE_LIST(Tex_from_file_request) ;
 struct Init_data
 {
-	List mesh_from_file_requests;
-	List mesh_from_primitives_requests;
-	List tex_from_surface_requests;
-	List tex_from_file_requests;
+	LIST(Mesh_from_file_request) mesh_from_file_requests;
+	LIST(Mesh_from_primitives_request) mesh_from_primitives_requests;
+	LIST(Tex_from_surface_request) tex_from_surface_requests;
+	LIST(Tex_from_file_request) tex_from_file_requests;
 };
 
 struct App_memory
@@ -136,8 +140,7 @@ internal u32*
 push_tex_from_surface_request(App_memory* memory, Init_data* init_data, u32 width, u32 height, u32* pixels)
 {
 	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
-	Tex_from_surface_request* request = LIST_PUSH_BACK_STRUCT(
-		&init_data->tex_from_surface_requests, Tex_from_surface_request, memory->temp_arena);
+	Tex_from_surface_request* request = init_data->tex_from_surface_requests.push_back(memory->temp_arena);
 	request->p_tex_uid = result;
 	request->surface = {width,height};
 	request->surface.data = arena_push_data(memory->permanent_arena, pixels, width*height*sizeof(u32));
@@ -151,7 +154,7 @@ push_tex_from_file_request(App_memory* memory, Init_data* init_data, String file
 	// reserves space for the uid in the permanent_arena
 	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
 	// pushes the request in the initdata in the temp arena
-	Tex_from_file_request* request = LIST_PUSH_BACK_STRUCT(&init_data->tex_from_file_requests,Tex_from_file_request, memory->temp_arena);
+	Tex_from_file_request* request = init_data->tex_from_file_requests.push_back(memory->temp_arena);
 	request->p_tex_uid = result;
 	request->filename = filename;
 
@@ -163,7 +166,7 @@ internal u32*
 push_mesh_from_primitives_request(App_memory* memory, Init_data* init_data, Mesh_primitive* primitives)
 {
 	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
-	Mesh_from_primitives_request* request = LIST_PUSH_BACK_STRUCT(&init_data->mesh_from_primitives_requests,Mesh_from_primitives_request, memory->temp_arena);
+	Mesh_from_primitives_request* request = init_data->mesh_from_primitives_requests.push_back(memory->temp_arena);
 	request->p_mesh_uid = result;
 	request->primitives = primitives;
 
@@ -177,7 +180,7 @@ push_mesh_from_file_request(App_memory* memory, Init_data* init_data, String fil
 	// reserves space for the uid in the permanent_arena
 	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
 	// pushes the request in the initdata in the temp arena
-	Mesh_from_file_request* request = LIST_PUSH_BACK_STRUCT(&init_data->mesh_from_file_requests,Mesh_from_file_request, memory->temp_arena);
+	Mesh_from_file_request* request = init_data->mesh_from_file_requests.push_back(memory->temp_arena);
 	request->p_mesh_uid = result;
 	request->filename = filename;
 
