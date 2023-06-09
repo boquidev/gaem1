@@ -477,14 +477,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				break;
 				case WM_LBUTTONUP:
 					holding.cursor_primary = 0;
-					input.cursor_primary = 0;
 				break;
 				case WM_RBUTTONDOWN:
 					holding.cursor_secondary = 1;
 				break;
 				case WM_RBUTTONUP:
 					holding.cursor_secondary = 0;
-					input.cursor_secondary = 0;
 				break;
 
 				case WM_MOUSEWHEEL:
@@ -515,7 +513,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 						else if(vkcode == VK_SHIFT)
 							holding.down = is_down;
 						else if(vkcode == 'F')
-							holding.x = is_down;
+							holding.aim = is_down;
 						else if(vkcode == 'X')
 							holding.shoot = is_down;
 						

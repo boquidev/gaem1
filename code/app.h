@@ -51,6 +51,12 @@ struct Entity
 	};
 };
 
+struct Entity_handle
+{
+	u32 uid;
+	u32 gen;
+};
+
 struct User_input
 {
 	V2 cursor_pos;
@@ -61,7 +67,7 @@ struct User_input
 			u32 cursor_primary;
 			u32 cursor_secondary;
 
-			u32 x;
+			u32 aim;
 			u32 shoot;
 
 			u32 forward;

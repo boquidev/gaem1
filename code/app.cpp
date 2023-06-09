@@ -32,6 +32,7 @@ void update(App_memory* memory){
 	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
 	input_vector = normalize(input_vector);
 	{
+		// MOVE CAMERA IN THE DIRECTION I AM LOOKING
 		// V2 looking_direction = {cosf(memory->camera_rotation.y), sinf(memory->camera_rotation.y)};
 		// V2 move_direction = {
 		// 	input_vector.x*looking_direction.x + input_vector.y*looking_direction.y ,
@@ -41,6 +42,7 @@ void update(App_memory* memory){
 		// memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
 
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
+
 		Entity* ogre = &memory->entities[0];
 		ogre->visible = true;
 		ogre->speed = 0.5f;
@@ -111,21 +113,21 @@ void update(App_memory* memory){
 	if( input->cursor_secondary == 1){
 		selected_entity->target_move_pos = cursor_world_point;
 	}
-	if( input->x == 1){
+	if( input->aim){
 		selected_entity->target_pos = cursor_world_point;
 	}
 
 	Entity* bullet = &memory->entities[3];
 	bullet->parent_uid = 1;
 	bullet->is_bullet = 1;
-	bullet->speed = 1;
+	bullet->speed = 50;
 	bullet->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
 	bullet->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
 	bullet->object3d.color = {1,0,0,1};
 	Entity* bullet2 = &memory->entities[4];
 	bullet2->parent_uid = 2;
 	bullet2->is_bullet = 1;
-	bullet2->speed = 1;
+	bullet2->speed = 50;
 	bullet2->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
 	bullet2->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
 	bullet2->object3d.color = {1,0,0,1};
@@ -135,29 +137,38 @@ void update(App_memory* memory){
 		bullet->visible = 1;
 		bullet->object3d.pos = parent->object3d.pos;
 		bullet->target_pos = parent->target_pos;
-		bullet->object3d.scale = {1.0f,1.0f,1.0f};
+		bullet->object3d.scale = {0.5f,0.5f,0.5f};
+		V3 target_direction = v3_difference(bullet->target_pos, bullet->object3d.pos);
+		bullet->velocity =  bullet->speed * v3_normalize(target_direction);
 		parent = &memory->entities[bullet2->parent_uid];
 		bullet2->visible = 1;
 		bullet2->object3d.pos = parent->object3d.pos;
 		bullet2->target_pos = parent->target_pos;
-		bullet2->object3d.scale = {1.0f,1.0f,1.0f};
+		bullet2->object3d.scale = {0.5f,0.5f,0.5f};
+		target_direction = v3_difference(bullet2->target_pos, bullet2->object3d.pos);
+		bullet2->velocity =  bullet2->speed * v3_normalize(target_direction);
 	}
 
-	for(u32 i=1; i<MAX_ENTITIES; i++){
+	until(i, MAX_ENTITIES){
 		Entity* entity = &memory->entities[i];
-		
-		if(!entity->is_bullet){
-			entity->velocity = (entity->target_move_pos - entity->object3d.pos);
-			V3 target_direction = entity->target_pos - entity->object3d.pos;
-			entity->object3d.rotation.y = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
-		}else{
-			V3 target_direction = v3_difference(entity->target_pos, entity->object3d.pos);
-			entity->velocity =  entity->speed * v3_normalize(target_direction);
-
-			if(v2_magnitude({target_direction.x, target_direction.z}) < 0.1f){
-				entity->object3d.scale = 2 * entity->object3d.scale;
+		if(entity->visible){
+			if(!entity->is_bullet){
+				entity->velocity = (entity->target_move_pos - entity->object3d.pos);
+				V3 target_direction = entity->target_pos - entity->object3d.pos;
+				entity->object3d.rotation.y = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
+			}else{
+				until(i2, MAX_ENTITIES){
+					Entity* entity2 = &memory->entities[i2];
+					if(i2 != entity->parent_uid && entity2->parent_uid   != entity->parent_uid)
+					{
+						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
+						if(intersect > 0){
+							entity->visible = 0;
+						}
+					}
+				}
+				// if collides with a non parent destroy
 			}
-			// if collides with a non parent destroy
 		}
 		
 		entity->object3d.pos = entity->object3d.pos + (memory->delta_time * entity->velocity);
