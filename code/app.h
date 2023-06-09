@@ -104,6 +104,7 @@ struct App_memory
 	Textures textures;
 
 	r32 fov;
+	r32 aspect_ratio;
 	V3 camera_pos;
 	V3 camera_rotation;
 

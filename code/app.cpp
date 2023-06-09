@@ -57,34 +57,39 @@ void update(App_memory* memory)
 
 	//TODO: make this into a function screen to world
 	{
-		r32 cos_rotation_y = COSF(memory->camera_rotation.y);
-		r32 sin_rotation_y = SINF(memory->camera_rotation.y);
-		r32 cos_rotation_x = COSF(memory->camera_rotation.x);
-		r32 sin_rotation_x = SINF(memory->camera_rotation.x);
 		
-		V2 cursor_pos = {memory->fov*input->cursor_pos.x, memory->fov*input->cursor_pos.y};
-
-		V3 x_direction = {cos_rotation_y*cursor_pos.x,0,-sin_rotation_y*cursor_pos.x};
-		V3 y_direction = {sin_rotation_y*sin_rotation_x*cursor_pos.y,cos_rotation_x*cursor_pos.y,cos_rotation_y*sin_rotation_x*cursor_pos.y};
-
+		V3 cursor_pos = {
+			memory->aspect_ratio*memory->fov*input->cursor_pos.x,
+			memory->fov*input->cursor_pos.y, 0};
+		
 		if(input->select)
 		{
-			V3 p_0;		
-			p_0.x = x_direction.x + y_direction.x ;
-			p_0.y = x_direction.y + y_direction.y ;
-			p_0.z = x_direction.z + y_direction.z ;
+			V3 cursor_world_point = v3_rotate_y(
+				v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
+			);
 
-			V3 z_direction = {sin_rotation_y,-sin_rotation_x,cos_rotation_y*cos_rotation_x};
+			V3 z_direction = v3_rotate_y(
+				v3_rotate_x({0,0,1}, memory->camera_rotation.x),memory->camera_rotation.y
+			);
 
 			V3 intersect = {0};
 			until(i, MAX_ENTITIES)
 			{
 				memory->entities[i];
-				if(line_vs_sphere(p_0, z_direction, memory->entities[i].pos, 0.1f, &intersect))
+				if(line_vs_sphere(cursor_world_point, z_direction, memory->entities[i].pos, 0.1f, &intersect))
 				{
 					memory->entities[i].color = {0,1,0,1};
 				}
 			}
+			Object3d* cursor = &memory->entities[3];
+			cursor->visible = true;
+			cursor->scale = {0.1f,0.1f,0.1f};
+			cursor->rotation.y = 0;
+			cursor->color = {1,1,1,1};
+			cursor->p_mesh_uid = memory->meshes.p_female_mesh_uid;
+			cursor->p_tex_uid = memory->textures.p_white_tex_uid;
+			cursor->pos = cursor_world_point + z_direction;
+
 		}
 	}
 }

@@ -1,6 +1,3 @@
-#ifndef MATH_H
-#define MATH_H
-
 #define POW(a, b) math_pow(a, b)
 #define SQRT(a) math_sqrt(a)
 #define ABS(x) math_abs(x)
@@ -137,6 +134,16 @@ union V3
     Int3 i;
     V2 v2;
 };
+internal V3
+v3_addition(V3 v1, V3 v2)
+{
+    return {v1.x+v2.x, v1.y+v2.y, v1.z+v2.z};
+}
+internal V3
+operator +(V3 v1, V3 v2)
+{
+    return v3_addition(v1, v2);
+}
 
 struct Int4
 {
@@ -339,5 +346,47 @@ bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3
     return result;
 }
 
+// Function to rotate a vector using a rotation matrix
+internal V3 
+v3_rotate_x(V3 vector, r32 angle) 
+{
+    r32 cos_angle = COSF(angle);
+    r32 sin_angle = SINF(angle);
+    
+    V3 result = { 
+        vector.x,
+        vector.y * cos_angle - vector.z * sin_angle,
+        vector.y * sin_angle + vector.z * cos_angle
+    };
+    return result;
+}
+    
+    
+internal V3
+v3_rotate_y(V3 vector, r32 angle)
+{
+    r32 cos_angle = COSF(angle);
+    r32 sin_angle = SINF(angle);
+    
+    V3 result = { 
+        vector.x * cos_angle + vector.z * sin_angle,
+        vector.y,
+        -vector.x * sin_angle + vector.z * cos_angle
+    };
+    return result;
+}
 
-#endif
+internal V3
+v3_rotate_z(V3 vector, r32 angle)
+{
+    r32 cos_angle = COSF(angle);
+    r32 sin_angle = SINF(angle);
+    
+    V3 result = { 
+        vector.x * cos_angle - vector.y * sin_angle,
+        vector.x * sin_angle + vector.y * cos_angle,
+        vector.z
+    };
+
+    return result;
+}

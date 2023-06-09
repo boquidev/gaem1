@@ -98,10 +98,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	ASSERT(global_main_window);
 
-	// GETTING CLIENT SIZES
-	Int2 client_size = win_get_client_sizes(global_main_window);
-	r32 aspect_ratio =  1;
-	if(client_size.y) aspect_ratio = (r32)client_size.x / (r32)client_size.y;
 	// MAIN MEMORY BLOCKS
 	Memory_arena arena1 = {0};
 	arena1.size = MEGABYTES(256);
@@ -116,6 +112,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	App_memory memory = {0};
 	memory.temp_arena = temp_arena;
 	memory.permanent_arena = permanent_arena;
+	
+	// GETTING CLIENT SIZES
+	Int2 client_size = win_get_client_sizes(global_main_window);
+	if(client_size.y) memory.aspect_ratio = (r32)client_size.x / (r32)client_size.y;
 
 	// DIRECTX11
 	// INITIALIZE DIRECT3D
@@ -408,7 +408,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(client_size.x != 0 && client_size.y != 0)
 			{
 				ASSERT(client_size.x < 4000 && client_size.y < 4000);
-				aspect_ratio = (r32)client_size.x / (r32) client_size.y;
+				memory.aspect_ratio = (r32)client_size.x / (r32) client_size.y;
 				hr = dx->swap_chain->ResizeBuffers(0, client_size.x, client_size.y, DXGI_FORMAT_UNKNOWN, 0);
 				ASSERTHR(hr);
 
@@ -591,9 +591,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			
 			// WORLD PROJECTION
 			if(perspective_on)
-				projection_matrix = XMMatrixPerspectiveLH(memory.fov*aspect_ratio, memory.fov, fov, 100.0f);
+				projection_matrix = XMMatrixPerspectiveLH(memory.fov*memory.aspect_ratio, memory.fov, fov, 100.0f);
 			else
-				projection_matrix = XMMatrixOrthographicLH(memory.fov*aspect_ratio, memory.fov, fov, 100.0f);
+				projection_matrix = XMMatrixOrthographicLH(memory.fov*memory.aspect_ratio, memory.fov, fov, 100.0f);
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
 
 			// OBJECT TRANSFORM
