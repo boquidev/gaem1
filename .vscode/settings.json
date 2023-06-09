@@ -1,0 +1,35 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "atomic": "cpp",
+        "bitset": "cpp",
+        "xiosbase": "cpp",
+        "cmath": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "deque": "cpp",
+        "iterator": "cpp",
+        "list": "cpp",
+        "queue": "cpp",
+        "xhash": "cpp",
+        "xtree": "cpp",
+        "format": "cpp",
+        "initializer_list": "cpp",
+        "random": "cpp",
+        "type_traits": "cpp",
+        "chrono": "cpp",
+        "utility": "cpp",
+        "compare": "cpp",
+        "functional": "cpp",
+        "memory": "cpp",
+        "ratio": "cpp",
+        "tuple": "cpp",
+        "xmemory": "cpp",
+        "xtr1common": "cpp",
+        "pch.h": "c"
+    },
+    "files.watcherExclude": {
+        "**/target": true
+    }
+}
