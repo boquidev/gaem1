@@ -6,6 +6,12 @@
 
 #include "d3d11_layer.h"
 
+// STB LIBRARIES
+//TODO: in the future use this just to convert image formats
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#include "libraries/stb_image.h"
+
 
 HWND global_main_window = 0;
 b32 global_running = 0;
@@ -186,6 +192,34 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// APP INITIALIZE 
 	Init_data init_data = {0};
 	app.init(&memory, &init_data);
+	
+	// CREATING TEXTURES
+	List textures_list = {0};
+	foreach(tex_from_surface_request_node, &init_data.tex_from_surface_requests, i)
+	{
+		Tex_from_surface_request* request = 
+			(Tex_from_surface_request*)tex_from_surface_request_node->data;
+		nextnode(tex_from_surface_request_node);
+
+		*request->p_tex_uid = textures_list.size;
+		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, memory.permanent_arena);
+		dx11_create_texture_view(dx, &request->surface, texture_view);
+	}
+
+	foreach(tex_from_file_request_node, &init_data.tex_from_file_requests, i)
+	{
+		Tex_from_file_request* request = 
+			(Tex_from_file_request*)tex_from_file_request_node->data;
+		nextnode(tex_from_file_request_node);
+
+		int comp;
+		Surface tex_surface = {0};
+		tex_surface.data = stbi_load(request->filename.text, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
+		ASSERT(tex_surface.data);
+		*request->p_tex_uid = textures_list.size;
+		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, memory.permanent_arena);
+		dx11_create_texture_view(dx, &tex_surface, texture_view);
+	}
 
 	//TODO: FIND A WAY TO MAKE THIS CALLS FROM THE APP LAYER
 	Dx11_render_pipeline pipeline_3d = {0};
@@ -247,13 +281,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	Surface white_texture = {2, 2, &white_tex_pixels};
 	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
 
-	
-	// CREATING  D3D PIPELINES
-	dx11_create_sampler(dx, &dx->sampler);
-	dx11_create_rasterizer_state(dx, &dx->rasterizer_state);
-	dx11_create_blend_state(dx, &pipeline_3d.blend_state, true);
-	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, true);
-
 	// MESHES
 	List meshes_list = {0};
 
@@ -288,7 +315,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// {	
 			// }
 		}
-		// ADDING OGRE MESH TO THE MESHES LIST
 		
 		*request->p_mesh_uid = meshes_list.size;
 
@@ -296,33 +322,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		*current_mesh = dx11_init_mesh(dx, 
 		&primitives[0],
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		
 	}
-
-	// Vertex3d triangle_vertices [3] = {
-	// 	{{0, 1, 0},{0.5, 0.0}},
-	// 	{{1, 0, 0},{1, 1}},
-	// 	{{-1, 0, 0},{0, 1}}
-	// };
-	// u16 triangle_indices[3] = {
-	// 	0,1,2
-	// };
-	// Mesh_primitive triangle_primitives = {
-	// 	triangle_vertices,
-	// 	sizeof(Vertex3d),
-	// 	3,
-	// 	triangle_indices,
-	// 	3,
-	// };
-	// // ADDING TRIANGLE TO THE MESHES LIST
-	// u32* triangle_mesh_uid = LIST_GET_DATA_AS(&init_data.meshes_uid_list, 0, u32);
-	// *triangle_mesh_uid = meshes_list.size;
-	// Dx_mesh* triangle_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
-	// *triangle_mesh = dx11_init_mesh(dx, &triangle_primitives, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// ________________________
-	// Object3d* ogre2 =  LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
-	// *ogre2 = object3d(&ogre_mesh);
-
+	// CREATING MESHES FROM MANUALLY DEFINED PRIMITIVES
 	foreach(mfp_request_node, &init_data.mesh_from_primitives_requests, i)
 	{
 		Mesh_from_primitives_request* request = (Mesh_from_primitives_request*)mfp_request_node->data;
@@ -331,27 +333,14 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		*request->p_mesh_uid = meshes_list.size;
 		Dx_mesh* current_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
 		*current_mesh = dx11_init_mesh(dx, 
-		request->primitives,
+		request->primitives, 
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	}
-
-	Vertex3d test_plane_vertices[] =
-	{
-		{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f } },
-		{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f } },
-		{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f } },
-		{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f } }
-	};
-	u16 test_plane_indices[] =
-	{
-		0,1,2,
-		1,3,2
-	};
-	Dx_mesh plane_mesh = dx11_init_mesh(dx,
-		test_plane_vertices, ARRAYCOUNT(test_plane_vertices), sizeof(Vertex3d),
-		test_plane_indices, ARRAYCOUNT(test_plane_indices), 
-		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
-	);
+	// CREATING  D3D PIPELINES
+	dx11_create_sampler(dx, &dx->sampler);
+	dx11_create_rasterizer_state(dx, &dx->rasterizer_state);
+	dx11_create_blend_state(dx, &pipeline_3d.blend_state, true);
+	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, true);
 
 	// FRAME CAPPING SETUP
 	UINT desired_scheduler_ms = 1;
@@ -471,24 +460,24 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
                 b32 is_down = ((message.lParam & (1 << 31)) == 0 );
 					if(message.message == WM_SYSKEYDOWN || message.message == WM_KEYDOWN)
 					{
-						if(message.wParam == 'A')
+						if(vkcode == 'A')
 							camera.pos.x += 1;
-						else if(message.wParam == 'D')
+						else if(vkcode == 'D')
 							camera.pos.x -= 1;
-						else if(message.wParam == 'W')
+						else if(vkcode == 'W')
 							camera.pos.z -= 1;
-						else if(message.wParam == 'S')
+						else if(vkcode == 'S')
 							camera.pos.z += 1;
-						else if(message.wParam == 'Q')
+						else if(vkcode == 'Q')
 							camera.rotation.z -= PI32/180;
-						else if(message.wParam == 'E')
+						else if(vkcode == 'E')
 							camera.rotation.z += PI32/180;
-						else if(message.wParam == 'U')
+						else if(vkcode == 'U')
 							fov = fov/2;
-						else if(message.wParam == 'O')
+						else if(vkcode == 'O')
 							fov = fov*2;
-						else if(message.wParam == 'P')
-							perspective_on = true;
+						else if(vkcode == 'P')
+							perspective_on = !perspective_on;
 						// else if(message.wParam == 'I')
 						// else if(message.wParam == 'K')
 						// else if(message.wParam == 'L')
@@ -496,9 +485,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 						// else if(message.wParam == 'T')
 						// else if(message.wParam == 'F')
 
-					}else{
-						// TranslateMessage(&message); 
-						// DispatchMessageA(&message); 
+						b32 AltKeyWasDown = ((message.lParam & (1 << 29)));
+						if ((vkcode == VK_F4) && AltKeyWasDown)
+						{
+							global_running = false;
+						}
 					}
 
 				}break;
@@ -550,15 +541,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			{
 				Object3d* object = (Object3d*)object_node->data;
 				XMMATRIX object_transform_matrix =   //IDENTITY_MATRIX;
-					XMMatrixScaling(1,1,1)*
-					XMMatrixRotationX(0) *
-					XMMatrixRotationY(0) *
-					XMMatrixRotationZ(0) *
-					XMMatrixTranslation(0, 0, delta);
+					XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
+					XMMatrixRotationX(object->rotation.x) *
+					XMMatrixRotationY(object->rotation.y) *
+					XMMatrixRotationZ(object->rotation.z) *
+					XMMatrixTranslation(object->pos.x,object->pos.y,object->pos.z);
 				// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
 				delta += 0.01f;
 				Dx_mesh* object_mesh = LIST_GET_DATA_AS(&meshes_list, object->mesh_uid, Dx_mesh);
-				dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, object_mesh, &object_transform_matrix);
+
+				Dx11_texture_view** texture_view = LIST_GET_DATA_AS(&textures_list, object->tex_uid,Dx11_texture_view*);
+				
+				//TODO: maybe(actually probably should do it) decouple mesh with texture
+				dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, object_mesh, texture_view, &object_transform_matrix);
 
 				nextnode(object_node);
 			}

@@ -94,8 +94,6 @@ struct Dx_mesh
 	Dx11_buffer* index_buffer;
 
 	D3D11_PRIMITIVE_TOPOLOGY topology;
-	
-	ID3D11ShaderResourceView* texture_view;
 };
 
 internal Dx_mesh
@@ -134,7 +132,7 @@ OLD_dx11_init_mesh(D3D* dx, Mesh_primitive* data, D3D11_PRIMITIVE_TOPOLOGY topol
 	return result;
 }
 internal Dx_mesh
-dx11_init_mesh(D3D* dx, void* vertices, u32 v_count, int v_size, u16* indices, u32 i_count , D3D11_PRIMITIVE_TOPOLOGY topology)
+dx11_init_mesh(D3D* dx, void* vertices, u32 v_count, int v_size, u16* indices, u32 i_count, D3D11_PRIMITIVE_TOPOLOGY topology)
 {
 	Dx_mesh result = {0};
 	// VERTEX BUFFER
@@ -519,7 +517,9 @@ dx11_modify_resource(D3D* dx, Dx11_resource* resource, void* data, u32 size)
 }
 
 internal void
-dx11_draw_mesh(D3D* dx, Dx11_render_pipeline* pipeline, Dx11_buffer* object_buffer, Dx_mesh* mesh, XMMATRIX* matrix)
+dx11_draw_mesh(
+	D3D* dx, Dx11_render_pipeline* pipeline, Dx11_buffer* object_buffer, 
+	Dx_mesh* mesh, Dx11_texture_view** texture, XMMATRIX* matrix)
 {
 	dx11_modify_resource(dx, object_buffer, matrix, sizeof(*matrix));
 		
@@ -531,7 +531,7 @@ dx11_draw_mesh(D3D* dx, Dx11_render_pipeline* pipeline, Dx11_buffer* object_buff
 	dx11_bind_vs(dx, pipeline->vs);
 	// RASTERIZER STAGE
 	// PIXEL SHADER STAGE
-	dx11_bind_texture_view(dx, &pipeline->default_texture_view);
+	dx11_bind_texture_view(dx, texture);
 	dx11_bind_ps(dx, pipeline->ps);
 	// OUTPUT MERGER
 	dx11_bind_blend_state(dx, pipeline->blend_state);

@@ -18,21 +18,27 @@ void update(App_memory* memory)
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)
 {
+	// Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	// *triangle = {*memory->meshes.p_triangle_mesh_uid, {1,1,1}, {0,0,1}};
 
-	Object3d* triangle = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	*triangle = object3d(*memory->meshes.triangle_mesh_uid, {}, {}, {1,1,1});
+	// Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	// *ogre = {*memory->meshes.p_ogre_mesh_uid,{1,1,1}, {0,0,1}};
 
-	Object3d* ogre = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-	*ogre = object3d(*memory->meshes.ogre_mesh_uid,{}, {}, {1,1,1});
+	// Object3d* female = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	// *female = {*memory->meshes.p_female_mesh_uid, {1,1,1}, {0,0,1}};
+
+
 	until(y, ARRAYCOUNT(memory->tilemap))
 	{
 		until(x, ARRAYCOUNT(memory->tilemap[y]))
 		{
 
-			//draw_rectangle(x, y, 10,10, tilemap[y][x]);
-			// or maybe
-			//draw(rectangle_id, etc...);
-			
+			Object3d* plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+			*plane = {*memory->meshes.p_plane_mesh_uid, *memory->textures.p_test_uid,
+			{(r32)ARRAYCOUNT(memory->tilemap[y])/screen_size.x, (r32)ARRAYCOUNT(memory->tilemap)/screen_size.y, 1}, 
+			{(r32)x*ARRAYCOUNT(memory->tilemap[y])/screen_size.x,(r32)y*ARRAYCOUNT(memory->tilemap)/screen_size.y,  0.01f}, 
+			{0,0,0}};
+			//draw(rectangle_id, etc...); 
 		}
 	}
 	Int2 rect_pos = memory->input->cursor_pos;
@@ -88,6 +94,9 @@ void init(App_memory* memory, Init_data* init_data)
 	dx11_create_and_bind_constant_buffer(
 		dx, &projection_buffer, sizeof(XMMATRIX), WORLD_PROJECTION_BUFFER_REGISTER_INDEX, 0
 	);
+	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
+
+*/
 	
 	// DEFAULT TEXTURE
 	// u32 test_tex[] = {
@@ -95,48 +104,13 @@ void init(App_memory* memory, Init_data* init_data)
 	// 	0xff00ff00, 0xff0000ff,
 	// };
 	u32 white_tex_pixels[] = {
-		0x00000000, 0xffff0000,
+		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,
 	};
 	Surface white_texture = {2, 2, &white_tex_pixels};
-	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
+	memory->textures.p_default_tex_uid = push_tex_from_surface_request(memory, init_data, 2,2, white_tex_pixels);
 
-	// TEST LOADING A MODEL
-
-	File_data ogre_file = win_read_file(string("data/ogre.glb"), temp_arena);
-	GLB glb = {0};
-	glb_get_chunks(ogre_file.data, 
-		&glb);
-	{ // THIS IS JUST FOR READABILITY OF THE JSON FILE
-		void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
-		u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
-		win_write_file(string("data/ogre.json"), formated_json, new_size);
-		arena_pop_size(temp_arena, MEGABYTES(4));
-	}
-	u32 meshes_count = 0;
-
-	Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
-
-	Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
-	for(u32 m=0; m<meshes_count; m++)
-	{
-		u32 primitives_count = meshes[m].primitives_count;
-		Gltf_primitive* Mesh_primitive = meshes[m].primitives;
-		//TODO: here i am assuming this mesh has only one primitive
-		primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
-		// for(u32 p=0; p<primitives_count; p++)
-		// {	
-		// }
-	}
-	Dx_mesh ogre_mesh = dx11_init_mesh(dx, 
-	primitives[0].vertices, primitives[0].vertices_count, primitives[0].vertex_size,
-	primitives[0].indices, primitives[0].indices_count,
-	D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	Object3d* ogre = LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
-	*ogre = object3d(&ogre_mesh);
-	// Object3d* ogre2 =  LIST_PUSH_BACK_STRUCT(&pipeline_3d.list, Object3d, permanent_arena);
-	// *ogre2 = object3d(&ogre_mesh);
-*/
+	memory->textures.p_test_uid = push_tex_from_file_request(memory, init_data, string("data/test_atlas.png"));
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
@@ -147,42 +121,45 @@ void init(App_memory* memory, Init_data* init_data)
 		0,1,2
 	};
 	
-	Mesh_primitive* triangle_primitives = ARENA_PUSH_STRUCT(memory->permanent_arena, Mesh_primitive);
-	*triangle_primitives = {
-		arena_push_data(memory->permanent_arena,&triangle_vertices,sizeof(triangle_vertices)),
-		sizeof(triangle_vertices[0]),
-		ARRAYCOUNT(triangle_vertices),
-		(u16*)arena_push_data(memory->permanent_arena, &triangle_indices, sizeof(triangle_indices)),
-		ARRAYCOUNT(triangle_indices),
-	};
-	memory->meshes.triangle_mesh_uid = push_mesh_from_primitives_request(memory, init_data, triangle_primitives);
-
-	memory->meshes.ogre_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/ogre.glb"));
-
-
-
-/*
-	Dx_mesh triangle_mesh = dx11_init_mesh(dx, 
-		triangle_vertices, 3, sizeof(Vertex3d), 
-		triangle_indices, 3, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	Vertex3d test_plane_vertices[] =
+	Mesh_primitive* triangle_primitives = save_primitives(
+		memory->permanent_arena, 
+		triangle_vertices, sizeof(triangle_vertices[0]), ARRAYCOUNT(triangle_vertices),
+		triangle_indices, ARRAYCOUNT(triangle_indices)
+	);
+	memory->meshes.p_triangle_mesh_uid = push_mesh_from_primitives_request(memory, init_data, triangle_primitives);
+	
+	Vertex3d centered_plane_vertices[] =
+		{
+			{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f }},
+			{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f }},
+			{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f }},
+			{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f }}
+		};
+	Vertex3d plane_vertices[] = 
 	{
-		{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f }},
-		{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f }},
-		{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f }},
-		{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f }}
+		{ {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} },
+		{ {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} },
+		{ {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f} },
+		{ {1.0f, -1.0f, 0.0f}, {1.0f, 1.0f} },
 	};
-	u16 test_plane_indices[] =
+	u16 plane_indices[] =
 	{
 		0,1,2,
 		1,3,2
 	};
-	Dx_mesh plane_mesh = dx11_init_mesh(dx,
-		test_plane_vertices, ARRAYCOUNT(test_plane_vertices), sizeof(Vertex3d),
-		test_plane_indices, ARRAYCOUNT(test_plane_indices), 
-		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+	Mesh_primitive* plane_primitives = save_primitives(
+		memory->permanent_arena,
+		plane_vertices, sizeof(plane_vertices[0]), ARRAYCOUNT(plane_vertices),
+		plane_indices, ARRAYCOUNT(plane_indices)
 	);
+	memory->meshes.p_plane_mesh_uid = push_mesh_from_primitives_request(memory, init_data,plane_primitives);
+
+
+	memory->meshes.p_ogre_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/ogre.glb"));
+
+	memory->meshes.p_female_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/female.glb"));
+
+
 	
-*/
+
 }
