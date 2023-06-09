@@ -414,6 +414,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		// MOUSE POSITION
 		HWND foreground_window = GetForegroundWindow();
 		memory.is_window_in_focus = (foreground_window == global_main_window);
+		if(memory.is_window_in_focus)
 		{
 			POINT mousep;
 			GetCursorPos(&mousep);
@@ -427,12 +428,17 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				client_rect.left + ((client_rect.right - client_rect.left)/2),
 				client_rect.top + ((client_rect.bottom - client_rect.top)/2),
 			};
+			
 			POINT center_point = { client_center_pos.x, client_center_pos.y };
 			ClientToScreen(global_main_window, &center_point);
-			if(memory.is_window_in_focus && memory.lock_mouse)
-				SetCursorPos(center_point.x, center_point.y);
 
-			input.cursor_pos = client_center_pos;
+			input.cursor_speed = {mousep.x - input.cursor_pos.x, mousep.y - input.cursor_pos.y};
+			if(memory.lock_mouse)
+			{
+				SetCursorPos(center_point.x, center_point.y);
+				input.cursor_pos = client_center_pos;
+			}else
+				input.cursor_pos = {mousep.x, mousep.y};
 		}
 
 		// HANDLING MESSAGES
@@ -444,15 +450,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				case WM_DESTROY:
 				case WM_CLOSE:
 				case WM_QUIT:
-					// THIS MESSAGES GO DIRECTLY INTO THE DEFAULT PROCEDURE
+					// THIS MESSAGES GO DIRECTLY INTO THE WINDOW PROCEDURE
 				break;
 				case WM_ACTIVATE:
-				case WM_ENABLE:
-				case WM_SETFOCUS:
-				case WM_KILLFOCUS:
 				{
 					// Check if the window is being activated or deactivated
-					memory.is_window_in_focus = (message.wParam == WA_INACTIVE);
+					// BUT THIS MESSAGES ONLY GOES THROUGH THE WINDOW PROCEDURE SO FUCK
+					// memory.is_window_in_focus = (message.wParam != WA_INACTIVE);
 				}break;
 				case WM_LBUTTONDBLCLK:
 				break;
@@ -492,6 +496,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							input.forward = is_down;
 						else if(vkcode == 'S')
 							input.backward = is_down;
+						else if(vkcode == VK_SPACE)
+							input.up = is_down;
+						else if(vkcode == VK_SHIFT)
+							input.down = is_down;
 						
 						if(is_down)
 						{
@@ -552,11 +560,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// RENDER HERE
 
 			// WORLD VIEW
+			// NEGATIVE VALUES CUZ MOVING THE WHOLE WORLD IN THE OPOSITE DIRECTION
+			// GIVES THE ILLUSION OF YOU MOVING THE CAMERA
 			view_matrix = 
-				XMMatrixTranslation( memory.camera_pos.x,memory.camera_pos.y,memory.camera_pos.z )*
+				XMMatrixTranslation( -memory.camera_pos.x, -memory.camera_pos.y,-memory.camera_pos.z )*
 				XMMatrixRotationZ( memory.camera_rotation.z )*
-				XMMatrixRotationY(-(r32)input.cursor_pos.x / client_size.x )*
-				XMMatrixRotationX(-(r32)input.cursor_pos.y / client_size.y ) ;
+				XMMatrixRotationY(-memory.camera_rotation.x)*
+				XMMatrixRotationX(-memory.camera_rotation.y) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	
 			
 			// WORLD PROJECTION

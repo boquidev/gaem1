@@ -2,6 +2,19 @@
 
 void update(App_memory* memory)
 {
+	User_input* input = memory->input;
+
+	r32 delta_time = 1;
+	r32 camera_speed = 0.001f;
+
+	memory->camera_pos.x += (input->right - input->left) * delta_time * camera_speed;
+	memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
+	memory->camera_pos.z += (input->forward - input->backward) * delta_time * camera_speed;
+
+	memory->camera_rotation.x += (r32)input->cursor_speed.x / 500;
+	memory->camera_rotation.y += (r32)input->cursor_speed.y / 500;
+
+
 	u8 red = 0;
 	u8 green = 0;
 	u8 color_step = 255/ARRAYCOUNT(memory->tilemap);
@@ -14,6 +27,7 @@ void update(App_memory* memory)
 		}
 		green += color_step;
 	}
+
 }
 
 void render(App_memory* memory, Int2 screen_size, List* render_list)

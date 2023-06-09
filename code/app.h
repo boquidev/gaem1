@@ -19,11 +19,15 @@ struct Object3d
 struct User_input
 {
 	Int2 cursor_pos;
+	Int2 cursor_speed;
+
 	b32 A;
 	b32 forward;
 	b32 backward;
 	b32 left;
 	b32 right;
+	b32 up;
+	b32 down;
 
 	// b32 test;
 };
