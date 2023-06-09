@@ -24,8 +24,17 @@ typedef ID3D11RasterizerState				Dx11_rasterizer_state;
 typedef ID3D11SamplerState					Dx11_sampler_state;
 typedef ID3D11RenderTargetView			Dx11_render_target_view;
 
+typedef ID3D11Buffer 						Dx11_buffer;
+typedef D3D11_BUFFER_DESC					Dx11_buffer_desc;
+typedef D3D11_SUBRESOURCE_DATA			Dx11_subresource_data;
+
 typedef ID3D11VertexShader					Dx11_vertex_shader;
+typedef D3D11_INPUT_ELEMENT_DESC			Dx11_input_layout_desc;
 typedef ID3D11PixelShader 					Dx11_pixel_shader;
+
+typedef ID3DBlob								Dx11_blob;
+typedef ID3D11Resource 						Dx11_resource;
+
 typedef D3D11_SAMPLER_DESC					Dx11_sampler_desc;
 typedef D3D11_RASTERIZER_DESC				Dx11_rasterizer_desc;
 typedef ID3D11BlendState					Dx11_blend_state;
@@ -56,12 +65,12 @@ enum CONSTANT_BUFFER_REGISTER_INDEX
 
 struct D3D_constant_buffer
 {
-	ID3D11Buffer* buffer;
+	Dx11_buffer* buffer;
 	u32 size;
 	CONSTANT_BUFFER_REGISTER_INDEX register_index;
 };
 
-struct Render_pipeline
+struct Dx11_render_pipeline
 {
 	Dx11_vertex_shader* vs;
 	Dx11_pixel_shader* ps;
@@ -81,8 +90,8 @@ struct Dx_mesh
 	u32 vertex_size;
 	u32 indices_count;
 
-	ID3D11Buffer* vertex_buffer;
-	ID3D11Buffer* index_buffer;
+	Dx11_buffer* vertex_buffer;
+	Dx11_buffer* index_buffer;
 
 	D3D11_PRIMITIVE_TOPOLOGY topology;
 	
@@ -199,8 +208,8 @@ dx11_get_compiled_shader(String filename, Memory_arena* arena, char* entrypoint_
 #else
 	shader_compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL_3;
 #endif
-	ID3DBlob* shader_blob = 0;
-	ID3DBlob* error_blob = 0;
+	Dx11_blob* shader_blob = 0;
+	Dx11_blob* error_blob = 0;
 	HRESULT hr = D3DCompile(
 		source_shaders_file.data,
 		source_shaders_file.size,
@@ -233,7 +242,7 @@ dx11_create_vs(D3D* dx, File_data vs, Dx11_vertex_shader** result)
 }
 
 internal void
-dx11_create_input_layout(D3D* dx, File_data vs, D3D11_INPUT_ELEMENT_DESC ied[], s32 ied_count, Dx11_input_layout** result)
+dx11_create_input_layout(D3D* dx, File_data vs, Dx11_input_layout_desc ied[], s32 ied_count, Dx11_input_layout** result)
 {
 	HRESULT hr = dx->device->CreateInputLayout(
 		ied, ied_count, 
@@ -401,7 +410,7 @@ dx11_create_texture_view(D3D* dx, Surface* texture, ID3D11ShaderResourceView** t
 	desc.SampleDesc = {1, 0};
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	D3D11_SUBRESOURCE_DATA init_data = {0};
+	Dx11_subresource_data init_data = {0};
 	init_data.pSysMem = texture->data;
 	init_data.SysMemPitch = texture->width * sizeof(u32);
 	ID3D11Texture2D* texture2D;
@@ -436,35 +445,35 @@ dx11_create_render_target_view(D3D* dx, Dx11_render_target_view** result)
 internal void
 dx11_set_viewport(D3D* dx, s32 posx, s32 posy, u32 width, u32 height)
 {
-    D3D11_VIEWPORT vp = {0};
-    vp.TopLeftX = (r32)posx;
-    vp.TopLeftY = (r32)posy;
-    vp.Width = (r32)width;
-    vp.Height = (r32)height;
-    vp.MinDepth = 0;
-    vp.MaxDepth = 1;
-    dx->viewport = vp;
-    dx->context->RSSetViewports(1, &vp);
+	Dx11_viewport vp = {0};
+	vp.TopLeftX = (r32)posx;
+	vp.TopLeftY = (r32)posy;
+	vp.Width = (r32)width;
+	vp.Height = (r32)height;
+	vp.MinDepth = 0;
+	vp.MaxDepth = 1;
+	dx->viewport = vp;
+	dx->context->RSSetViewports(1, &vp);
 }
 // BINDING FUNCTIONS
 internal void
-dx11_bind_vs(D3D* dx, ID3D11VertexShader* vertex_shader)
+dx11_bind_vs(D3D* dx, Dx11_vertex_shader* vertex_shader)
 {
 	// BINDING SHADERS AND LAYOUT
 	dx->context->VSSetShader(vertex_shader, 0, 0);
 }
 internal void
-dx11_bind_ps(D3D* dx, ID3D11PixelShader* pixel_shader)
+dx11_bind_ps(D3D* dx, Dx11_pixel_shader* pixel_shader)
 {
 	dx->context->PSSetShader(pixel_shader, 0, 0);
 }
 internal void
-dx11_bind_input_layout(D3D* dx, ID3D11InputLayout* input_layout)
+dx11_bind_input_layout(D3D* dx, Dx11_input_layout* input_layout)
 {
 	dx->context->IASetInputLayout(input_layout);
 }
 internal void
-dx11_bind_vertex_buffer(D3D* dx, ID3D11Buffer* vertex_buffer, u32 sizeof_vertex)
+dx11_bind_vertex_buffer(D3D* dx, Dx11_buffer* vertex_buffer, u32 sizeof_vertex)
 {
 	u32 strides = sizeof_vertex; 
 	u32 offsets = 0;
@@ -482,7 +491,7 @@ dx11_bind_vertex_buffer(D3D* dx, ID3D11Buffer* vertex_buffer, u32 sizeof_vertex)
 // 	dx->context->VSSetConstantBuffers(c->register_index, 1, &c->buffer);
 // }
 internal void
-dx11_bind_texture_view(D3D* dx, ID3D11ShaderResourceView** texture_view)
+dx11_bind_texture_view(D3D* dx, Dx11_texture_view** texture_view)
 {
 	dx->context->PSSetShaderResources(0,1, texture_view);
 }
@@ -494,40 +503,40 @@ dx11_bind_sampler(D3D* dx, Dx11_sampler_state** sampler)
 internal void
 dx11_bind_blend_state(D3D* dx, ID3D11BlendState* blend_state)
 {
-    dx->context->OMSetBlendState(blend_state, 0, ~0U);   
+	dx->context->OMSetBlendState(blend_state, 0, ~0U);   
 }
 internal void
 dx11_bind_rasterizer_state(D3D* dx, Dx11_rasterizer_state* rasterizer_state)
 {
-	dx->context->RSSetState(rasterizer_state);
+dx->context->RSSetState(rasterizer_state);
 }
 internal void
-dx11_bind_depth_stencil_state(D3D* dx, ID3D11DepthStencilState* depth_stencil_state)
+dx11_bind_depth_stencil_state(D3D* dx, Dx11_depth_stencil_state* depth_stencil_state)
 {
-    dx->context->OMSetDepthStencilState(depth_stencil_state, 0);
+	dx->context->OMSetDepthStencilState(depth_stencil_state, 0);
 }
 internal void // this needs the depth_stencil_view already created
-dx11_bind_render_target_view(D3D* dx,Dx11_render_target_view** render_target_view, ID3D11DepthStencilView* depth_stencil_view)
+dx11_bind_render_target_view(D3D* dx, Dx11_render_target_view** render_target_view, Dx11_depth_stencil_view* depth_stencil_view)
 {
-    //TODO: i think this fixed it
-    dx->context->OMSetRenderTargets(1, render_target_view, depth_stencil_view); 
+	//TODO: i think this fixed it
+	dx->context->OMSetRenderTargets(1, render_target_view, depth_stencil_view); 
 }
 
 internal void
-dx11_modify_resource(D3D* dx, ID3D11Resource* resource, void* data, u32 size)
+dx11_modify_resource(D3D* dx, Dx11_resource* resource, void* data, u32 size)
 {
-    D3D11_MAPPED_SUBRESOURCE mapped_resource = {0};
-    // disable gpu access 
-    dx->context->Map(resource, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-    // update here
-    copy_mem(data, mapped_resource.pData, size);
-    // re-enable gpu access
+	D3D11_MAPPED_SUBRESOURCE mapped_resource = {0};
+	// disable gpu access 
+	dx->context->Map(resource, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+	// update here
+	copy_mem(data, mapped_resource.pData, size);
+	// re-enable gpu access
 
-    dx->context->Unmap(resource, 0);
+	dx->context->Unmap(resource, 0);
 }
 
 internal void
-dx11_draw_mesh(D3D* dx, Render_pipeline* pipeline, ID3D11Buffer* object_buffer, Dx_mesh* mesh, XMMATRIX* matrix)
+dx11_draw_mesh(D3D* dx, Dx11_render_pipeline* pipeline, Dx11_buffer* object_buffer, Dx_mesh* mesh, XMMATRIX* matrix)
 {
 	dx11_modify_resource(dx, object_buffer, matrix, sizeof(*matrix));
 		
@@ -549,6 +558,5 @@ dx11_draw_mesh(D3D* dx, Render_pipeline* pipeline, ID3D11Buffer* object_buffer, 
 	dx->context->IASetIndexBuffer(mesh->index_buffer, DXGI_FORMAT_R16_UINT, 0);
 	// FINALLY DRAW
 	dx->context->DrawIndexed(mesh->indices_count, 0, 0);
-
 }
 

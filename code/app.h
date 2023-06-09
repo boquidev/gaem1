@@ -5,6 +5,12 @@
 #define render_type(name) void (*name)(App_memory*, Int2)
 #define init_type(name) void (*name)(App_memory*)
 
+
+struct Init_data
+{
+
+};
+
 struct User_input
 {
 	Int2 cursor_pos;

@@ -32,8 +32,9 @@ void render(App_memory* memory, Int2 screen_size)
 	// draw_rectangle(rect_pos.x, rect_pos.y, 15,15);
 }
 
-void init(App_memory* memory)
+void init(App_memory* memory, Init_data* init_data)
 {
+	
 /*
 	// GETTING COMPILED SHADERS
 	// 3D SHADERS

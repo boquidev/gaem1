@@ -167,7 +167,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dxgi_device->Release();
 	}
 	//TODO: FIND A WAY TO MAKE THIS CALLS FROM THE APP LAYER
-	Render_pipeline pipeline_3d = {0};
+	Dx11_render_pipeline pipeline_3d = {0};
 	// GETTING COMPILED SHADERS
 	// 3D SHADERS
 		// VERTEX SHADER	
