@@ -14,6 +14,7 @@ struct Object3d
 	V3 scale;
 	V3 pos;
 	V3 rotation;
+	Color color;
 };
 
 struct User_input
@@ -46,6 +47,7 @@ struct Meshes
 struct Textures
 {
 	u32* p_default_tex_uid;
+	u32* p_white_tex_uid;
 	u32* p_test_uid;
 };
 

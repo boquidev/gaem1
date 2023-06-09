@@ -1,0 +1,2 @@
+
+move the camera in the direction i am looking 

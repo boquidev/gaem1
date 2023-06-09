@@ -41,6 +41,12 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 	// Object3d* female = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
 	// *female = {*memory->meshes.p_female_mesh_uid, {1,1,1}, {0,0,1}};
 
+	Object3d* big_plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
+	big_plane->mesh_uid = *memory->meshes.p_plane_mesh_uid;
+	big_plane->tex_uid = *memory->textures.p_white_tex_uid;
+	big_plane->scale = {1,1,1};
+	big_plane->pos = {0,0,2};
+	big_plane->color = {1,1,1,1};
 
 	until(y, ARRAYCOUNT(memory->tilemap))
 	{
@@ -48,10 +54,12 @@ void render(App_memory* memory, Int2 screen_size, List* render_list)
 		{
 
 			Object3d* plane = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-			*plane = {*memory->meshes.p_plane_mesh_uid, *memory->textures.p_test_uid,
-			{(r32)ARRAYCOUNT(memory->tilemap[y])/screen_size.x, (r32)ARRAYCOUNT(memory->tilemap)/screen_size.y, 1}, 
-			{(r32)x*ARRAYCOUNT(memory->tilemap[y])/screen_size.x,(r32)y*ARRAYCOUNT(memory->tilemap)/screen_size.y,  0.01f}, 
-			{0,0,0}};
+			*plane = {
+				*memory->meshes.p_plane_mesh_uid, *memory->textures.p_test_uid,
+				{(r32)ARRAYCOUNT(memory->tilemap[y])/screen_size.x, (r32)ARRAYCOUNT(memory->tilemap)/screen_size.y, 1}, 
+				{(r32)x*ARRAYCOUNT(memory->tilemap[y])/screen_size.x,(r32)y*ARRAYCOUNT(memory->tilemap)/screen_size.y,  0.01f}, 
+				{0,0,0},
+			};
 			//draw(rectangle_id, etc...); 
 		}
 	}
@@ -117,14 +125,18 @@ void init(App_memory* memory, Init_data* init_data)
 	// 	0x00000000, 0xffff0000,
 	// 	0xff00ff00, 0xff0000ff,
 	// };
-	u32 white_tex_pixels[] = {
+	u32 default_tex_pixels[] = {
 		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,
 	};
-	Surface white_texture = {2, 2, &white_tex_pixels};
-	memory->textures.p_default_tex_uid = push_tex_from_surface_request(memory, init_data, 2,2, white_tex_pixels);
+	memory->textures.p_default_tex_uid = push_tex_from_surface_request(memory, init_data, 2,2, default_tex_pixels);
+
+	u32 white_tex_pixels[] = {0xffffffff};
+	memory->textures.p_white_tex_uid = push_tex_from_surface_request(memory, init_data, 1, 1, white_tex_pixels);
 
 	memory->textures.p_test_uid = push_tex_from_file_request(memory, init_data, string("data/test_atlas.png"));
+
+
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
