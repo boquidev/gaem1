@@ -12,13 +12,14 @@
 // scale must be 1,1,1 by default
 struct Object3d
 {
+	b32 visible;
+
 	u32* p_mesh_uid;
 	u32* p_tex_uid;
 	V3 scale;
 	V3 pos;
 	V3 rotation;
 	Color color;
-	b32 visible;
 };
 
 struct User_input
@@ -26,7 +27,9 @@ struct User_input
 	V2 cursor_pos;
 	V2 cursor_speed;
 
-	b32 select;
+	b32 cursor_select;
+	b32 holding_select;
+
 	b32 forward;
 	b32 backward;
 	b32 left;
@@ -113,7 +116,7 @@ struct App_memory
 	b32 is_window_in_focus;
 	b32 lock_mouse;
 
-	u32 player_uid;
+	u32 selected_uid;
 	Object3d entities[MAX_ENTITIES];
 };
 

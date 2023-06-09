@@ -279,7 +279,7 @@ snap_to_grid(r32 value, r32 delta)
     return value - difference;
 }
 
-bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3* closest_point) {
+bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, r32* closest_t) {
     r32 a = POW(line_v.x, 2) + POW(line_v.y, 2) + POW(line_v.z, 2);
     r32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
                     line_v.y * (line_0.y - sphere_center.y) +
@@ -301,13 +301,7 @@ bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V
         r32 t1 = (-b + discriminant_sqrt) / (2 * a);
         r32 t2 = (-b - discriminant_sqrt) / (2 * a);
 
-        r32 t = MIN(t1,t2);
-        *closest_point = {
-            line_0.x + t*line_v.x,
-            line_0.y + t*line_v.y,
-            line_0.z + t*line_v.z
-        };
-        
+        *closest_t = MIN(t1,t2);
     }
     return result;
 }

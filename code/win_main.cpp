@@ -374,7 +374,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	
 	// TODO: input backbuffer
 	User_input input = {0};
-	User_input last_input = {0};
 	memory.input = &input;
 
 
@@ -456,6 +455,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					-(r32)(mousep.y - client_center_pos.y)/client_size.y};
 				
 		}
+		input.cursor_select += input.holding_select;
 
 		// HANDLING MESSAGES
 		MSG message;
@@ -478,11 +478,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				break;
 				case WM_LBUTTONDOWN:// just when the buttom is pushed
 				{
-					input.select = 1;
+					input.holding_select = 1;
 				}
 				break;
 				case WM_LBUTTONUP:
-					input.select = 0;
+					input.holding_select = 0;
+					input.cursor_select = 0;
 				break;
 				case WM_RBUTTONDOWN:
 				break;
@@ -501,20 +502,22 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					u16 repeat_count = (u16)message.lParam;
 					b32 was_down = ((message.lParam & (1 <<  30)) != 0);
 					b32 is_down = ((message.lParam & (1 << 31)) == 0 );
+					ASSERT(is_down == 0 || is_down == 1);
 					if(is_down != was_down)
 					{
+#define NEW_INPUT_VALUE(old_input) old_input+is_down - old_input*was_down
 						if(vkcode == 'A')
-							input.left = is_down;
+							input.left = NEW_INPUT_VALUE(input.left);
 						else if(vkcode == 'D')
-							input.right = is_down;
+							input.right = NEW_INPUT_VALUE(input.right);
 						else if(vkcode == 'W')
-							input.forward = is_down;
+							input.forward = NEW_INPUT_VALUE(input.forward);
 						else if(vkcode == 'S')
-							input.backward = is_down;
+							input.backward = NEW_INPUT_VALUE(input.backward);
 						else if(vkcode == VK_SPACE)
-							input.up = is_down;
+							input.up = NEW_INPUT_VALUE(input.up);
 						else if(vkcode == VK_SHIFT)
-							input.down = is_down;
+							input.down = NEW_INPUT_VALUE(input.down);
 						
 						if(is_down)
 						{

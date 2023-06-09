@@ -29,7 +29,6 @@ void update(App_memory* memory)
 	turret2->color = {1,1,1,1};
 	turret2->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
 	turret2->p_tex_uid = memory->textures.p_white_tex_uid;
-	turret2->pos = {1,1,1};
 
 	V2 input_vector = {(r32)(input->right - input->left),(r32)(input->forward - input->backward)};
 	input_vector = normalize(input_vector);
@@ -43,16 +42,16 @@ void update(App_memory* memory)
 		// memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
 
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
-		Object3d* player = &memory->entities[memory->player_uid];
-		player->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
-		player->p_tex_uid = memory->textures.p_white_tex_uid;
-		player->scale = {0.1f,0.1f,0.1f};
-		player->color = {1,1,1,1};
-		player->visible = true;
-		player->pos.x += input_vector.x *  movement_speed * delta_time;
-		player->pos.z += input_vector.y * movement_speed * delta_time;
+		Object3d* ogre = &memory->entities[0];
+		ogre->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
+		ogre->p_tex_uid = memory->textures.p_white_tex_uid;
+		ogre->scale = {0.1f,0.1f,0.1f};
+		ogre->color = {1,1,1,1};
+		ogre->visible = true;
+		ogre->pos.x += input_vector.x *  movement_speed * delta_time;
+		ogre->pos.z += input_vector.y * movement_speed * delta_time;
 		if(input_vector.x || input_vector.y)
-			player->rotation.y = v2_angle(input_vector) +PI32/2;
+			ogre->rotation.y = v2_angle(input_vector) +PI32/2;
 	}
 
 	//TODO: make this into a function screen to world
@@ -62,35 +61,47 @@ void update(App_memory* memory)
 			memory->aspect_ratio*memory->fov*input->cursor_pos.x,
 			memory->fov*input->cursor_pos.y, 0};
 		
-		if(input->select)
+		if( input->cursor_select )
 		{
 			V3 cursor_world_point = v3_rotate_y(
 				v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
 			);
-
-			V3 z_direction = v3_rotate_y(
-				v3_rotate_x({0,0,1}, memory->camera_rotation.x),memory->camera_rotation.y
-			);
-
-			V3 intersect = {0};
-			until(i, MAX_ENTITIES)
+			if ( input->cursor_select < HOLDING_BUTTON_TIME )
 			{
-				memory->entities[i];
-				if(line_vs_sphere(cursor_world_point, z_direction, memory->entities[i].pos, 0.1f, &intersect))
+				V3 z_direction = v3_rotate_y(
+					v3_rotate_x({0,0,1}, memory->camera_rotation.x),memory->camera_rotation.y
+				);
+
+				r32 closest_t = {0};
+				b32 first_intersection = false;
+				for(u32 i=1; i < MAX_ENTITIES; i++)
 				{
-					memory->entities[i].color = {0,1,0,1};
+					if(!memory->entities[i].visible)
+						continue;
+					r32 intersected_t = 0;
+					if(line_vs_sphere(cursor_world_point, z_direction, memory->entities[i].pos, 0.1f, &intersected_t))
+					{
+						if(!first_intersection)
+						{
+							first_intersection = true;
+							closest_t = intersected_t;
+							memory->selected_uid = i;
+						}
+						if(intersected_t < closest_t)
+						{
+							closest_t = intersected_t;
+							memory->selected_uid = i;
+						}
+					}
 				}
 			}
-			Object3d* cursor = &memory->entities[3];
-			cursor->visible = true;
-			cursor->scale = {0.1f,0.1f,0.1f};
-			cursor->rotation.y = 0;
-			cursor->color = {1,1,1,1};
-			cursor->p_mesh_uid = memory->meshes.p_female_mesh_uid;
-			cursor->p_tex_uid = memory->textures.p_white_tex_uid;
-			cursor->pos = cursor_world_point + z_direction;
-
-		}
+			if(memory->selected_uid)
+			{
+				Object3d* selected_entity = &memory->entities[memory->selected_uid];
+				selected_entity->pos = cursor_world_point;
+			}
+		}else
+			memory->selected_uid = 0;
 	}
 }
 
@@ -247,9 +258,5 @@ void init(App_memory* memory, Init_data* init_data)
 	memory->meshes.p_turret_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/turret.glb"));
 
 	memory->meshes.p_test_orientation_uid = push_mesh_from_file_request(memory, init_data, string("data/test_orientation.glb"));
-
-
-	memory->player_uid = 0;
-
 
 }
