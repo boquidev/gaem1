@@ -38,6 +38,7 @@ struct Entity
 	V3 target_move_pos;
 	V3 velocity;
 
+	V3 looking_at;
 	V3 target_pos;
 	r32 shooting_cooldown;
 	r32 shooting_cd_time_left;

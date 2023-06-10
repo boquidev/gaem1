@@ -148,6 +148,7 @@ void update(App_memory* memory){
 				Entity* parent = &memory->entities[i];
 				new_bullet->team_uid = parent->team_uid;
 				new_bullet->object3d.pos = parent->object3d.pos;
+				// TODO: go in the direction that parent is looking;
 				new_bullet->target_pos = parent->target_pos;
 				new_bullet->object3d.scale = {0.5f,0.5f,0.5f};
 				V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
@@ -171,8 +172,22 @@ void update(App_memory* memory){
 				V3 accel = 10*(move_v - (0.4f*entity->velocity));
 				entity->velocity = entity->velocity +( memory->delta_time * accel );
 
-				V3 target_direction = entity->target_pos - entity->object3d.pos;
-				entity->object3d.rotation.y = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
+				//LERPING TARGET POS
+				// entity->looking_at = entity->looking_at + (10*memory->delta_time * (entity->target_pos - entity->looking_at));
+				// V3 target_direction = entity->looking_at - entity->pos; 
+				// r32 target_rotation = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
+				// entity->rotation.y = target_rotation;
+
+				//LERPING ROTATION
+				V3 target_direction = entity->target_pos - entity->pos;
+				r32 target_rotation = v2_angle({target_direction.x, target_direction.z})+ PI32/2;
+
+				r32 angle_difference = target_rotation - entity->object3d.rotation.y;
+				if(angle_difference > TAU32/2)
+					entity->rotation.y += TAU32;
+				else if(angle_difference < -TAU32/2)
+					entity->rotation.y -= TAU32;
+				entity->rotation.y += 10*(target_rotation - entity->rotation.y) * memory->delta_time;
 			}else{
 				if( entity->lifetime < 0 )
 				{

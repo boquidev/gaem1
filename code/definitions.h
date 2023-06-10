@@ -6,7 +6,7 @@
 #define global_variable static
 
 #define PI32    3.14159265359f
-#define TAU     6.28318530718f
+#define TAU32     6.28318530718f
 #define FIRST_CHAR 32
 #define LAST_CHAR 127
 #define CHARS_COUNT (LAST_CHAR-FIRST_CHAR)
