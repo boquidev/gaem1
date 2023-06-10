@@ -97,16 +97,19 @@ struct User_input
 			s32 cursor_secondary;
 
 			s32 cancel;
-			s32 shoot;
+			s32 move;
 
-			s32 forward;
-			s32 backward;
-			s32 left;
-			s32 right;
-			s32 up;
-			s32 down;
+			// s32 forward;
+			// s32 backward;
+			s32 d_up;
+			s32 d_down;
+			s32 d_left;
+			s32 d_right;
+
+			s32 L;
+			s32 R;
 		};
-		s32 buttons[10];
+		s32 buttons[20];//TODO: narrow this number to the number of posible buttons
 	};
 };
 
@@ -199,6 +202,8 @@ struct App_memory
 	u32 time_ms; // this goes up to 1200 hours more or less 
 
 	u32 player_uid;
+	
+	b32 creating_unit;
 
 	u32 last_inactive_entity;
 	Entity entities[MAX_ENTITIES];

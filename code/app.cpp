@@ -12,7 +12,7 @@ void update(App_memory* memory){
 	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
 	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);	
 
-	V2 input_vector = {(r32)(holding_inputs->right - holding_inputs->left),(r32)(holding_inputs->forward - holding_inputs->backward)};
+	V2 input_vector = {(r32)(holding_inputs->d_right - holding_inputs->d_left),(r32)(holding_inputs->d_up - holding_inputs->d_down)};
 	input_vector = normalize(input_vector);
 	{
 		// MOVE CAMERA IN THE DIRECTION I AM LOOKING
@@ -81,18 +81,11 @@ void update(App_memory* memory){
 
 	Entity* highlighted_entity = &memory->entities[memory->highlighted_uid];
 	highlighted_entity->object3d.color = {1,1,0,1};	
-	if(memory->selected_uid == memory->player_uid){// NO ENTITY SELECTED
-		if(input->cursor_primary == 1)
-			memory->clicked_uid = memory->highlighted_uid;
-		else if( !input->cursor_primary ){//TODO: do it when releasing the button
-			if(memory->clicked_uid){
-				if(memory->highlighted_uid == memory->clicked_uid){
-					memory->selected_uid = memory->clicked_uid;
-				}
-				memory->clicked_uid = 0;
-			}
-		} 
-		if(input->cursor_secondary == 1){//TODO: do it when releasing the button
+	if(input->L == 1)
+		memory->creating_unit = !memory->creating_unit;
+	if(memory->creating_unit) {// NO ENTITY SELECTED
+		if(input->cursor_primary == 1){//TODO: do it when releasing the button
+			// CREATING UNIT
 			u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
 			Entity* new_unit = &memory->entities[new_entity_index];
 			new_unit->visible = true;
@@ -110,16 +103,29 @@ void update(App_memory* memory){
 			new_unit->p_tex_uid = memory->textures.p_white_tex_uid;
 			new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 		}
-	} else {
+	} else { 
+		if(input->cursor_primary == 1)
+			memory->clicked_uid = memory->highlighted_uid;
+		else if( !input->cursor_primary ){//TODO: do it when releasing the button
+			if(memory->clicked_uid){
+				if(memory->highlighted_uid == memory->clicked_uid){
+					memory->selected_uid = memory->clicked_uid;
+				}
+				memory->clicked_uid = 0;
+			}
+		}
+
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
 		selected_entity->object3d.color = {0,1,0,1};
 
-		if( input->cursor_secondary == 1 )
-			selected_entity->target_move_pos = cursor_world_pos;
-		else if( input->cursor_primary )
-			selected_entity->target_pos = cursor_world_pos;
-		else if( input->cancel == 1)
-			memory->selected_uid = memory->player_uid;
+		if( memory->selected_uid != memory->player_uid ){
+			if( input->cursor_secondary)
+				selected_entity->target_pos = cursor_world_pos;
+			else if( input->cursor_primary )
+				memory->selected_uid = memory->player_uid;
+			else if( input->move)
+				selected_entity->target_move_pos = cursor_world_pos;
+		}
 	}	
 
 	until(i, MAX_ENTITIES){

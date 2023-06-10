@@ -502,28 +502,32 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					if(is_down != was_down)
 					{
 						if(vkcode == 'A')
-							holding_inputs.left = is_down;
+							holding_inputs.d_left = is_down;
 						else if(vkcode == 'D')
-							holding_inputs.right = is_down;
+							holding_inputs.d_right = is_down;
 						else if(vkcode == 'W')
-							holding_inputs.forward = is_down;
+							holding_inputs.d_up = is_down;
 						else if(vkcode == 'S')
-							holding_inputs.backward = is_down;
+							holding_inputs.d_down = is_down;
 						else if(vkcode == VK_SPACE)
-							holding_inputs.up = is_down;
-						else if(vkcode == VK_SHIFT)
-							holding_inputs.down = is_down;
+							holding_inputs.move = is_down;
+						// else if(vkcode == VK_SHIFT)
+						// 	holding_inputs.backward = is_down;
 						else if(vkcode == 'F')
 							holding_inputs.cancel = is_down;
-						else if(vkcode == 'X')
-							holding_inputs.shoot = is_down;
+						// else if(vkcode == 'X')
+						// 	holding_inputs.shoot = is_down;
+						else if(vkcode == 'Q')
+							holding_inputs.L = is_down;
+						else if(vkcode == 'E')
+							holding_inputs.R = is_down;
 						
 						
 						if(is_down)
 						{
-							if(vkcode == 'Q')
+							if(vkcode == 'J')
 								memory.camera_rotation.z -= PI32/180;
-							else if(vkcode == 'E')
+							else if(vkcode == 'L')
 								memory.camera_rotation.z += PI32/180;
 							else if(vkcode == 'U')
 								fov = fov/2;
@@ -533,9 +537,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 								perspective_on = !perspective_on;
 							// else if(message.wParam == 'I')
 							// else if(message.wParam == 'K')
-							else if(vkcode == 'J')
+							else if(vkcode == 'I')
 								memory.fov = memory.fov/2;
-							else if(vkcode == 'L')
+							else if(vkcode == 'K')
 								memory.fov = memory.fov*2;
 							// else if(message.wParam == 'T')
 							// else if(message.wParam == 'F')
