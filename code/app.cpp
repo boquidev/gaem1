@@ -10,33 +10,7 @@ void update(App_memory* memory){
 
 	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x;
 	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
-	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);
-	
-	Entity* turret = &memory->entities[1];
-	turret->visible = true;
-	turret->selectable = true;
-
-	turret->team_uid = 0;
-	turret->shooting_cooldown = 0.2f;
-	turret->scale = {1.0f,1.0f,1.0f};
-	turret->rotation.y = 0;
-	turret->color = {1,1,1,1};
-	turret->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
-	turret->p_tex_uid = memory->textures.p_white_tex_uid;
-	turret->target_pos = v3_addition(turret->pos, {0, 0, 10.0f});
-
-	Entity* turret2 = &memory->entities[2];
-	turret2->visible = true;
-	turret2->selectable = true;
-	
-	turret2->team_uid = 0;
-	turret2->shooting_cooldown = 0.2f;
-	turret2->scale = {1.0f,1.0f,1.0f};
-	turret2->rotation.y = 0;
-	turret2->color = {1,1,1,1};
-	turret2->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
-	turret2->p_tex_uid = memory->textures.p_white_tex_uid;
-	turret2->target_pos = v3_addition(turret2->pos, {0, 0, 10.0f});	
+	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);	
 
 	V2 input_vector = {(r32)(holding_inputs->right - holding_inputs->left),(r32)(holding_inputs->forward - holding_inputs->backward)};
 	input_vector = normalize(input_vector);
@@ -72,7 +46,7 @@ void update(App_memory* memory){
 	
 	// RAYCAST WITH ALL ENTITIES
 	memory->highlighted_uid = 0;
-	V3 cursor_world_point = v3_rotate_y(
+	V3 cursor_world_pos = v3_rotate_y(
 		v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
 	);
 	V3 z_direction = v3_rotate_y(
@@ -81,48 +55,69 @@ void update(App_memory* memory){
 
 	r32 closest_t = {0};
 	b32 first_intersection = false;
-	for(u32 i=1; i < MAX_ENTITIES; i++){
-		if(!memory->entities[i].visible)
-			continue;
-		Entity* entity = &memory->entities[i];
-		entity->radius = 1.0f;
+	until(i, MAX_ENTITIES){
+		if(memory->entities[i].visible && 
+			i != memory->player_uid && 
+			memory->entities[i].selectable
+		){
+			Entity* entity = &memory->entities[i];
+			entity->radius = 1.0f;
+			entity->color = {1,1,1,1};
 
-		r32 intersected_t = 0;
-		if(line_vs_sphere(cursor_world_point, z_direction, entity->object3d.pos, entity->radius, &intersected_t)){
-			if(!first_intersection){
-				first_intersection = true;
-				closest_t = intersected_t;
-				memory->highlighted_uid = i;
-			}
-			if(intersected_t < closest_t){
-				closest_t = intersected_t;
-				memory->highlighted_uid = i;
+			r32 intersected_t = 0;
+			if(line_vs_sphere(cursor_world_pos, z_direction, entity->object3d.pos, entity->radius, &intersected_t)){
+				if(!first_intersection){
+					first_intersection = true;
+					closest_t = intersected_t;
+					memory->highlighted_uid = i;
+				}
+				if(intersected_t < closest_t){
+					closest_t = intersected_t;
+					memory->highlighted_uid = i;
+				}
 			}
 		}
 	}
 
 	Entity* highlighted_entity = &memory->entities[memory->highlighted_uid];
-	if(memory->selected_uid == memory->player_uid){
-		if( !input->cursor_primary ){
+	highlighted_entity->object3d.color = {1,1,0,1};	
+	if(memory->selected_uid == memory->player_uid){// NO ENTITY SELECTED
+		if(input->cursor_primary == 1)
+			memory->clicked_uid = memory->highlighted_uid;
+		else if( !input->cursor_primary ){//TODO: do it when releasing the button
 			if(memory->clicked_uid){
 				if(memory->highlighted_uid == memory->clicked_uid){
 					memory->selected_uid = memory->clicked_uid;
 				}
 				memory->clicked_uid = 0;
 			}
-		}else{
-			if(input->cursor_primary == 1)
-				memory->clicked_uid = memory->highlighted_uid;
+		} 
+		if(input->cursor_secondary == 1){//TODO: do it when releasing the button
+			u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
+			Entity* new_unit = &memory->entities[new_entity_index];
+			new_unit->visible = true;
+			new_unit->selectable = true;
+
+			new_unit->pos = cursor_world_pos;
+			new_unit->target_move_pos = new_unit->pos;
+
+			new_unit->team_uid = memory->entities[memory->player_uid].team_uid;
+			new_unit->shooting_cooldown = 0.2f;
+			new_unit->scale = {1.0f, 1.0f, 1.0f};
+			new_unit->rotation.y = 0;
+			new_unit->color = {1,1,1,1};
+			new_unit->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
+			new_unit->p_tex_uid = memory->textures.p_white_tex_uid;
+			new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 		}
 	} else {
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
-		highlighted_entity->object3d.color = {1,1,0,1};
 		selected_entity->object3d.color = {0,1,0,1};
 
 		if( input->cursor_secondary == 1 )
-			selected_entity->target_move_pos = cursor_world_point;
+			selected_entity->target_move_pos = cursor_world_pos;
 		else if( input->cursor_primary )
-			selected_entity->target_pos = cursor_world_point;
+			selected_entity->target_pos = cursor_world_pos;
 		else if( input->cancel == 1)
 			memory->selected_uid = memory->player_uid;
 	}	
@@ -175,7 +170,7 @@ void update(App_memory* memory){
 			}else{
 				if( entity->lifetime < 0 )
 				{
-					entity->visible = 0;
+					*entity = {0};
 					memory->entity_generations[i]++;
 				}else{
 					entity->lifetime -= memory->delta_time;
@@ -186,7 +181,7 @@ void update(App_memory* memory){
 						){
 							r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 							if(intersect > 0){//TODO: damage entity
-								entity->visible = 0;
+								*entity = {0}; 
 								memory->entity_generations[i]++;
 								break;
 							}
@@ -343,7 +338,6 @@ void init(App_memory* memory, Init_data* init_data){
 	);
 	memory->meshes.p_test_orientation2_uid = push_mesh_from_primitives_request(memory,init_data, test_orientation_primitives);
 
-
 	memory->meshes.p_ogre_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/ogre.glb"));
 
 	memory->meshes.p_female_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/female.glb"));
@@ -353,5 +347,4 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->meshes.p_test_orientation_uid = push_mesh_from_file_request(memory, init_data, string("data/test_orientation.glb"));
 	
 	memory->meshes.p_ball_uid = push_mesh_from_file_request(memory, init_data, string("data/ball.glb"));
-
 }

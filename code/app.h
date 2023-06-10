@@ -31,6 +31,8 @@ struct Entity
 
 	b32 selectable;
 
+	u32 resources;
+
 	b32 is_bullet;//TODO: make this the identifier of what kind of entity it is
 
 	V3 target_move_pos;
