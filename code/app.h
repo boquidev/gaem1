@@ -210,8 +210,8 @@ struct App_memory
 	b32 creating_unit;
 
 	u32 last_inactive_entity;
-	Entity entities[MAX_ENTITIES];
-	u32 entity_generations[MAX_ENTITIES];
+	Entity* entities;
+	u32* entity_generations;
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??

@@ -265,6 +265,9 @@ void render(App_memory* memory, Int2 screen_size, List* render_list){
 }
 
 void init(App_memory* memory, Init_data* init_data){
+	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
+	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
+
 	memory->camera_rotation.x = PI32/2;
 	memory->camera_pos.y = 15.0f;
 
