@@ -59,6 +59,7 @@ void update(App_memory* memory){
 	until(i, MAX_ENTITIES){
 		if(memory->entities[i].visible && 
 			memory->entities[i].selectable &&
+			memory->entities[i].team_uid == memory->entities[memory->player_uid].team_uid &&
 			i != memory->player_uid 
 		){
 			Entity* entity = &memory->entities[i];
@@ -84,7 +85,7 @@ void update(App_memory* memory){
 	highlighted_entity->object3d.color = {1,1,0,1};	
 	if(input->L == 1)
 		memory->creating_unit = !memory->creating_unit;
-	if(memory->creating_unit) {// NO ENTITY SELECTED
+	if(memory->creating_unit) {// SELECTED UNIT TO CREATE
 		if(input->cursor_primary == 1){//TODO: do it when releasing the button
 			// CREATING UNIT
 			if(memory->entities[memory->player_uid].resources > 0)
@@ -95,11 +96,13 @@ void update(App_memory* memory){
 				new_unit->visible = true;
 				new_unit->selectable = true;
 
+				new_unit->health = 2;
+
 				new_unit->pos = cursor_world_pos;
 				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = memory->entities[memory->player_uid].team_uid;
-				new_unit->shooting_cooldown = 0.2f;
+				new_unit->shooting_cooldown = 0.9f;
 				new_unit->scale = {1.0f, 1.0f, 1.0f};
 				new_unit->rotation.y = 0;
 				new_unit->color = {1,1,1,1};
@@ -108,7 +111,7 @@ void update(App_memory* memory){
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
 		}
-	} else { 
+	} else {  // NO SELECTED UNIT TO CREATE
 		if(input->cursor_primary == 1)
 			memory->clicked_uid = memory->highlighted_uid;
 		else if( !input->cursor_primary ){//TODO: do it when releasing the button
@@ -132,6 +135,27 @@ void update(App_memory* memory){
 				selected_entity->target_move_pos = cursor_world_pos;
 		}
 	}	
+	memory->spawn_timer -= memory->delta_time;
+	if(memory->spawn_timer < 0){
+		memory->spawn_timer += 5.0f;
+
+		u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
+		Entity* enemy = &memory->entities[new_entity_index];
+		enemy->visible = true;
+		enemy->p_mesh_uid = memory->meshes.p_test_orientation_uid;
+		enemy->p_tex_uid = memory->textures.p_white_tex_uid;
+		enemy->shooting_cooldown = 1.1f;
+
+		enemy->health = 5;
+		enemy->target_pos = memory->entities[memory->player_uid].pos;
+		enemy->team_uid = 1; //TODO: put something that is not the player's team
+		
+		enemy->pos = {0,0,2};
+		enemy->target_move_pos = enemy->pos;
+		enemy->scale = {1,1,1};
+		enemy->color = {1,0,0,1};
+	}
+
 	// UPDATING ENTITIES
 	until(i, MAX_ENTITIES){
 		// SHOOTING
@@ -144,6 +168,7 @@ void update(App_memory* memory){
 
 				u32 new_entity_index = next_inactive_entity(memory->entities,&memory->last_inactive_entity);
 				Entity* new_bullet = &memory->entities[new_entity_index];
+				new_bullet->health = 1; //TODO: for now this is just so it doesn't disappear, CHANGE IT
 				new_bullet->lifetime = 10.0f;
 				new_bullet->visible = 1;
 				new_bullet->is_projectile = 1;
@@ -155,7 +180,7 @@ void update(App_memory* memory){
 				new_bullet->team_uid = parent->team_uid;
 				new_bullet->object3d.pos = parent->object3d.pos;
 				// TODO: go in the direction that parent is looking;
-				new_bullet->target_pos = parent->target_pos;
+				new_bullet->target_pos = parent->looking_at;
 				new_bullet->object3d.scale = {0.4f,0.4f,0.4f};
 				V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
 				new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
@@ -175,22 +200,24 @@ void update(App_memory* memory){
 				V3 accel = 10*(move_v - (0.4f*entity->velocity));
 				entity->velocity = entity->velocity +( memory->delta_time * accel );
 
+				//TODO: when unit is moving and shooting, shoots seem to come from the body
+				// and that's because it should spawn in the tip of the cannon instead of the center
 				//LERPING TARGET POS
-				// entity->looking_at = entity->looking_at + (10*memory->delta_time * (entity->target_pos - entity->looking_at));
-				// V3 target_direction = entity->looking_at - entity->pos; 
-				// r32 target_rotation = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
-				// entity->rotation.y = target_rotation;
+				entity->looking_at = entity->looking_at + (10*memory->delta_time * (entity->target_pos - entity->looking_at));
+				V3 target_direction = entity->looking_at - entity->pos; 
+				r32 target_rotation = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
+				entity->rotation.y = target_rotation;
 
 				//LERPING ROTATION
-				V3 target_direction = entity->target_pos - entity->pos;
-				r32 target_rotation = v2_angle({target_direction.x, target_direction.z})+ PI32/2;
+				// V3 target_direction = entity->target_pos - entity->pos;
+				// r32 target_rotation = v2_angle({target_direction.x, target_direction.z})+ PI32/2;
 
-				r32 angle_difference = target_rotation - entity->object3d.rotation.y;
-				if(angle_difference > TAU32/2)
-					entity->rotation.y += TAU32;
-				else if(angle_difference < -TAU32/2)
-					entity->rotation.y -= TAU32;
-				entity->rotation.y += 10*(target_rotation - entity->rotation.y) * memory->delta_time;
+				// r32 angle_difference = target_rotation - entity->object3d.rotation.y;
+				// if(angle_difference > TAU32/2)
+				// 	entity->rotation.y += TAU32;
+				// else if(angle_difference < -TAU32/2)
+				// 	entity->rotation.y -= TAU32;
+				// entity->rotation.y += 10*(target_rotation - entity->rotation.y) * memory->delta_time;
 			}else{
 				if( entity->lifetime < 0 )
 				{
@@ -204,9 +231,14 @@ void update(App_memory* memory){
 							entity->team_uid != entity2->team_uid
 						){
 							r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
-							if(intersect > 0){//TODO: damage entity
+							if(intersect > 0){
 								*entity = {0}; 
 								memory->entity_generations[i]++;
+
+								entity2->health -= 1;
+								//TODO: this check should be done always for just the entities that use the health property
+								if(entity2->health <= 0)
+									entity2->visible = false;
 								break;
 							}
 						}
@@ -235,7 +267,8 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->camera_rotation.x = PI32/2;
 	memory->camera_pos.y = 15.0f;
 
-	memory->entities[memory->player_uid].resources = 10;
+	memory->entities[memory->player_uid].resources = 2;
+	memory->entities[memory->player_uid].health = 1;
 	
 	
 /*

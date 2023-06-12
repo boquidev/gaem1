@@ -32,7 +32,8 @@ struct Entity
 
 	r32 lifetime;
 
-	u32 resources;
+	s32 health;
+	s32 resources;
 
 	V3 target_move_pos;
 	V3 velocity;
@@ -200,6 +201,8 @@ struct App_memory
 	r32 update_hz;
 	r32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
+	
+	r32 spawn_timer;
 
 	u32 player_uid;
 	

@@ -402,6 +402,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				dx->render_target_view = 0;
 			}
 			
+			//TODO: be careful with 8k monitors or something 
 			if(client_size.x > 0 && client_size.y > 0 &&
 				client_size.x < 4000 && client_size.y < 4000
 			){
@@ -624,8 +625,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					//TODO: for some reason +z is backwards and -z is forward into the depth 
 				// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
 
-				Dx_mesh* object_mesh = LIST_GET_DATA_AS(&meshes_list, *object->p_mesh_uid, Dx_mesh);
-				Dx11_texture_view** texture_view = LIST_GET_DATA_AS(&textures_list, *object->p_tex_uid,Dx11_texture_view*);
+				Dx_mesh* object_mesh = (Dx_mesh*)list_get_data(&meshes_list, *object->p_mesh_uid);
+				Dx11_texture_view** texture_view = (Dx11_texture_view**)list_get_data(&textures_list, *object->p_tex_uid);
 				dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 				
 				//TODO: maybe(actually probably should do it) decouple mesh with texture
