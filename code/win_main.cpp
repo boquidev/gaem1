@@ -77,7 +77,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	window_class.lpszClassName = "classname";
 	window_class.hCursor = LoadCursor(0, IDC_ARROW);
 
-	ASSERT(RegisterClassA(&window_class));
+	RegisterClassA(&window_class);
 
 	DWORD exstyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 	
@@ -97,6 +97,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	);
 
 	ASSERT(global_main_window);
+	if(!global_main_window) return 1;
 
 	// MAIN MEMORY BLOCKS
 	Memory_arena arena1 = {0};
@@ -401,8 +402,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				dx->render_target_view = 0;
 			}
 			
-			if(client_size.x != 0 && client_size.y != 0)
-			{
+			if(client_size.x > 0 && client_size.y > 0 &&
+				client_size.x < 4000 && client_size.y < 4000
+			){
 				ASSERT(client_size.x < 4000 && client_size.y < 4000);
 				memory.aspect_ratio = (r32)client_size.x / (r32) client_size.y;
 				hr = dx->swap_chain->ResizeBuffers(0, client_size.x, client_size.y, DXGI_FORMAT_UNKNOWN, 0);
@@ -602,7 +604,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			
 			// WORLD PROJECTION
 			if(perspective_on)
-				projection_matrix = XMMatrixPerspectiveLH(memory.fov*memory.aspect_ratio, memory.fov, fov, 100.0f);
+				projection_matrix = XMMatrixPerspectiveLH(memory.fov*memory.aspect_ratio/16, memory.fov/16, fov, 100.0f);
 			else
 				projection_matrix = XMMatrixOrthographicLH(memory.fov*memory.aspect_ratio, memory.fov, fov, 100.0f);
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
@@ -690,7 +692,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 #endif
 		QueryPerformanceCounter(&last_counter);
 	}
-
 	//TODO: this is dumb but i don't want dumb messages each time i close
 	dx->device->Release();
 	dx->context->Release();
@@ -725,7 +726,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	pipeline_3d.depth_stencil_state->Release();
 	pipeline_3d.depth_stencil_view->Release();
 	pipeline_3d.default_texture_view->Release();
-
 #if DEBUGMODE
 	// Create an instance of the DXGI debug interface
 	IDXGIDebug1* p_debug = nullptr;

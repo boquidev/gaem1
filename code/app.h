@@ -23,17 +23,16 @@ struct Object3d
 	OBJECT3D_STRUCTURE
 };
 
-#define MAX_ENTITIES 1000
+#define MAX_ENTITIES 5000
 struct Entity
 {
 	b32 visible;
+	b32 selectable;
+	b32 is_projectile;//TODO: make this the identifier of what kind of entity it is
+
 	r32 lifetime;
 
-	b32 selectable;
-
 	u32 resources;
-
-	b32 is_bullet;//TODO: make this the identifier of what kind of entity it is
 
 	V3 target_move_pos;
 	V3 velocity;

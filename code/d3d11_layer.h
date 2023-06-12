@@ -190,7 +190,7 @@ dx11_get_compiled_shader(String filename, Memory_arena* arena, char* entrypoint_
 #if DEBUGMODE
 	shader_compile_flags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
-	shader_compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL_3;
+	shader_compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
 	Dx11_blob* shader_blob = 0;
 	Dx11_blob* error_blob = 0;

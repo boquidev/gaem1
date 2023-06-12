@@ -34,7 +34,7 @@ typedef double r64;
 #if DEBUGMODE
     #define ASSERT(expression) if(!(expression)) *(int *)0 = 0;
 #else
-    #define ASSERT(expression)
+    #define ASSERT(expression) (expression)
 #endif
 #define ASSERTHR(hr) ASSERT(SUCCEEDED(hr))
 
