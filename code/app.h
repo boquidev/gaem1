@@ -33,7 +33,6 @@ struct Entity
 	r32 lifetime;
 
 	s32 health;
-	s32 resources;
 
 	V3 target_move_pos;
 	V3 velocity;
@@ -205,6 +204,8 @@ struct App_memory
 	r32 spawn_timer;
 
 	u32 player_uid;
+
+	s32 teams_resources[2];
 	
 	b32 creating_unit;
 
@@ -212,12 +213,6 @@ struct App_memory
 	Entity entities[MAX_ENTITIES];
 	u32 entity_generations[MAX_ENTITIES];
 };
-
-internal u32
-test(Mesh_primitive aaa[])
-{	
-	return sizeof(aaa);
-}
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??
 internal Mesh_primitive*

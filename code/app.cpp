@@ -88,9 +88,9 @@ void update(App_memory* memory){
 	if(memory->creating_unit) {// SELECTED UNIT TO CREATE
 		if(input->cursor_primary == 1){//TODO: do it when releasing the button
 			// CREATING UNIT
-			if(memory->entities[memory->player_uid].resources > 0)
+			if(memory->teams_resources[memory->entities[memory->player_uid].team_uid] > 0)
 			{
-				memory->entities[memory->player_uid].resources -= 1;
+				memory->teams_resources[memory->entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
 				Entity* new_unit = &memory->entities[new_entity_index];
 				new_unit->visible = true;
@@ -149,7 +149,7 @@ void update(App_memory* memory){
 		enemy->health = 5;
 		enemy->target_pos = memory->entities[memory->player_uid].pos;
 		enemy->team_uid = 1; //TODO: put something that is not the player's team
-		
+
 		enemy->pos = {0,0,2};
 		enemy->target_move_pos = enemy->pos;
 		enemy->scale = {1,1,1};
@@ -232,13 +232,14 @@ void update(App_memory* memory){
 						){
 							r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 							if(intersect > 0){
-								*entity = {0}; 
-								memory->entity_generations[i]++;
-
 								entity2->health -= 1;
 								//TODO: this check should be done always for just the entities that use the health property
-								if(entity2->health <= 0)
+								if(entity2->health <= 0){
 									entity2->visible = false;
+									memory->teams_resources[entity->team_uid] += 1;
+								}
+								*entity = {0}; 
+								memory->entity_generations[i]++;
 								break;
 							}
 						}
@@ -267,8 +268,10 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->camera_rotation.x = PI32/2;
 	memory->camera_pos.y = 15.0f;
 
-	memory->entities[memory->player_uid].resources = 2;
+	
 	memory->entities[memory->player_uid].health = 1;
+	memory->entities[memory->player_uid].team_uid = 0;
+	memory->teams_resources[memory->entities[memory->player_uid].team_uid] = 2;
 	
 	
 /*
