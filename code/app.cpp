@@ -63,11 +63,10 @@ void update(App_memory* memory){
 			i != memory->player_uid 
 		){
 			Entity* entity = &memory->entities[i];
-			entity->radius = 1.0f;
 			entity->color = {1,1,1,1};
 
 			r32 intersected_t = 0;
-			if(line_vs_sphere(cursor_world_pos, z_direction, entity->object3d.pos, entity->radius, &intersected_t)){
+			if(line_vs_sphere(cursor_world_pos, z_direction, entity->object3d.pos, entity->scale.x, &intersected_t)){
 				if(!first_intersection){
 					first_intersection = true;
 					closest_t = intersected_t;
@@ -135,7 +134,7 @@ void update(App_memory* memory){
 				selected_entity->target_move_pos = cursor_world_pos;
 		}
 	}	
-	memory->spawn_timer -= memory->delta_time;
+	// memory->spawn_timer -= memory->delta_time;
 	if(memory->spawn_timer < 0){
 		memory->spawn_timer += 5.0f;
 
@@ -175,7 +174,7 @@ void update(App_memory* memory){
 				new_bullet->speed = 50;
 				new_bullet->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
 				new_bullet->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
-				new_bullet->object3d.color = {0.8f,0,0,1};
+				new_bullet->object3d.color = {0.0f,0,0,1};
 				Entity* parent = &memory->entities[i];
 				new_bullet->team_uid = parent->team_uid;
 				new_bullet->object3d.pos = parent->object3d.pos;
@@ -188,6 +187,7 @@ void update(App_memory* memory){
 		}
 		// DYNAMICS
 		if(entity->visible){
+			entity->pos.y = 0;//TODO: clamping height position
 			if(i == memory->player_uid)
 			{
 				V3 move_v = (entity->target_move_pos - entity->pos);
@@ -195,10 +195,23 @@ void update(App_memory* memory){
 				entity->velocity = entity->velocity + (memory->delta_time * accel);
 				if(entity->velocity.x || entity->velocity.z)
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
+				#define COLLISION_RESPONSE_CODE \
+				until(j, MAX_ENTITIES){\
+					Entity* entity2 = &memory->entities[j];\
+					if(entity2->visible && !entity2->is_projectile && i != j){\
+						r32 overlapping = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);\
+						if(overlapping > 0){\
+							V3 collision_direction = v3_normalize(entity2->pos - entity->pos);\
+							entity->pos = entity->pos - ((overlapping) * collision_direction);\
+						}\
+					}\
+				}
+				COLLISION_RESPONSE_CODE
 			}else if(!entity->is_projectile){
 				V3 move_v = (entity->target_move_pos - entity->pos);
 				V3 accel = 10*(move_v - (0.4f*entity->velocity));
 				entity->velocity = entity->velocity +( memory->delta_time * accel );
+				COLLISION_RESPONSE_CODE
 
 				//TODO: when unit is moving and shooting, shoots seem to come from the body
 				// and that's because it should spawn in the tip of the cannon instead of the center
@@ -235,7 +248,7 @@ void update(App_memory* memory){
 								entity2->health -= 1;
 								//TODO: this check should be done always for just the entities that use the health property
 								if(entity2->health <= 0){
-									entity2->visible = false;
+									*entity2 = {0};
 									memory->teams_resources[entity->team_uid] += 1;
 								}
 								*entity = {0}; 
@@ -246,10 +259,8 @@ void update(App_memory* memory){
 					}
 				}
 			}
+			entity->object3d.pos = entity->object3d.pos + (memory->delta_time * entity->velocity);
 		}
-		
-		entity->object3d.pos = entity->object3d.pos + (memory->delta_time * entity->velocity);
-
 	}
 }
 

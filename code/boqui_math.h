@@ -135,19 +135,16 @@ union V3
     V2 v2;
 };
 internal V3
-v3_addition(V3 v1, V3 v2)
-{
+v3_addition(V3 v1, V3 v2){
     return {v1.x+v2.x, v1.y+v2.y, v1.z+v2.z};
 }
 internal V3
-operator +(V3 v1, V3 v2)
-{
+operator +(V3 v1, V3 v2){
     return v3_addition(v1, v2);
 }
 
 internal V3
-v3_difference(V3 v1, V3 v2)
-{
+v3_difference(V3 v1, V3 v2){
     V3 result = {0};
     result.x = v1.x - v2.x;
     result.y = v1.y - v2.y;
@@ -156,21 +153,18 @@ v3_difference(V3 v1, V3 v2)
     return result;
 }
 internal V3
-operator -(V3 v1, V3 v2)
-{
+operator -(V3 v1, V3 v2){
     return v3_difference(v1, v2);
 }
 internal V3
-operator *(r32 e, V3 v)
-{
+operator *(r32 e, V3 v){
     return {e * v.x, e * v.y, e*v.z};
 }
 
 internal r32 v3_magnitude(r32 x, r32 y, r32 z){return SQRT(x*x + y*y + z*z);}
 internal r32 v3_magnitude(V3 v){return v3_magnitude(v.x, v.y, v.z);}
 internal V3 
-v3_normalize(r32 x, r32 y, r32 z)
-{
+v3_normalize(r32 x, r32 y, r32 z){
     r32 vlength = v3_magnitude(x,y,z);
     if(vlength) return {x/vlength, y/vlength, z/vlength};
     else return {0,0,0};
@@ -371,7 +365,8 @@ bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3
     }
     return result;
 }
-internal r32 // return value = overlap, if overlap < 0 then they don't overlap
+// return value = overlap, if overlap < 0 then they don't overlap
+internal r32 
 sphere_vs_sphere(V3 c1,r32 r1, V3 c2, r32 r2){
     return ((r1+r2) - v3_magnitude(c1-c2));
 }
