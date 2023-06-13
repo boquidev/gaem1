@@ -569,7 +569,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 		until(i, ARRAYCOUNT(input.buttons))
 		{
-			input.buttons[i] = holding_inputs.buttons[i] + input.buttons[i]*holding_inputs.buttons[i];
+			// input.buttons[i] = holding_inputs.buttons[i] + input.buttons[i]*holding_inputs.buttons[i];
+			if(holding_inputs.buttons[i]) 
+				input.buttons[i]++;
+			else
+				if(input.buttons[i] > 0)
+					holding_inputs[i] = -1; // just released button
+				else
+					holding_inputs[i] = 0;
+				input.buttons[i] = 0;
 		}
 		// APP UPDATE
 		app.update(&memory);

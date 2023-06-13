@@ -85,10 +85,9 @@ void update(App_memory* memory){
 	if(input->L == 1)
 		memory->creating_unit = !memory->creating_unit;
 	if(memory->creating_unit) {// SELECTED UNIT TO CREATE
-		if(input->cursor_primary == 1){//TODO: do it when releasing the button
+		if(input->cursor_primary == 1){
 			// CREATING UNIT
-			if(memory->teams_resources[memory->entities[memory->player_uid].team_uid] > 0)
-			{
+			if(memory->teams_resources[memory->entities[memory->player_uid].team_uid] > 0){
 				memory->teams_resources[memory->entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
 				Entity* new_unit = &memory->entities[new_entity_index];
@@ -113,7 +112,7 @@ void update(App_memory* memory){
 	} else {  // NO SELECTED UNIT TO CREATE
 		if(input->cursor_primary == 1)
 			memory->clicked_uid = memory->highlighted_uid;
-		else if( !input->cursor_primary ){//TODO: do it when releasing the button
+		else if( holding_inputs->cursor_primary == -1 ){
 			if(memory->clicked_uid){
 				if(memory->highlighted_uid == memory->clicked_uid){
 					memory->selected_uid = memory->clicked_uid;
@@ -207,7 +206,6 @@ void update(App_memory* memory){
 						}\
 					}\
 				}
-							// entity->pos = entity->pos - ((overlapping) * collision_direction);
 				COLLISION_RESPONSE_CODE
 			}else if(!entity->is_projectile){
 				V3 move_v = (entity->target_move_pos - entity->pos);
