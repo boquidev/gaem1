@@ -202,10 +202,12 @@ void update(App_memory* memory){
 						r32 overlapping = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);\
 						if(overlapping > 0){\
 							V3 collision_direction = v3_normalize(entity2->pos - entity->pos);\
-							entity->pos = entity->pos - ((overlapping) * collision_direction);\
+							entity->velocity = entity->velocity - ((overlapping/memory->delta_time) * collision_direction);\
+							entity2->velocity = entity2->velocity + ((overlapping/memory->delta_time) * collision_direction);\
 						}\
 					}\
 				}
+							// entity->pos = entity->pos - ((overlapping) * collision_direction);
 				COLLISION_RESPONSE_CODE
 			}else if(!entity->is_projectile){
 				V3 move_v = (entity->target_move_pos - entity->pos);

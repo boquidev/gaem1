@@ -107,8 +107,7 @@ internal V2 normalize(V2 v){return normalize(v.x, v.y);}
 internal V2 normalize(Int2 v){return normalize((r32)v.x, (r32)v.y);}
 
 internal r32
-dot(V2 v1, V2 v2)
-{
+v2_dot(V2 v1, V2 v2){
     return (v1.x*v2.x) + (v1.y*v2.y);
 }
 
@@ -134,6 +133,11 @@ union V3
     Int3 i;
     V2 v2;
 };
+internal r32
+v3_dot(V3 v1, V3 v2){
+    return (v1.x*v2.x) + (v1.y*v2.y) + (v1.z*v2.z);
+}
+
 internal V3
 v3_addition(V3 v1, V3 v2){
     return {v1.x+v2.x, v1.y+v2.y, v1.z+v2.z};
