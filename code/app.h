@@ -138,42 +138,6 @@ struct Textures
 	u32* p_test_uid;
 };
 
-struct Mesh_from_file_request
-{
-	u32* p_mesh_uid;
-	String filename;
-};
-
-struct Mesh_from_primitives_request
-{
-	u32* p_mesh_uid;
-	Mesh_primitive* primitives; //TODO: this could be the whole struct instead of a pointer
-};
-
-struct Tex_from_surface_request
-{
-	u32* p_tex_uid;
-	Surface surface; 
-};
-
-struct Tex_from_file_request
-{
-	u32* p_tex_uid;
-	String filename;
-};
-
-DEFINE_LIST(Mesh_from_file_request);
-DEFINE_LIST(Mesh_from_primitives_request);
-DEFINE_LIST(Tex_from_surface_request);
-DEFINE_LIST(Tex_from_file_request) ;
-struct Init_data
-{
-	LIST(Mesh_from_file_request) mesh_from_file_requests;
-	LIST(Mesh_from_primitives_request) mesh_from_primitives_requests;
-	LIST(Tex_from_surface_request) tex_from_surface_requests;
-	LIST(Tex_from_file_request) tex_from_file_requests;
-};
-
 struct App_memory
 {
 	Memory_arena* permanent_arena;
@@ -212,6 +176,42 @@ struct App_memory
 	u32 last_inactive_entity;
 	Entity* entities;
 	u32* entity_generations;
+};
+
+struct Mesh_from_file_request
+{
+	u32* p_mesh_uid;
+	String filename;
+};
+
+struct Mesh_from_primitives_request
+{
+	u32* p_mesh_uid;
+	Mesh_primitive* primitives; //TODO: this could be the whole struct instead of a pointer
+};
+
+struct Tex_from_surface_request
+{
+	u32* p_tex_uid;
+	Surface surface; 
+};
+
+struct Tex_from_file_request
+{
+	u32* p_tex_uid;
+	String filename;
+};
+
+DEFINE_LIST(Mesh_from_file_request);
+DEFINE_LIST(Mesh_from_primitives_request);
+DEFINE_LIST(Tex_from_surface_request);
+DEFINE_LIST(Tex_from_file_request) ;
+struct Init_data
+{
+	LIST(Mesh_from_file_request) mesh_from_file_requests;
+	LIST(Mesh_from_primitives_request) mesh_from_primitives_requests;
+	LIST(Tex_from_surface_request) tex_from_surface_requests;
+	LIST(Tex_from_file_request) tex_from_file_requests;
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??

@@ -232,7 +232,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// 3D SHADERS
 		// VERTEX SHADER	
 	String shaders_3d_filename = string("x:/source/code/shaders/3d_shaders.hlsl");
-	//TODO: remember the last write memory.time_ms of the file when doing runtime compiling
+	//TODO: remember the last write_time of the file when doing runtime compiling
 
 	File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
 	
@@ -567,17 +567,18 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					DispatchMessageA(&message);
 			}
 		}
+		//TODO: shortcuts system
 		until(i, ARRAYCOUNT(input.buttons))
 		{
 			// input.buttons[i] = holding_inputs.buttons[i] + input.buttons[i]*holding_inputs.buttons[i];
-			if(holding_inputs.buttons[i]) 
+			if(holding_inputs.buttons[i]) {
 				input.buttons[i]++;
-			else
+			}else{
 				if(input.buttons[i] > 0)
-					holding_inputs[i] = -1; // just released button
+					input.buttons[i] = -1; // just released button
 				else
-					holding_inputs[i] = 0;
-				input.buttons[i] = 0;
+					input.buttons[i] = 0;
+			}
 		}
 		// APP UPDATE
 		app.update(&memory);

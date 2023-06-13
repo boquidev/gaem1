@@ -112,7 +112,7 @@ void update(App_memory* memory){
 	} else {  // NO SELECTED UNIT TO CREATE
 		if(input->cursor_primary == 1)
 			memory->clicked_uid = memory->highlighted_uid;
-		else if( holding_inputs->cursor_primary == -1 ){
+		else if( input->cursor_primary == -1 ){
 			if(memory->clicked_uid){
 				if(memory->highlighted_uid == memory->clicked_uid){
 					memory->selected_uid = memory->clicked_uid;
@@ -125,11 +125,11 @@ void update(App_memory* memory){
 		selected_entity->object3d.color = {0,1,0,1};
 
 		if( memory->selected_uid != memory->player_uid ){
-			if( input->cursor_secondary)
+			if( input->cursor_secondary > 0)
 				selected_entity->target_pos = cursor_world_pos;
-			else if( input->cursor_primary )
+			else if( input->cursor_primary > 0)
 				memory->selected_uid = memory->player_uid;
-			else if( input->move)
+			else if( input->move > 0)
 				selected_entity->target_move_pos = cursor_world_pos;
 		}
 	}	
