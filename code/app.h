@@ -138,6 +138,15 @@ struct Textures
 	u32* p_test_uid;
 };
 
+// struct VShaders
+// {
+// 	u32* p_3d_vshader_uid;
+// };
+// struct PShaders
+// {
+// 	u32* p_3d_pshader_uid;
+// };
+
 struct App_memory
 {
 	Memory_arena* permanent_arena;
@@ -145,6 +154,8 @@ struct App_memory
 
 	Meshes meshes;
 	Textures textures;
+	// VShaders vshaders;
+	// PShaders pshaders;
 
 	r32 fov;
 	r32 aspect_ratio;
@@ -202,16 +213,32 @@ struct Tex_from_file_request
 	String filename;
 };
 
+// struct Vertex_shader_from_file_request
+// {
+// 	u32* p_vs_uid;
+// 	String filename;
+// };
+
+// struct Pixel_shader_from_file_request
+// {
+// 	u32* p_ps_uid;
+// 	String filename;
+// };
+
 DEFINE_LIST(Mesh_from_file_request);
 DEFINE_LIST(Mesh_from_primitives_request);
 DEFINE_LIST(Tex_from_surface_request);
 DEFINE_LIST(Tex_from_file_request) ;
+// DEFINE_LIST(Vertex_shader_from_file_request);
+// DEFINE_LIST(Pixel_shader_from_file_request);
 struct Init_data
 {
 	LIST(Mesh_from_file_request) mesh_from_file_requests;
 	LIST(Mesh_from_primitives_request) mesh_from_primitives_requests;
 	LIST(Tex_from_surface_request) tex_from_surface_requests;
 	LIST(Tex_from_file_request) tex_from_file_requests;
+	// LIST(Vertex_shader_from_file_request) vs_ff_requests;
+	// LIST(Pixel_shader_from_file_request) ps_ff_requests;
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??
@@ -282,3 +309,26 @@ push_mesh_from_file_request(App_memory* memory, Init_data* init_data, String fil
 
 	return result;
 }
+
+// internal u32*
+// push_vertex_shader_from_file_request(App_memory* memory, Init_data* init_data, String filename)
+// {
+// 	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
+
+// 	Vertex_shader_from_file_request* request = init_data->vs_ff_requests.push_back(memory->temp_arena);
+// 	request->p_vs_uid = result;
+// 	request->filename = filename;
+
+// 	return result;
+// }
+// internal u32*
+// push_pixel_shader_from_file_request(App_memory* memory, Init_data* init_data, String filename)
+// {
+// 	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
+
+// 	Pixel_shader_from_file_request* request = init_data->ps_ff_requests.push_back(memory->temp_arena);
+// 	request->p_ps_uid = result;
+// 	request->filename = filename;
+
+// 	return result;
+// }

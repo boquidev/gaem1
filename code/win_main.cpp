@@ -212,8 +212,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 
 	Tex_from_file_request_List_node* tex_from_file_request_node = init_data.tex_from_file_requests.root;
-	until(i, init_data.tex_from_file_requests.size)
-	{
+	until(i, init_data.tex_from_file_requests.size){
 		Tex_from_file_request* request = tex_from_file_request_node->value;
 		nextnode(tex_from_file_request_node);
 
@@ -235,8 +234,17 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	//TODO: remember the last write_time of the file when doing runtime compiling
 
 	File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
-	
 	dx11_create_vs(dx, shaders_3d_compiled_vs, &pipeline_3d.vs);
+
+	//TODO: still not sure if i am going to do this
+	// Vertex_shader_from_file_request_List_node* vs_ff_request_node = init_data.vs_ff_requests.root;
+	// until(i, init_data.vs_ff_requests.size){
+	// 	Vertex_shader_from_file_request* request = vs_ff_request_node->value;
+	// 	nextnode(vs_ff_request_node);
+
+		
+	// }
+
 	D3D11_INPUT_ELEMENT_DESC ied[] = {
 		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
@@ -290,6 +298,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
 
 	// MESHES
+	//TODO: make meshes_list an array of size = sizeof(Meshes)/sizeof(u32*)
 	List meshes_list = {0};
 
 	// LOADING MESHES FROM FILES
@@ -361,7 +370,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	s64 performance_counter_frequency = pcf_result.QuadPart;
 
 	//TODO: maybe in the future use GetDeviceCaps() to get the monitor hz
-	int monitor_refresh_hz = 60;
+	int monitor_refresh_hz = 200;
 	
 	memory.update_hz = (r32)monitor_refresh_hz;
 	r32 target_seconds_per_frame = 1.0f / memory.update_hz;

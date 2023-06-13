@@ -43,7 +43,7 @@ void update(App_memory* memory){
 	V3 cursor_pos = {
 		memory->aspect_ratio*memory->fov*input->cursor_pos.x,
 		memory->fov*input->cursor_pos.y, 0};
-	
+
 	// RAYCAST WITH ALL ENTITIES
 	memory->highlighted_uid = 0;
 	V3 cursor_world_pos = v3_rotate_y(
@@ -167,7 +167,7 @@ void update(App_memory* memory){
 				u32 new_entity_index = next_inactive_entity(memory->entities,&memory->last_inactive_entity);
 				Entity* new_bullet = &memory->entities[new_entity_index];
 				new_bullet->health = 1; //TODO: for now this is just so it doesn't disappear, CHANGE IT
-				new_bullet->lifetime = 10.0f;
+				new_bullet->lifetime = 5.0f;
 				new_bullet->visible = 1;
 				new_bullet->is_projectile = 1;
 				new_bullet->speed = 50;
@@ -282,12 +282,18 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->camera_rotation.x = PI32/2;
 	memory->camera_pos.y = 15.0f;
 
-	
+
 	memory->entities[memory->player_uid].health = 1;
 	memory->entities[memory->player_uid].team_uid = 0;
-	memory->teams_resources[memory->entities[memory->player_uid].team_uid] = 2;
-	
-	
+	memory->teams_resources[memory->entities[memory->player_uid].team_uid] = 200;
+
+	// memory->vshaders.p_3d_vshader_uid = push_vertex_shader_from_file_request(
+	// 	memory, init_data, string("x:/source/code/shaders/3d_shaders.hlsl")
+	// );
+	// memory->pshaders.p_3d_pshader_uid = push_vertex_shader_from_file_request(
+	// 	memory, init_data, string("x:/source/code/shaders/3d_shaders.hlsl")
+	// );
+
 /*
 	// GETTING COMPILED SHADERS
 	// 3D SHADERS
