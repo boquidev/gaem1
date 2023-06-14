@@ -672,8 +672,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				); 
 					//TODO: for some reason +z is backwards and -z is forward into the depth 
 
-				Dx_mesh* object_mesh = (Dx_mesh*)list_get_data(&meshes_list, *object->p_mesh_uid);
-				Dx11_texture_view** texture_view = (Dx11_texture_view**)list_get_data(&textures_list, *object->p_tex_uid);
+				Dx_mesh* object_mesh = (Dx_mesh*)list_get_data(&meshes_list, object->p_mesh_uid);
+				Dx11_texture_view** texture_view = (Dx11_texture_view**)list_get_data(&textures_list, object->p_tex_uid);
 				dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 				
 				Vertex_shader* vertex_shader = (Vertex_shader*)list_get_data(&vertex_shaders_list,object->vertex_shader_uid);

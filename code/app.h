@@ -13,8 +13,8 @@
 struct Object3d
 {
 #define OBJECT3D_STRUCTURE \
-	u32* p_mesh_uid;\
-	u32* p_tex_uid;\
+	u32 p_mesh_uid;\
+	u32 p_tex_uid;\
 	u32 vertex_shader_uid;\
 	u32 pixel_shader_uid;\
 	u32 blend_state_uid;\
@@ -122,24 +122,24 @@ struct User_input
 
 struct Meshes
 {
-	u32* p_triangle_mesh_uid;
-	u32* p_ogre_mesh_uid;
-	u32* p_female_mesh_uid;
-	u32* p_turret_mesh_uid;
-	u32* p_plane_mesh_uid;
+	u32 p_triangle_mesh_uid;
+	u32 p_ogre_mesh_uid;
+	u32 p_female_mesh_uid;
+	u32 p_turret_mesh_uid;
+	u32 p_plane_mesh_uid;
 
-	u32* p_ball_uid;
+	u32 p_ball_uid;
 
-	u32* p_test_orientation_uid;
-	u32* p_test_orientation2_uid;
+	u32 p_test_orientation_uid;
+	u32 p_test_orientation2_uid;
 
 };
 
 struct Textures
 {
-	u32* p_default_tex_uid;
-	u32* p_white_tex_uid;
-	u32* p_test_uid;
+	u32 p_default_tex_uid;
+	u32 p_white_tex_uid;
+	u32 p_test_uid;
 };
 
 // struct VShaders
@@ -263,55 +263,41 @@ save_primitives(Memory_arena* arena, void* vertices, u32 vertex_size, u32 vertic
 // TODO: MAKE A SINGLE STRUCT FOR BOTH FROM FILE AND FROM DATA
 // AND I HAVE 4 FUNCTIONS THAT ARE VERY SIMILAR
 
-internal u32*
-push_tex_from_surface_request(App_memory* memory, Init_data* init_data, u32 width, u32 height, u32* pixels)
+internal void
+push_tex_from_surface_request(App_memory* memory, Init_data* init_data,u32* index_handle, u32 width, u32 height, u32* pixels)
 {
-	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
 	Tex_from_surface_request* request = init_data->tex_from_surface_requests.push_back(memory->temp_arena);
-	request->p_tex_uid = result;
+	request->p_tex_uid = index_handle;
 	request->surface = {width,height};
 	request->surface.data = arena_push_data(memory->permanent_arena, pixels, width*height*sizeof(u32));
-
-	return result;
 }
 // returns the address reserved for the mesh's uid
-internal u32*
-push_tex_from_file_request(App_memory* memory, Init_data* init_data, String filename)
+internal void
+push_tex_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
 {
-	// reserves space for the uid in the permanent_arena
-	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
 	// pushes the request in the initdata in the temp arena
 	Tex_from_file_request* request = init_data->tex_from_file_requests.push_back(memory->temp_arena);
-	request->p_tex_uid = result;
+	request->p_tex_uid = index_handle;
 	request->filename = filename;
-
-	return result;
 }
 
 // THIS 2 FUNCTIONS ARE BASICALLY THE SAME EXCEPT FOR 2 THINGS
-internal u32*
-push_mesh_from_primitives_request(App_memory* memory, Init_data* init_data, Mesh_primitive* primitives)
+internal void
+push_mesh_from_primitives_request(App_memory* memory, Init_data* init_data, u32* index_handle, Mesh_primitive* primitives)
 {
-	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
 	Mesh_from_primitives_request* request = init_data->mesh_from_primitives_requests.push_back(memory->temp_arena);
-	request->p_mesh_uid = result;
+	request->p_mesh_uid = index_handle;
 	request->primitives = primitives;
-
-	return result;
 }
 
 // returns the address reserved for the mesh's uid
-internal u32*
-push_mesh_from_file_request(App_memory* memory, Init_data* init_data, String filename)
+internal void
+push_mesh_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
 {
-	// reserves space for the uid in the permanent_arena
-	u32* result = ARENA_PUSH_STRUCT(memory->permanent_arena, u32);
 	// pushes the request in the initdata in the temp arena
 	Mesh_from_file_request* request = init_data->mesh_from_file_requests.push_back(memory->temp_arena);
-	request->p_mesh_uid = result;
+	request->p_mesh_uid = index_handle;
 	request->filename = filename;
-
-	return result;
 }
 
 // internal u32*

@@ -273,7 +273,7 @@ void render(App_memory* memory, Int2 screen_size, List* render_list){
 			*render_object = memory->entities[i].object3d;
 		}
 	}
-	// draw_rect(pos, size, texture, color); 
+	// draw(mesh, pos, size, texture, color); 
 }
 
 void init(App_memory* memory, Init_data* init_data){
@@ -348,12 +348,12 @@ void init(App_memory* memory, Init_data* init_data){
 		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,
 	};
-	memory->textures.p_default_tex_uid = push_tex_from_surface_request(memory, init_data, 2,2, default_tex_pixels);
+	push_tex_from_surface_request(memory, init_data, &memory->textures.p_default_tex_uid, 2,2, default_tex_pixels);
 
 	u32 white_tex_pixels[] = {0xffffffff};
-	memory->textures.p_white_tex_uid = push_tex_from_surface_request(memory, init_data, 1, 1, white_tex_pixels);
+	push_tex_from_surface_request(memory, init_data, &memory->textures.p_white_tex_uid, 1, 1, white_tex_pixels);
 
-	memory->textures.p_test_uid = push_tex_from_file_request(memory, init_data, string("data/test_atlas.png"));
+	push_tex_from_file_request(memory, init_data, &memory->textures.p_test_uid, string("data/test_atlas.png"));
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
@@ -369,7 +369,7 @@ void init(App_memory* memory, Init_data* init_data){
 		triangle_vertices, sizeof(triangle_vertices[0]), ARRAYCOUNT(triangle_vertices),
 		triangle_indices, ARRAYCOUNT(triangle_indices)
 	);
-	memory->meshes.p_triangle_mesh_uid = push_mesh_from_primitives_request(memory, init_data, triangle_primitives);
+	push_mesh_from_primitives_request(memory, init_data, &memory->meshes.p_triangle_mesh_uid, triangle_primitives);
 	
 	Vertex3d centered_plane_vertices[] =
 	{
@@ -395,7 +395,7 @@ void init(App_memory* memory, Init_data* init_data){
 		plane_vertices, sizeof(plane_vertices[0]), ARRAYCOUNT(plane_vertices),
 		plane_indices, ARRAYCOUNT(plane_indices)
 	);
-	memory->meshes.p_plane_mesh_uid = push_mesh_from_primitives_request(memory, init_data,plane_primitives);
+	push_mesh_from_primitives_request(memory, init_data,&memory->meshes.p_plane_mesh_uid,plane_primitives);
 
 	Vertex3d test_vertices[] =
 	{
@@ -420,15 +420,15 @@ void init(App_memory* memory, Init_data* init_data){
 		test_vertices, sizeof(test_vertices[0]), ARRAYCOUNT(test_vertices),
 		test_indices, ARRAYCOUNT(test_indices)
 	);
-	memory->meshes.p_test_orientation2_uid = push_mesh_from_primitives_request(memory,init_data, test_orientation_primitives);
+	push_mesh_from_primitives_request(memory,init_data,&memory->meshes.p_test_orientation2_uid, test_orientation_primitives);
 
-	memory->meshes.p_ogre_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/ogre.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_ogre_mesh_uid, string("data/ogre.glb"));
 
-	memory->meshes.p_female_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/female.glb"));
+	push_mesh_from_file_request(memory, init_data, &memory->meshes.p_female_mesh_uid, string("data/female.glb"));
 
-	memory->meshes.p_turret_mesh_uid = push_mesh_from_file_request(memory, init_data, string("data/turret.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_turret_mesh_uid, string("data/turret.glb"));
 
-	memory->meshes.p_test_orientation_uid = push_mesh_from_file_request(memory, init_data, string("data/test_orientation.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_test_orientation_uid, string("data/test_orientation.glb"));
 	
-	memory->meshes.p_ball_uid = push_mesh_from_file_request(memory, init_data, string("data/ball.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_ball_uid, string("data/ball.glb"));
 }
