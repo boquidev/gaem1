@@ -212,16 +212,16 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dx11_create_texture_view(dx, &request->surface, texture_view);
 	}
 
-	Tex_from_file_request_List_node* tex_from_file_request_node = init_data.tex_from_file_requests.root;
+	From_file_request_List_node* tex_from_file_request_node = init_data.tex_from_file_requests.root;
 	until(i, init_data.tex_from_file_requests.size){
-		Tex_from_file_request* request = tex_from_file_request_node->value;
+		From_file_request* request = tex_from_file_request_node->value;
 		nextnode(tex_from_file_request_node);
 
 		int comp;
 		Surface tex_surface = {0};
 		tex_surface.data = stbi_load(request->filename.text, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
 		ASSERT(tex_surface.data);
-		*request->p_tex_uid = textures_list.size;
+		*request->p_uid = textures_list.size;
 		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, memory.permanent_arena);
 		dx11_create_texture_view(dx, &tex_surface, texture_view);
 	}
@@ -322,10 +322,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	List meshes_list = {0};
 
 	// LOADING MESHES FROM FILES
-	Mesh_from_file_request_List_node* mff_request_node = init_data.mesh_from_file_requests.root;
+	From_file_request_List_node* mff_request_node = init_data.mesh_from_file_requests.root;
 	until(i, init_data.mesh_from_file_requests.size)
 	{
-		Mesh_from_file_request* request = mff_request_node->value;
+		From_file_request* request = mff_request_node->value;
 		nextnode(mff_request_node);
 		File_data glb_file = win_read_file(request->filename, temp_arena);
 		GLB glb = {0};
@@ -354,7 +354,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// }
 		}
 		
-		*request->p_mesh_uid = meshes_list.size;
+		*request->p_uid = meshes_list.size;
 
 		Dx_mesh* current_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
 		*current_mesh = dx11_init_mesh(dx, 

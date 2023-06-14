@@ -288,35 +288,25 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entities[memory->player_uid].team_uid = 0;
 	memory->teams_resources[memory->entities[memory->player_uid].team_uid] = 200;
 
-	// memory->vshaders.p_3d_vshader_uid = push_vertex_shader_from_file_request(
-	// 	memory, init_data, string("x:/source/code/shaders/3d_shaders.hlsl")
-	// );
-	// memory->pshaders.p_3d_pshader_uid = push_vertex_shader_from_file_request(
-	// 	memory, init_data, string("x:/source/code/shaders/3d_shaders.hlsl")
-	// );
+	Vertex_shader_from_file_request vs_request = {0};
+	vs_request.p_uid = &memory->vshaders.default_vshader_uid;
+	vs_request.filename = string("x:/source/code/shaders/3d_shaders.hlsl");
+	vs_request.ie_count = 2;
+	vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
+	
+	vs_request.ie_names[0] = string("POSITION");
+	vs_request.ie_names[1] = string("TEXCOORD");
 
+	vs_request.ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, vs_request.ie_count);
+	vs_request.ie_sizes[0] = sizeof(u32)*3;
+	vs_request.ie_sizes[1] = sizeof(u32)*2;
+	
+	push_vertex_shader_from_file_request(memory, init_data, vs_request);
+
+	push_pixel_shader_from_file_request(
+		memory, init_data, &memory->pshaders.default_pshader_uid, string("x:/source/code/shaders/3d_shaders.hlsl")
+	);
 /*
-	// GETTING COMPILED SHADERS
-	// 3D SHADERS
-		// VERTEX SHADER	
-	String shaders_3d_filename = string("x:/source/code/shaders/3d_shaders.hlsl");
-	//TODO: remember the last write time of the file when doing runtime compiling
-
-	File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
-	
-	dx11_create_vs(dx, shaders_3d_compiled_vs, &pipeline_3d.vs);
-	D3D11_INPUT_ELEMENT_DESC ied[] = {
-		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
-		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
-	};
-	
-	dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &pipeline_3d.input_layout);
-	
-		// PIXEL SHADER
-	File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
-
-	dx11_create_ps(dx, shaders_3d_compiled_ps, &pipeline_3d.ps);
-
 	// CREATING CONSTANT_BUFFER
 	D3D_constant_buffer object_buffer = {0};
 	dx11_create_and_bind_constant_buffer(
@@ -341,7 +331,6 @@ void init(App_memory* memory, Init_data* init_data){
 	dx11_create_and_bind_constant_buffer(
 		dx, &projection_buffer, sizeof(XMMATRIX), WORLD_PROJECTION_BUFFER_REGISTER_INDEX, 0
 	);
-	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
 
 */
 	u32 default_tex_pixels[] = {
