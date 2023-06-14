@@ -244,18 +244,39 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		
 	// }
+	{
+		D3D11_INPUT_ELEMENT_DESC ied[] = {
+			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
+			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
+		};
+		
+		dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &pipeline_3d.input_layout);
+		
+			// PIXEL SHADER
+		File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
 
-	D3D11_INPUT_ELEMENT_DESC ied[] = {
-		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
-		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
-	};
-	
-	dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &pipeline_3d.input_layout);
-	
-		// PIXEL SHADER
-	File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
+		dx11_create_ps(dx, shaders_3d_compiled_ps, &pipeline_3d.ps);
+	}
 
-	dx11_create_ps(dx, shaders_3d_compiled_ps, &pipeline_3d.ps);
+	// TEST UI SHADERS
+	// VS
+	Dx11_render_pipeline ui_pipeline = {0};
+	String ui_shaders_filename = string("x:/source/code/shaders/ui_shaders.hlsl");
+
+	File_data ui_shaders_compiled_vs = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "vs", VS_PROFILE);
+	dx11_create_vs(dx, ui_shaders_compiled_vs, &ui_pipeline.vs);
+	{
+		D3D11_INPUT_ELEMENT_DESC ied[] = {
+			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
+			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
+		};
+
+		dx11_create_input_layout(dx, ui_shaders_compiled_vs, ied, ARRAYCOUNT(ied), &ui_pipeline.input_layout);
+
+		File_data ui_shaders_compiled_ps = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "ps", PS_PROFILE);
+
+		dx11_create_ps(dx, ui_shaders_compiled_ps, &ui_pipeline.ps);
+	}
 
 	// CREATING CONSTANT BUFFER
 	// OBJECT TRANSFORM CONSTANT BUFFER
@@ -610,6 +631,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_bind_sampler(dx, &dx->sampler);
 
 			// RENDER HERE
+
+			// 3D RENDER PIPELINE
 
 			// WORLD VIEW
 			// NEGATIVE VALUES CUZ MOVING THE WHOLE WORLD IN THE OPOSITE DIRECTION
