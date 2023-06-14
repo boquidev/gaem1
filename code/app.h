@@ -151,6 +151,11 @@ struct PShaders
 	u32 default_pshader_uid;
 };
 
+struct Blend_states
+{
+	u32 default_blend_state;
+};
+
 struct App_memory
 {
 	Memory_arena* permanent_arena;
@@ -161,6 +166,8 @@ struct App_memory
 
 	VShaders vshaders;
 	PShaders pshaders;
+
+	Blend_states blend_states;
 
 	r32 fov;
 	r32 aspect_ratio;
@@ -221,11 +228,17 @@ struct Vertex_shader_from_file_request
 	u32* ie_sizes;
 	//TODO: per vertex vs per instance;
 };
+struct Create_blend_state_request
+{
+	u32* p_uid;
+	b32 enable_alpha_blending;
+};
 
 DEFINE_LIST(From_file_request);
 DEFINE_LIST(Mesh_from_primitives_request);
 DEFINE_LIST(Tex_from_surface_request);
 DEFINE_LIST(Vertex_shader_from_file_request);
+DEFINE_LIST(Create_blend_state_request);
 
 struct Init_data
 {
@@ -235,6 +248,7 @@ struct Init_data
 	LIST(From_file_request) tex_from_file_requests;
 	LIST(Vertex_shader_from_file_request) vs_ff_requests;
 	LIST(From_file_request) ps_ff_requests;
+	LIST(Create_blend_state_request) create_blend_state_requests;
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??

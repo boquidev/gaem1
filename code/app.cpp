@@ -306,6 +306,10 @@ void init(App_memory* memory, Init_data* init_data){
 	push_pixel_shader_from_file_request(
 		memory, init_data, &memory->pshaders.default_pshader_uid, string("x:/source/code/shaders/3d_shaders.hlsl")
 	);
+
+	Create_blend_state_request* bs_request = init_data->create_blend_state_requests.push_back(memory->temp_arena);
+	bs_request->p_uid = &memory->blend_states.default_blend_state;
+	bs_request->enable_alpha_blending = true;
 /*
 	// CREATING CONSTANT_BUFFER
 	D3D_constant_buffer object_buffer = {0};
@@ -354,7 +358,7 @@ void init(App_memory* memory, Init_data* init_data){
 	};
 	
 	Mesh_primitive* triangle_primitives = save_primitives(
-		memory->permanent_arena, 
+		memory->temp_arena, 
 		triangle_vertices, sizeof(triangle_vertices[0]), ARRAYCOUNT(triangle_vertices),
 		triangle_indices, ARRAYCOUNT(triangle_indices)
 	);
@@ -380,7 +384,7 @@ void init(App_memory* memory, Init_data* init_data){
 		1,3,2
 	};
 	Mesh_primitive* plane_primitives = save_primitives(
-		memory->permanent_arena,
+		memory->temp_arena,
 		plane_vertices, sizeof(plane_vertices[0]), ARRAYCOUNT(plane_vertices),
 		plane_indices, ARRAYCOUNT(plane_indices)
 	);
@@ -405,7 +409,7 @@ void init(App_memory* memory, Init_data* init_data){
 	};
 
 	Mesh_primitive* test_orientation_primitives = save_primitives(
-		memory->permanent_arena,
+		memory->temp_arena,
 		test_vertices, sizeof(test_vertices[0]), ARRAYCOUNT(test_vertices),
 		test_indices, ARRAYCOUNT(test_indices)
 	);

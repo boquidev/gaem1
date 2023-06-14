@@ -522,6 +522,7 @@ dx11_bind_sampler(D3D* dx, Dx11_sampler_state** sampler)
 internal void
 dx11_bind_blend_state(D3D* dx, ID3D11BlendState* blend_state)
 {
+	// float blend_factor [4] = {0.0f,0.0f,0.0f,1.0f};
 	dx->context->OMSetBlendState(blend_state, 0, ~0U);   
 }
 internal void

@@ -372,8 +372,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// TODO: CONVERT THIS TWO LISTS INTO STATIC ARRAYS IF BEING DYNAMIC SERVES NO PURPOSE AT ALL
 	List blend_states_list = {0};
-	Dx11_blend_state** default_blend_state = LIST_PUSH_BACK_STRUCT(&blend_states_list, Dx11_blend_state*, memory.permanent_arena);
-	dx11_create_blend_state(dx, default_blend_state, false);
+	Create_blend_state_request_List_node* bs_request_node = init_data.create_blend_state_requests.root;
+	until(i, init_data.create_blend_state_requests.size){
+		Create_blend_state_request* request = bs_request_node->value;
+		nextnode(bs_request_node);
+
+		*request->p_uid = blend_states_list.size;
+		Dx11_blend_state** blend_state = LIST_PUSH_BACK_STRUCT(&blend_states_list, Dx11_blend_state*, memory.permanent_arena);
+		dx11_create_blend_state(dx, blend_state, request->enable_alpha_blending);
+	}
 
 	List depth_stencils_list = {0};
 	Depth_stencil* default_depth_stencil = LIST_PUSH_BACK_STRUCT(&depth_stencils_list, Depth_stencil, memory.permanent_arena);
