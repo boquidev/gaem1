@@ -310,6 +310,10 @@ void init(App_memory* memory, Init_data* init_data){
 	Create_blend_state_request* bs_request = init_data->create_blend_state_requests.push_back(memory->temp_arena);
 	bs_request->p_uid = &memory->blend_states.default_blend_state;
 	bs_request->enable_alpha_blending = true;
+
+	Create_depth_stencil_request* ds_request = init_data->create_depth_stencil_requests.push_back(memory->temp_arena);
+	ds_request->p_uid = &memory->depth_stencils.default_depth_stencil;
+	ds_request->enable_depth = true;
 /*
 	// CREATING CONSTANT_BUFFER
 	D3D_constant_buffer object_buffer = {0};

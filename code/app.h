@@ -156,6 +156,11 @@ struct Blend_states
 	u32 default_blend_state;
 };
 
+struct Depth_stencils
+{
+	u32 default_depth_stencil;
+};
+
 struct App_memory
 {
 	Memory_arena* permanent_arena;
@@ -168,6 +173,7 @@ struct App_memory
 	PShaders pshaders;
 
 	Blend_states blend_states;
+	Depth_stencils depth_stencils;
 
 	r32 fov;
 	r32 aspect_ratio;
@@ -233,12 +239,18 @@ struct Create_blend_state_request
 	u32* p_uid;
 	b32 enable_alpha_blending;
 };
+struct Create_depth_stencil_request
+{
+	u32* p_uid;
+	b32 enable_depth;
+};
 
 DEFINE_LIST(From_file_request);
 DEFINE_LIST(Mesh_from_primitives_request);
 DEFINE_LIST(Tex_from_surface_request);
 DEFINE_LIST(Vertex_shader_from_file_request);
 DEFINE_LIST(Create_blend_state_request);
+DEFINE_LIST(Create_depth_stencil_request);
 
 struct Init_data
 {
@@ -249,6 +261,7 @@ struct Init_data
 	LIST(Vertex_shader_from_file_request) vs_ff_requests;
 	LIST(From_file_request) ps_ff_requests;
 	LIST(Create_blend_state_request) create_blend_state_requests;
+	LIST(Create_depth_stencil_request) create_depth_stencil_requests;
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??

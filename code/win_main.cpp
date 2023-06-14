@@ -383,8 +383,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 
 	List depth_stencils_list = {0};
-	Depth_stencil* default_depth_stencil = LIST_PUSH_BACK_STRUCT(&depth_stencils_list, Depth_stencil, memory.permanent_arena);
-	dx11_create_depth_stencil_state(dx, &default_depth_stencil->state, true);
+	Create_depth_stencil_request_List_node* ds_request_node = init_data.create_depth_stencil_requests.root;
+	until(i, init_data.create_depth_stencil_requests.size){
+		Create_depth_stencil_request* request = ds_request_node->value;
+		nextnode(ds_request_node);
+
+		*request->p_uid = depth_stencils_list.size;
+		Depth_stencil* depth_stencil = LIST_PUSH_BACK_STRUCT(&depth_stencils_list, Depth_stencil, memory.permanent_arena);
+		dx11_create_depth_stencil_state(dx, &depth_stencil->state, request->enable_depth);
+	}
 
 	// FRAME CAPPING SETUP
 	UINT desired_scheduler_ms = 1;
@@ -432,7 +439,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(dx->render_target_view)
 			{
 				dx->render_target_view->Release();
-				default_depth_stencil->view->Release();
+				foreach(ds_node, &depth_stencils_list, i){
+					Depth_stencil* current_ds = (Depth_stencil*)ds_node->data;
+					nextnode(ds_node);
+					current_ds->view->Release();
+				}
 				dx->render_target_view = 0;
 			}
 			
@@ -446,7 +457,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				ASSERTHR(hr);
 
 				dx11_create_render_target_view(dx, &dx->render_target_view);
-				dx11_create_depth_stencil_view(dx, &default_depth_stencil->view, client_size.x, client_size.y);
+
+				foreach(ds_node, &depth_stencils_list, i){
+					Depth_stencil* current_ds = (Depth_stencil*) ds_node->data;
+					nextnode(ds_node);
+					dx11_create_depth_stencil_view(dx, &current_ds->view, client_size.x, client_size.y);
+				}
 				
 				dx11_set_viewport(dx, 0, 0, client_size.x, client_size.y);
 			}
@@ -625,12 +641,17 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		{
 			// apparently always need to clear this buffers before rendering to them
 			dx->context->ClearRenderTargetView(dx->render_target_view, (float*)&bg_color);
-			dx->context->ClearDepthStencilView(
-				default_depth_stencil->view, 
-				D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 
-				1, 0);   
+			foreach(ds_node, &depth_stencils_list, i){
+				Depth_stencil* current_ds = (Depth_stencil*) ds_node->data;
+				nextnode(ds_node);
 
-			dx11_bind_render_target_view(dx, &dx->render_target_view, default_depth_stencil->view);
+				dx->context->ClearDepthStencilView(
+					current_ds->view, 
+					D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 
+					1, 0);   
+			}
+			
+			dx11_bind_render_target_view(dx, &dx->render_target_view, ((Depth_stencil*)depth_stencils_list.root->data)->view);
 			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
 			dx11_bind_sampler(dx, &dx->sampler);
 
