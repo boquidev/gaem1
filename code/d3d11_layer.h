@@ -106,6 +106,23 @@ struct Vertex_shader
 	Dx11_input_layout* input_layout;
 };
 
+internal DXGI_FORMAT
+input_element_format_from_size(u32 size){
+	switch(size){
+		case 4:
+			return DXGI_FORMAT_R32_FLOAT;
+		case 8:
+			return DXGI_FORMAT_R32G32_FLOAT;
+		case 12:
+			return DXGI_FORMAT_R32G32B32_FLOAT;
+		case 16:
+			return DXGI_FORMAT_R32G32B32A32_FLOAT;
+		default:
+			ASSERT(false);
+			return DXGI_FORMAT_R32_TYPELESS;
+	}
+}
+
 struct Depth_stencil
 {
 	Dx11_depth_stencil_state* state;

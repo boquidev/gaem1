@@ -235,24 +235,35 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	//TODO: remember the last write_time of the file when doing runtime compiling
 
 	{
-		File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
-		Vertex_shader* vs_3d = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
-		dx11_create_vs(dx, shaders_3d_compiled_vs, &vs_3d->shader);
+		Vertex_shader_from_file_request_List_node* vs_ff_request_node = init_data.vs_ff_requests.root;
+		until(i, init_data.vs_ff_requests.size){
+			Vertex_shader_from_file_request* request = vs_ff_request_node->value;
+			nextnode(vs_ff_request_node);
 
-		//TODO: still not sure if i am going to do this
-		// Vertex_shader_from_file_request_List_node* vs_ff_request_node = init_data.vs_ff_requests.root;
-		// until(i, init_data.vs_ff_requests.size){
-		// 	Vertex_shader_from_file_request* request = vs_ff_request_node->value;
-		// 	nextnode(vs_ff_request_node);
+			*request->p_uid = vertex_shaders_list.size;
+			Vertex_shader* vs = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
+			File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
+			dx11_create_vs(dx, compiled_vs, &vs->shader);
+			
+			D3D11_INPUT_ELEMENT_DESC* ied = ARENA_PUSH_STRUCTS(temp_arena, D3D11_INPUT_ELEMENT_DESC, request->ie_count);
+			u32 current_aligned_byte_offset = 0;
+			until(j, request->ie_count){
+				ied[j].SemanticName = request->ie_names[j].text;
+				// ied[j].SemanticIndex // this is in case the element is bigger than a float4 (a matrix for example)
+				ied[j].Format = input_element_format_from_size(request->ie_sizes[j]);
+				// ied[j].InputSlot // this is for using secondary buffers (like an instance buffer)
+				ied[j].AlignedByteOffset = current_aligned_byte_offset;
+				current_aligned_byte_offset += request->ie_sizes[j]; // reset this value if using instance buffer
+				// ied[j].InputSlotClass; // 0 PER_VERTEX_DATA vs 1 PER_INSTANCE_DATA
+				// ied[j].InstanceDataStepRate; // the amount of instances to draw using the PER_INSTANCE data
+			}
+			dx11_create_input_layout(dx, compiled_vs, ied, request->ie_count, &vs->input_layout);
+		}
 
 			
-		// }
-		D3D11_INPUT_ELEMENT_DESC ied[] = {
-			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
-			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
-		};
-		
-		dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &vs_3d->input_layout);
+		// File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
+		// Vertex_shader* vs_3d = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
+		// dx11_create_vs(dx, shaders_3d_compiled_vs, &vs_3d->shader);
 		
 			// PIXEL SHADER
 		File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
@@ -266,16 +277,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	String ui_shaders_filename = string("x:/source/code/shaders/ui_shaders.hlsl");
 
 	{
-		File_data ui_shaders_compiled_vs = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "vs", VS_PROFILE);
-		
-		Vertex_shader* ui_vs = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
-		dx11_create_vs(dx, ui_shaders_compiled_vs, &ui_vs->shader);
-		D3D11_INPUT_ELEMENT_DESC ied[] = {
-			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
-			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
-		};
-
-		dx11_create_input_layout(dx, ui_shaders_compiled_vs, ied, ARRAYCOUNT(ied), &ui_vs->input_layout);
 
 		File_data ui_shaders_compiled_ps = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "ps", PS_PROFILE);
 
