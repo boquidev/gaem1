@@ -222,7 +222,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		tex_surface.data = stbi_load(request->filename.text, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
 		ASSERT(tex_surface.data);
 		*request->p_uid = textures_list.size;
-		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, memory.permanent_arena);
+		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, permanent_arena);
 		dx11_create_texture_view(dx, &tex_surface, texture_view);
 	}
 	
@@ -241,7 +241,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			nextnode(vs_ff_request_node);
 
 			*request->p_uid = vertex_shaders_list.size;
-			Vertex_shader* vs = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
+			Vertex_shader* vs = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, permanent_arena);
 			File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
 			dx11_create_vs(dx, compiled_vs, &vs->shader);
 			
@@ -260,30 +260,20 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_create_input_layout(dx, compiled_vs, ied, request->ie_count, &vs->input_layout);
 		}
 
+		From_file_request_List_node* ps_ff_request_node = init_data.ps_ff_requests.root;
+		until(i, init_data.ps_ff_requests.size){
+			From_file_request* request = ps_ff_request_node->value;
+			nextnode(ps_ff_request_node);
+
+			*request->p_uid = pixel_shaders_list.size;
+
+			File_data compiled_ps = dx11_get_compiled_shader(request->filename, temp_arena, "ps", PS_PROFILE);
+			Dx11_pixel_shader** ps = LIST_PUSH_BACK_STRUCT(&pixel_shaders_list, Dx11_pixel_shader*, permanent_arena);
+			dx11_create_ps(dx, compiled_ps, ps);
+		}
 			
-		// File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
-		// Vertex_shader* vs_3d = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
-		// dx11_create_vs(dx, shaders_3d_compiled_vs, &vs_3d->shader);
-		
-			// PIXEL SHADER
-		File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
-
-		Dx11_pixel_shader** ps_3d = LIST_PUSH_BACK_STRUCT(&pixel_shaders_list, Dx11_pixel_shader*, memory.permanent_arena);
-		dx11_create_ps(dx, shaders_3d_compiled_ps, ps_3d);
 	}
-
-	// TEST UI SHADERS
-	// VS
-	String ui_shaders_filename = string("x:/source/code/shaders/ui_shaders.hlsl");
-
-	{
-
-		File_data ui_shaders_compiled_ps = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "ps", PS_PROFILE);
-
-		Dx11_pixel_shader** ui_ps = LIST_PUSH_BACK_STRUCT(&pixel_shaders_list, Dx11_pixel_shader*, memory.permanent_arena);
-		dx11_create_ps(dx, ui_shaders_compiled_ps, ui_ps);
-	}
-
+	
 	// CREATING CONSTANT BUFFER
 	// OBJECT TRANSFORM CONSTANT BUFFER
 	D3D_constant_buffer object_buffer = {0};
