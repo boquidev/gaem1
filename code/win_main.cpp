@@ -199,7 +199,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	app.init(&memory, &init_data);
 	
 	// CREATING TEXTURES
-	List textures_list = {0};// fuck this is too long
+	List textures_list = {0};
+	// fuck this is too long
 	Tex_from_surface_request_List_node* tex_from_surface_request_node = init_data.tex_from_surface_requests.root;
 	until(i, init_data.tex_from_surface_requests.size)
 	{
@@ -224,58 +225,62 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, memory.permanent_arena);
 		dx11_create_texture_view(dx, &tex_surface, texture_view);
 	}
-
-	//TODO: FIND A WAY TO MAKE THIS CALLS FROM THE APP LAYER
-	Dx11_render_pipeline pipeline_3d = {0};
+	
+	List vertex_shaders_list = {0};
+	List pixel_shaders_list = {0};
 	// GETTING COMPILED SHADERS
 	// 3D SHADERS
 		// VERTEX SHADER	
 	String shaders_3d_filename = string("x:/source/code/shaders/3d_shaders.hlsl");
 	//TODO: remember the last write_time of the file when doing runtime compiling
 
-	File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
-	dx11_create_vs(dx, shaders_3d_compiled_vs, &pipeline_3d.vs);
-
-	//TODO: still not sure if i am going to do this
-	// Vertex_shader_from_file_request_List_node* vs_ff_request_node = init_data.vs_ff_requests.root;
-	// until(i, init_data.vs_ff_requests.size){
-	// 	Vertex_shader_from_file_request* request = vs_ff_request_node->value;
-	// 	nextnode(vs_ff_request_node);
-
-		
-	// }
 	{
+		File_data shaders_3d_compiled_vs = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "vs", VS_PROFILE);
+		Vertex_shader* vs_3d = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
+		dx11_create_vs(dx, shaders_3d_compiled_vs, &vs_3d->shader);
+
+		//TODO: still not sure if i am going to do this
+		// Vertex_shader_from_file_request_List_node* vs_ff_request_node = init_data.vs_ff_requests.root;
+		// until(i, init_data.vs_ff_requests.size){
+		// 	Vertex_shader_from_file_request* request = vs_ff_request_node->value;
+		// 	nextnode(vs_ff_request_node);
+
+			
+		// }
 		D3D11_INPUT_ELEMENT_DESC ied[] = {
 			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
 			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
 		};
 		
-		dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &pipeline_3d.input_layout);
+		dx11_create_input_layout(dx, shaders_3d_compiled_vs, ied, ARRAYCOUNT(ied), &vs_3d->input_layout);
 		
 			// PIXEL SHADER
 		File_data shaders_3d_compiled_ps = dx11_get_compiled_shader(shaders_3d_filename, temp_arena, "ps", PS_PROFILE);
 
-		dx11_create_ps(dx, shaders_3d_compiled_ps, &pipeline_3d.ps);
+		Dx11_pixel_shader** ps_3d = LIST_PUSH_BACK_STRUCT(&pixel_shaders_list, Dx11_pixel_shader*, memory.permanent_arena);
+		dx11_create_ps(dx, shaders_3d_compiled_ps, ps_3d);
 	}
 
 	// TEST UI SHADERS
 	// VS
-	Dx11_render_pipeline ui_pipeline = {0};
 	String ui_shaders_filename = string("x:/source/code/shaders/ui_shaders.hlsl");
 
-	File_data ui_shaders_compiled_vs = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "vs", VS_PROFILE);
-	dx11_create_vs(dx, ui_shaders_compiled_vs, &ui_pipeline.vs);
 	{
+		File_data ui_shaders_compiled_vs = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "vs", VS_PROFILE);
+		
+		Vertex_shader* ui_vs = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, memory.permanent_arena);
+		dx11_create_vs(dx, ui_shaders_compiled_vs, &ui_vs->shader);
 		D3D11_INPUT_ELEMENT_DESC ied[] = {
 			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
 			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0}
 		};
 
-		dx11_create_input_layout(dx, ui_shaders_compiled_vs, ied, ARRAYCOUNT(ied), &ui_pipeline.input_layout);
+		dx11_create_input_layout(dx, ui_shaders_compiled_vs, ied, ARRAYCOUNT(ied), &ui_vs->input_layout);
 
 		File_data ui_shaders_compiled_ps = dx11_get_compiled_shader(ui_shaders_filename, temp_arena, "ps", PS_PROFILE);
 
-		dx11_create_ps(dx, ui_shaders_compiled_ps, &ui_pipeline.ps);
+		Dx11_pixel_shader** ui_ps = LIST_PUSH_BACK_STRUCT(&pixel_shaders_list, Dx11_pixel_shader*, memory.permanent_arena);
+		dx11_create_ps(dx, ui_shaders_compiled_ps, ui_ps);
 	}
 
 	// CREATING CONSTANT BUFFER
@@ -309,17 +314,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_and_bind_constant_buffer(
 		dx, &object_color_buffer, sizeof(Color), OBJECT_COLOR_BUFFER_REGISTER_INDEX, &white
 	);
-	
-	// TODO: move this to the app side when i am able to create pipelines there
-	u32 white_tex_pixels[] = {
-		0x7f000000, 0xffff0000,
-		0xff00ff00, 0xff0000ff,
-	};
-	Surface white_texture = {2, 2, &white_tex_pixels};
-	dx11_create_texture_view(dx, &white_texture, &pipeline_3d.default_texture_view);
 
 	// MESHES
 	//TODO: make meshes_list an array of size = sizeof(Meshes)/sizeof(u32*)
+	// but i am not sure if doing that i will not be able to create new meshes at runtime
+	// we'll see
 	List meshes_list = {0};
 
 	// LOADING MESHES FROM FILES
@@ -333,7 +332,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		glb_get_chunks(glb_file.data, 
 			&glb);
 	#if DEBUGMODE
-		{ // THIS IS JUST FOR READABILITY OF THE JSON FILE
+		{ // THIS IS JUST FOR READABILITY OF THE JSON CHUNK
 			void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
 			u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
 			win_write_file(concat_strings(request->filename, string(".json"), temp_arena), formated_json, new_size);
@@ -379,8 +378,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_NONE);
-	dx11_create_blend_state(dx, &pipeline_3d.blend_state, true);
-	dx11_create_depth_stencil_state(dx, &pipeline_3d.depth_stencil_state, true);
+
+	// TODO: CONVERT THIS TWO LISTS INTO STATIC ARRAYS IF BEING DYNAMIC SERVES NO PURPOSE AT ALL
+	List blend_states_list = {0};
+	Dx11_blend_state** default_blend_state = LIST_PUSH_BACK_STRUCT(&blend_states_list, Dx11_blend_state*, memory.permanent_arena);
+	dx11_create_blend_state(dx, default_blend_state, false);
+
+	List depth_stencils_list = {0};
+	Depth_stencil* default_depth_stencil = LIST_PUSH_BACK_STRUCT(&depth_stencils_list, Depth_stencil, memory.permanent_arena);
+	dx11_create_depth_stencil_state(dx, &default_depth_stencil->state, true);
 
 	// FRAME CAPPING SETUP
 	UINT desired_scheduler_ms = 1;
@@ -428,11 +434,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(dx->render_target_view)
 			{
 				dx->render_target_view->Release();
-				pipeline_3d.depth_stencil_view->Release();
+				default_depth_stencil->view->Release();
 				dx->render_target_view = 0;
 			}
 			
-			//TODO: be careful with 8k monitors or something 
+			//TODO: be careful with 8k monitors
 			if(client_size.x > 0 && client_size.y > 0 &&
 				client_size.x < 4000 && client_size.y < 4000
 			){
@@ -442,7 +448,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				ASSERTHR(hr);
 
 				dx11_create_render_target_view(dx, &dx->render_target_view);
-				dx11_create_depth_stencil_view(dx, &pipeline_3d.depth_stencil_view, client_size.x, client_size.y);
+				dx11_create_depth_stencil_view(dx, &default_depth_stencil->view, client_size.x, client_size.y);
 				
 				dx11_set_viewport(dx, 0, 0, client_size.x, client_size.y);
 			}
@@ -622,11 +628,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// apparently always need to clear this buffers before rendering to them
 			dx->context->ClearRenderTargetView(dx->render_target_view, (float*)&bg_color);
 			dx->context->ClearDepthStencilView(
-				pipeline_3d.depth_stencil_view, 
+				default_depth_stencil->view, 
 				D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 
 				1, 0);   
 
-			dx11_bind_render_target_view(dx, &dx->render_target_view, pipeline_3d.depth_stencil_view);
+			dx11_bind_render_target_view(dx, &dx->render_target_view, default_depth_stencil->view);
 			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
 			dx11_bind_sampler(dx, &dx->sampler);
 
@@ -662,16 +668,29 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					XMMatrixRotationX(object->rotation.x) *
 					XMMatrixRotationY(object->rotation.y) *
 					XMMatrixRotationZ(-object->rotation.z) *
-					XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z); 
+					XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z
+				); 
 					//TODO: for some reason +z is backwards and -z is forward into the depth 
-				// dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, &ogre_mesh, &object_transform_matrix);
 
 				Dx_mesh* object_mesh = (Dx_mesh*)list_get_data(&meshes_list, *object->p_mesh_uid);
 				Dx11_texture_view** texture_view = (Dx11_texture_view**)list_get_data(&textures_list, *object->p_tex_uid);
 				dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 				
-				//TODO: maybe(actually probably should do it) decouple mesh with texture
-				dx11_draw_mesh(dx, &pipeline_3d, object_buffer.buffer, object_mesh, texture_view, &object_transform_matrix);
+				Vertex_shader* vertex_shader = (Vertex_shader*)list_get_data(&vertex_shaders_list,object->vertex_shader_uid);
+				dx11_bind_vs(dx, vertex_shader->shader);
+				dx11_bind_input_layout(dx, vertex_shader->input_layout);
+				
+				Dx11_pixel_shader** pixel_shader = (Dx11_pixel_shader**)list_get_data(&pixel_shaders_list, object->pixel_shader_uid);
+				dx11_bind_ps(dx, *pixel_shader);
+				
+				Dx11_blend_state** blend_state = (Dx11_blend_state**)list_get_data(&blend_states_list, object->blend_state_uid);
+				dx11_bind_blend_state(dx, *blend_state);
+				
+				Depth_stencil* depth_stencil = (Depth_stencil*)list_get_data(&depth_stencils_list, object->depth_stencil_uid);
+				dx11_bind_depth_stencil_state(dx, depth_stencil->state);
+				dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencil->view);
+
+				dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, texture_view, &object_transform_matrix);
 
 				nextnode(object_node);
 			}
@@ -761,13 +780,33 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		(*current_tex)->Release();
 	}
 
-	pipeline_3d.vs->Release();
-	pipeline_3d.ps->Release();
-	pipeline_3d.input_layout->Release();
-	pipeline_3d.blend_state->Release();
-	pipeline_3d.depth_stencil_state->Release();
-	pipeline_3d.depth_stencil_view->Release();
-	pipeline_3d.default_texture_view->Release();
+	foreach(vsnodes, &vertex_shaders_list, i){
+		Vertex_shader* current_vs = (Vertex_shader*)vsnodes->data;
+		nextnode(vsnodes);
+
+		current_vs->shader->Release();
+		current_vs->input_layout->Release();
+	}
+	foreach(psnodes, &pixel_shaders_list, i){
+		Dx11_pixel_shader** current_ps = (Dx11_pixel_shader**)psnodes->data;
+		nextnode(psnodes);
+
+		(*current_ps)->Release();
+	}
+	foreach(blendnodes, &blend_states_list, i){
+		Dx11_blend_state** current_blend = (Dx11_blend_state**)blendnodes->data;
+		nextnode(blendnodes);
+
+		(*current_blend)->Release();
+	}
+	foreach(stencilnodes, &depth_stencils_list, i){
+		Depth_stencil* current_stencil = (Depth_stencil*)stencilnodes->data;
+		nextnode(stencilnodes);
+
+		current_stencil->view->Release();
+		current_stencil->state->Release();
+	}
+
 #if DEBUGMODE
 	// Create an instance of the DXGI debug interface
 	IDXGIDebug1* p_debug = nullptr;

@@ -75,17 +75,17 @@ struct D3D_constant_buffer
 	CONSTANT_BUFFER_REGISTER_INDEX register_index;
 };
 
-struct Dx11_render_pipeline
-{
-	Dx11_vertex_shader* vs;
-	Dx11_pixel_shader* ps;
-	Dx11_input_layout* input_layout;
-	Dx11_blend_state* blend_state;
-	Dx11_depth_stencil_state* depth_stencil_state;
-	Dx11_depth_stencil_view* depth_stencil_view;
+// struct Dx11_render_pipeline
+// {
+// 	Dx11_vertex_shader* vs;
+// 	Dx11_input_layout* input_layout;
+// 	Dx11_pixel_shader* ps;
+// 	Dx11_blend_state* blend_state;
+// 	Dx11_depth_stencil_state* depth_stencil_state;
+// 	Dx11_depth_stencil_view* depth_stencil_view;
 
-	Dx11_texture_view* default_texture_view; 
-};
+// 	Dx11_texture_view* default_texture_view; 
+// };
 
 struct Dx_mesh
 {
@@ -97,6 +97,19 @@ struct Dx_mesh
 	Dx11_buffer* index_buffer;
 
 	D3D11_PRIMITIVE_TOPOLOGY topology;
+};
+
+//where should this be defined?
+struct Vertex_shader
+{
+	Dx11_vertex_shader* shader;
+	Dx11_input_layout* input_layout;
+};
+
+struct Depth_stencil
+{
+	Dx11_depth_stencil_state* state;
+	Dx11_depth_stencil_view* view;
 };
 
 internal Dx_mesh
@@ -526,25 +539,16 @@ dx11_modify_resource(D3D* dx, Dx11_resource* resource, void* data, u32 size)
 
 internal void
 dx11_draw_mesh(
-	D3D* dx, Dx11_render_pipeline* pipeline, Dx11_buffer* object_buffer, 
-	Dx_mesh* mesh, Dx11_texture_view** texture, XMMATRIX* matrix)
-{
+	D3D* dx, Dx11_buffer* object_buffer, 
+	Dx_mesh* mesh, Dx11_texture_view** texture, XMMATRIX* matrix
+){
 	dx11_modify_resource(dx, object_buffer, matrix, sizeof(*matrix));
 		
-	// Input Assembler STAGE
-	dx11_bind_input_layout(dx, pipeline->input_layout);
 	dx->context->IASetPrimitiveTopology( mesh->topology );
 	dx11_bind_vertex_buffer(dx, mesh->vertex_buffer, mesh->vertex_size);
-	// VERTEX SHADER STAGE
-	dx11_bind_vs(dx, pipeline->vs);
 	// RASTERIZER STAGE
 	// PIXEL SHADER STAGE
 	dx11_bind_texture_view(dx, texture);
-	dx11_bind_ps(dx, pipeline->ps);
-	// OUTPUT MERGER
-	dx11_bind_blend_state(dx, pipeline->blend_state);
-	dx11_bind_depth_stencil_state(dx, pipeline->depth_stencil_state);
-	dx11_bind_render_target_view(dx, &dx->render_target_view, pipeline->depth_stencil_view);
 
 	dx->context->IASetIndexBuffer(mesh->index_buffer, DXGI_FORMAT_R16_UINT, 0);
 	// FINALLY DRAW

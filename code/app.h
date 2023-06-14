@@ -15,6 +15,10 @@ struct Object3d
 #define OBJECT3D_STRUCTURE \
 	u32* p_mesh_uid;\
 	u32* p_tex_uid;\
+	u32 vertex_shader_uid;\
+	u32 pixel_shader_uid;\
+	u32 blend_state_uid;\
+	u32 depth_stencil_uid;\
 	V3 scale;\
 	V3 pos;\
 	V3 rotation;\

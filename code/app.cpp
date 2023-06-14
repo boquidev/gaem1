@@ -273,6 +273,7 @@ void render(App_memory* memory, Int2 screen_size, List* render_list){
 			*render_object = memory->entities[i].object3d;
 		}
 	}
+	// draw_rect(pos, size, texture, color); 
 }
 
 void init(App_memory* memory, Init_data* init_data){
