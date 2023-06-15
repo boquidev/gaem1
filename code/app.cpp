@@ -30,8 +30,8 @@ void update(App_memory* memory){
 		ogre->visible = true;
 		ogre->team_uid = 0;
 		ogre->speed = 10.0f;
-		ogre->p_mesh_uid = memory->meshes.p_ogre_mesh_uid;
-		ogre->p_tex_uid = memory->textures.p_white_tex_uid;
+		ogre->mesh_uid = memory->meshes.ogre_mesh_uid;
+		ogre->tex_uid = memory->textures.white_tex_uid;
 		ogre->scale = {1.0f,1.0f,1.0f};
 		ogre->color = {1,1,1,1};
 		// ogre->pos.x += input_vector.x *  ogre->speed * delta_time;
@@ -104,8 +104,8 @@ void update(App_memory* memory){
 				new_unit->scale = {1.0f, 1.0f, 1.0f};
 				new_unit->rotation.y = 0;
 				new_unit->color = {1,1,1,1};
-				new_unit->p_mesh_uid = memory->meshes.p_turret_mesh_uid;
-				new_unit->p_tex_uid = memory->textures.p_white_tex_uid;
+				new_unit->mesh_uid = memory->meshes.turret_mesh_uid;
+				new_unit->tex_uid = memory->textures.white_tex_uid;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
 		}
@@ -140,8 +140,8 @@ void update(App_memory* memory){
 		u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
 		Entity* enemy = &memory->entities[new_entity_index];
 		enemy->visible = true;
-		enemy->p_mesh_uid = memory->meshes.p_test_orientation_uid;
-		enemy->p_tex_uid = memory->textures.p_white_tex_uid;
+		enemy->mesh_uid = memory->meshes.test_orientation_uid;
+		enemy->tex_uid = memory->textures.white_tex_uid;
 		enemy->shooting_cooldown = 1.1f;
 
 		enemy->health = 5;
@@ -171,8 +171,8 @@ void update(App_memory* memory){
 				new_bullet->visible = 1;
 				new_bullet->is_projectile = 1;
 				new_bullet->speed = 50;
-				new_bullet->object3d.p_mesh_uid = memory->meshes.p_ball_uid;
-				new_bullet->object3d.p_tex_uid = memory->textures.p_white_tex_uid;
+				new_bullet->object3d.mesh_uid = memory->meshes.ball_uid;
+				new_bullet->object3d.tex_uid = memory->textures.white_tex_uid;
 				new_bullet->object3d.color = {0.0f,0,0,1};
 				Entity* parent = &memory->entities[i];
 				new_bullet->team_uid = parent->team_uid;
@@ -273,7 +273,19 @@ void render(App_memory* memory, Int2 screen_size, List* render_list){
 			*render_object = memory->entities[i].object3d;
 		}
 	}
-	// draw(mesh, pos, size, texture, color); 
+	draw(render_list, memory->temp_arena,
+		memory->meshes.plane_mesh_uid,
+		memory->textures.white_tex_uid,
+		memory->vshaders.ui_vshader_uid,
+		memory->pshaders.ui_pshader_uid,
+		0,
+		memory->depth_stencils.ui_depth_stencil_uid,
+		{1,1,1},
+		{0,0,0},
+		{0,0,0},
+		{1,1,1,1}
+	);
+	// draw(mesh, texture, pos, size, color); 
 }
 
 void init(App_memory* memory, Init_data* init_data){
@@ -288,32 +300,62 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entities[memory->player_uid].team_uid = 0;
 	memory->teams_resources[memory->entities[memory->player_uid].team_uid] = 200;
 
-	Vertex_shader_from_file_request vs_request = {0};
-	vs_request.p_uid = &memory->vshaders.default_vshader_uid;
-	vs_request.filename = string("x:/source/code/shaders/3d_shaders.hlsl");
-	vs_request.ie_count = 2;
-	vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
-	
-	vs_request.ie_names[0] = string("POSITION");
-	vs_request.ie_names[1] = string("TEXCOORD");
+	{
+		Vertex_shader_from_file_request vs_request = {0};
+		vs_request.p_uid = &memory->vshaders.default_vshader_uid;
+		vs_request.filename = string("x:/source/code/shaders/3d_shaders.hlsl");
+		vs_request.ie_count = 2;
+		vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
+		
+		vs_request.ie_names[0] = string("POSITION");
+		vs_request.ie_names[1] = string("TEXCOORD");
 
-	vs_request.ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, vs_request.ie_count);
-	vs_request.ie_sizes[0] = sizeof(u32)*3;
-	vs_request.ie_sizes[1] = sizeof(u32)*2;
-	
-	push_vertex_shader_from_file_request(memory, init_data, vs_request);
+		vs_request.ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, vs_request.ie_count);
+		vs_request.ie_sizes[0] = sizeof(float)*3;
+		vs_request.ie_sizes[1] = sizeof(float)*2;
+		
+		push_vertex_shader_from_file_request(memory, init_data, vs_request);
 
-	push_pixel_shader_from_file_request(
-		memory, init_data, &memory->pshaders.default_pshader_uid, string("x:/source/code/shaders/3d_shaders.hlsl")
-	);
+		push_pixel_shader_from_file_request(
+			memory, init_data, &memory->pshaders.default_pshader_uid, vs_request.filename
+		);
 
-	Create_blend_state_request* bs_request = init_data->create_blend_state_requests.push_back(memory->temp_arena);
-	bs_request->p_uid = &memory->blend_states.default_blend_state;
-	bs_request->enable_alpha_blending = true;
+		push_create_blend_state_request(memory, init_data, 
+			&memory->blend_states.default_blend_state_uid, true
+		);
 
-	Create_depth_stencil_request* ds_request = init_data->create_depth_stencil_requests.push_back(memory->temp_arena);
-	ds_request->p_uid = &memory->depth_stencils.default_depth_stencil;
-	ds_request->enable_depth = true;
+		push_create_depth_stencil_request(memory, init_data,
+			&memory->depth_stencils.default_depth_stencil_uid, true
+		);
+	}
+
+	{
+		Vertex_shader_from_file_request vs_request = {0};
+		vs_request.p_uid = &memory->vshaders.ui_vshader_uid;
+		vs_request.filename = string("x:/source/code/shaders/ui_shaders.hlsl");
+		vs_request.ie_count = 2;
+		vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
+
+		vs_request.ie_names[0] = string("POSITION");
+		vs_request.ie_names[1] = string("TEXCOORD");
+
+		vs_request.ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, vs_request.ie_count);
+		vs_request.ie_sizes[0] = sizeof(float)*3;
+		vs_request.ie_sizes[1] = sizeof(float)*2;
+		
+		push_vertex_shader_from_file_request(memory, init_data, vs_request);
+
+		push_pixel_shader_from_file_request(
+			memory, init_data, &memory->pshaders.ui_pshader_uid, vs_request.filename
+		);
+
+		push_create_depth_stencil_request(memory, init_data,
+			&memory->depth_stencils.ui_depth_stencil_uid, true
+		);
+	}
+
+
+
 /*
 	// CREATING CONSTANT_BUFFER
 	D3D_constant_buffer object_buffer = {0};
@@ -345,12 +387,12 @@ void init(App_memory* memory, Init_data* init_data){
 		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,
 	};
-	push_tex_from_surface_request(memory, init_data, &memory->textures.p_default_tex_uid, 2,2, default_tex_pixels);
+	push_tex_from_surface_request(memory, init_data, &memory->textures.default_tex_uid, 2,2, default_tex_pixels);
 
 	u32 white_tex_pixels[] = {0xffffffff};
-	push_tex_from_surface_request(memory, init_data, &memory->textures.p_white_tex_uid, 1, 1, white_tex_pixels);
+	push_tex_from_surface_request(memory, init_data, &memory->textures.white_tex_uid, 1, 1, white_tex_pixels);
 
-	push_tex_from_file_request(memory, init_data, &memory->textures.p_test_uid, string("data/test_atlas.png"));
+	push_tex_from_file_request(memory, init_data, &memory->textures.test_uid, string("data/test_atlas.png"));
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
@@ -366,7 +408,7 @@ void init(App_memory* memory, Init_data* init_data){
 		triangle_vertices, sizeof(triangle_vertices[0]), ARRAYCOUNT(triangle_vertices),
 		triangle_indices, ARRAYCOUNT(triangle_indices)
 	);
-	push_mesh_from_primitives_request(memory, init_data, &memory->meshes.p_triangle_mesh_uid, triangle_primitives);
+	push_mesh_from_primitives_request(memory, init_data, &memory->meshes.triangle_mesh_uid, triangle_primitives);
 	
 	Vertex3d centered_plane_vertices[] =
 	{
@@ -392,7 +434,7 @@ void init(App_memory* memory, Init_data* init_data){
 		plane_vertices, sizeof(plane_vertices[0]), ARRAYCOUNT(plane_vertices),
 		plane_indices, ARRAYCOUNT(plane_indices)
 	);
-	push_mesh_from_primitives_request(memory, init_data,&memory->meshes.p_plane_mesh_uid,plane_primitives);
+	push_mesh_from_primitives_request(memory, init_data,&memory->meshes.plane_mesh_uid,plane_primitives);
 
 	Vertex3d test_vertices[] =
 	{
@@ -417,15 +459,15 @@ void init(App_memory* memory, Init_data* init_data){
 		test_vertices, sizeof(test_vertices[0]), ARRAYCOUNT(test_vertices),
 		test_indices, ARRAYCOUNT(test_indices)
 	);
-	push_mesh_from_primitives_request(memory,init_data,&memory->meshes.p_test_orientation2_uid, test_orientation_primitives);
+	push_mesh_from_primitives_request(memory,init_data,&memory->meshes.test_orientation2_uid, test_orientation_primitives);
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_ogre_mesh_uid, string("data/ogre.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.ogre_mesh_uid, string("data/ogre.glb"));
 
-	push_mesh_from_file_request(memory, init_data, &memory->meshes.p_female_mesh_uid, string("data/female.glb"));
+	push_mesh_from_file_request(memory, init_data, &memory->meshes.female_mesh_uid, string("data/female.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_turret_mesh_uid, string("data/turret.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.turret_mesh_uid, string("data/turret.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_test_orientation_uid, string("data/test_orientation.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/test_orientation.glb"));
 	
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.p_ball_uid, string("data/ball.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_uid, string("data/ball.glb"));
 }

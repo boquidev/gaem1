@@ -13,12 +13,13 @@
 struct Object3d
 {
 #define OBJECT3D_STRUCTURE \
-	u32 p_mesh_uid;\
-	u32 p_tex_uid;\
+	u32 mesh_uid;\
+	u32 tex_uid;\
 	u32 vertex_shader_uid;\
 	u32 pixel_shader_uid;\
 	u32 blend_state_uid;\
 	u32 depth_stencil_uid;\
+	\
 	V3 scale;\
 	V3 pos;\
 	V3 rotation;\
@@ -122,43 +123,45 @@ struct User_input
 
 struct Meshes
 {
-	u32 p_triangle_mesh_uid;
-	u32 p_ogre_mesh_uid;
-	u32 p_female_mesh_uid;
-	u32 p_turret_mesh_uid;
-	u32 p_plane_mesh_uid;
+	u32 triangle_mesh_uid;
+	u32 ogre_mesh_uid;
+	u32 female_mesh_uid;
+	u32 turret_mesh_uid;
+	u32 plane_mesh_uid;
 
-	u32 p_ball_uid;
+	u32 ball_uid;
 
-	u32 p_test_orientation_uid;
-	u32 p_test_orientation2_uid;
-
+	u32 test_orientation_uid;
+	u32 test_orientation2_uid;
 };
 
 struct Textures
 {
-	u32 p_default_tex_uid;
-	u32 p_white_tex_uid;
-	u32 p_test_uid;
+	u32 default_tex_uid;
+	u32 white_tex_uid;
+	u32 test_uid;
 };
 
 struct VShaders
 {
 	u32 default_vshader_uid;
+	u32 ui_vshader_uid;
 };
 struct PShaders
 {
 	u32 default_pshader_uid;
+	u32 ui_pshader_uid;
 };
 
 struct Blend_states
 {
-	u32 default_blend_state;
+	u32 default_blend_state_uid;
 };
 
 struct Depth_stencils
 {
-	u32 default_depth_stencil;
+	u32 default_depth_stencil_uid;
+	u32 ui_depth_stencil_uid;
 };
 
 struct App_memory
@@ -288,7 +291,7 @@ push_tex_from_surface_request(App_memory* memory, Init_data* init_data,u32* inde
 	Tex_from_surface_request* request = init_data->tex_from_surface_requests.push_back(memory->temp_arena);
 	request->p_tex_uid = index_handle;
 	request->surface = {width,height};
-	request->surface.data = arena_push_data(memory->permanent_arena, pixels, width*height*sizeof(u32));
+	request->surface.data = arena_push_data(memory->temp_arena, pixels, width*height*sizeof(u32));
 }
 // returns the address reserved for the mesh's uid
 internal void
@@ -320,16 +323,56 @@ push_mesh_from_file_request(App_memory* memory, Init_data* init_data, u32* index
 }
 
 internal void
-push_vertex_shader_from_file_request(App_memory* memory, Init_data* init_data, Vertex_shader_from_file_request request)
-{
+push_vertex_shader_from_file_request(App_memory* memory, Init_data* init_data, Vertex_shader_from_file_request request){
 	Vertex_shader_from_file_request* result = init_data->vs_ff_requests.push_back(memory->temp_arena);
 	*result = request;
 }
 
 internal void
-push_pixel_shader_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
-{
+push_pixel_shader_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename){
 	From_file_request* request = init_data->ps_ff_requests.push_back(memory->temp_arena);
 	request->p_uid = index_handle;
 	request->filename = filename;
+}
+
+internal void
+push_create_blend_state_request(App_memory* memory, Init_data* init_data, u32* index_handle, b32 enable_alpha_blending){
+	Create_blend_state_request* bs_request = init_data->create_blend_state_requests.push_back(memory->temp_arena);
+	bs_request->p_uid = index_handle;
+	bs_request->enable_alpha_blending = enable_alpha_blending;
+}
+
+internal void
+push_create_depth_stencil_request(App_memory* memory, Init_data* init_data, u32* index_handle, b32 enable_depth){
+	Create_depth_stencil_request* ds_request = init_data->create_depth_stencil_requests.push_back(memory->temp_arena);
+	ds_request->p_uid = index_handle;
+	ds_request->enable_depth = enable_depth;
+}
+
+internal void
+draw(List* render_list, Memory_arena* arena,
+	u32 mesh_uid,
+	u32 texture_uid,
+	u32 vshader_uid,
+	u32 pshader_uid,
+	u32 blend_state_uid,
+	u32 depth_stencil_uid,
+	V3 scale,
+	V3 pos,
+	V3 rotation,
+	Color color
+){
+	Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, arena);
+	*render_object = {
+		mesh_uid,
+		texture_uid,
+		vshader_uid,
+		pshader_uid,
+		blend_state_uid,
+		depth_stencil_uid,
+		scale,
+		pos,
+		rotation,
+		color
+	};
 }
