@@ -680,39 +680,42 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			//TODO: make a GENERAL RENDER REQUEST QUEUE 
 			foreach(object_node, &render_list, i)
 			{
-				Object3d* object = (Object3d*)object_node->data;
-				ASSERT(object->color.a); // FORGOR TO SET THE COLOR
-				ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
-				XMMATRIX object_transform_matrix =   //IDENTITY_MATRIX;
-					XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
-					XMMatrixRotationX(object->rotation.x) *
-					XMMatrixRotationY(object->rotation.y) *
-					XMMatrixRotationZ(-object->rotation.z) *
-					XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z
-				); 
-					//TODO: for some reason +z is backwards and -z is forward into the depth 
-
-				Dx_mesh* object_mesh = (Dx_mesh*)list_get_data(&meshes_list, object->mesh_uid);
-				Dx11_texture_view** texture_view = (Dx11_texture_view**)list_get_data(&textures_list, object->tex_uid);
-				dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
-				
-				Vertex_shader* vertex_shader = (Vertex_shader*)list_get_data(&vertex_shaders_list,object->vertex_shader_uid);
-				dx11_bind_vs(dx, vertex_shader->shader);
-				dx11_bind_input_layout(dx, vertex_shader->input_layout);
-				
-				Dx11_pixel_shader** pixel_shader = (Dx11_pixel_shader**)list_get_data(&pixel_shaders_list, object->pixel_shader_uid);
-				dx11_bind_ps(dx, *pixel_shader);
-				
-				Dx11_blend_state** blend_state = (Dx11_blend_state**)list_get_data(&blend_states_list, object->blend_state_uid);
-				dx11_bind_blend_state(dx, *blend_state);
-				
-				Depth_stencil* depth_stencil = (Depth_stencil*)list_get_data(&depth_stencils_list, object->depth_stencil_uid);
-				dx11_bind_depth_stencil_state(dx, depth_stencil->state);
-				dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencil->view);
-
-				dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, texture_view, &object_transform_matrix);
-
+				Renderer_request* request = (Renderer_request*)object_node->data;
 				nextnode(object_node);
+				ASSERT(request->type_flags); //assert at least one flag is set
+				if(request->type_flags & REQUEST_FLAG_RENDER_OBJECT){
+					Object3d* object = &request->object3d;
+					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
+					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
+					XMMATRIX object_transform_matrix =   //IDENTITY_MATRIX;
+						XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
+						XMMatrixRotationX(object->rotation.x) *
+						XMMatrixRotationY(object->rotation.y) *
+						XMMatrixRotationZ(-object->rotation.z) *
+						XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z
+					); 
+						//TODO: for some reason +z is backwards and -z is forward into the depth 
+
+					Dx_mesh* object_mesh = (Dx_mesh*)list_get_data(&meshes_list, object->mesh_uid);
+					Dx11_texture_view** texture_view = (Dx11_texture_view**)list_get_data(&textures_list, object->tex_uid);
+					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
+
+					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, texture_view, &object_transform_matrix);
+				}if(request->type_flags & REQUEST_FLAG_SET_VS){
+					Vertex_shader* vertex_shader = (Vertex_shader*)list_get_data(&vertex_shaders_list,request->vshader_uid);
+					dx11_bind_vs(dx, vertex_shader->shader);
+					dx11_bind_input_layout(dx, vertex_shader->input_layout);
+				}if(request->type_flags & REQUEST_FLAG_SET_PS){
+					Dx11_pixel_shader** pixel_shader = (Dx11_pixel_shader**)list_get_data(&pixel_shaders_list, request->pshader_uid);
+					dx11_bind_ps(dx, *pixel_shader);
+				}if(request->type_flags & REQUEST_FLAG_SET_BLEND_STATE){
+					Dx11_blend_state** blend_state = (Dx11_blend_state**)list_get_data(&blend_states_list, request->blend_state_uid);
+					dx11_bind_blend_state(dx, *blend_state);
+				}if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
+					Depth_stencil* depth_stencil = (Depth_stencil*)list_get_data(&depth_stencils_list, request->depth_stencil_uid);
+					dx11_bind_depth_stencil_state(dx, depth_stencil->state);
+					dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencil->view);
+				}
 			}
 			// PRESENT RENDERING
 			hr = dx->swap_chain->Present(1,0);

@@ -265,27 +265,42 @@ void update(App_memory* memory){
 }
 
 void render(App_memory* memory, Int2 screen_size, List* render_list){
+	Renderer_request* request = 0;
+	request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
+	request->vshader_uid = memory->vshaders.default_vshader_uid;
+	request->pshader_uid = memory->pshaders.default_pshader_uid;
+	request->blend_state_uid = memory->blend_states.default_blend_state_uid;
+	request->depth_stencil_uid = memory->depth_stencils.default_depth_stencil_uid;
+
 	until(i, MAX_ENTITIES)
 	{
 		if(memory->entities[i].visible)
 		{
-			Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, memory->temp_arena);
-			*render_object = memory->entities[i].object3d;
+			request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+			request->object3d = memory->entities[i].object3d;
 		}
 	}
-	draw(render_list, memory->temp_arena,
+
+	request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_DEPTH_STENCIL;
+	request->vshader_uid = memory->vshaders.ui_vshader_uid;
+	request->pshader_uid = memory->pshaders.ui_pshader_uid;
+	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
+
+	request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+	request->object3d = {
 		memory->meshes.plane_mesh_uid,
 		memory->textures.white_tex_uid,
-		memory->vshaders.ui_vshader_uid,
-		memory->pshaders.ui_pshader_uid,
-		0,
-		memory->depth_stencils.ui_depth_stencil_uid,
 		{1,1,1},
 		{0,0,0},
 		{0,0,0},
 		{1,1,1,1}
-	);
-	// draw(mesh, texture, pos, size, color); 
+	};
+
+	// draw(render_list, memory->temp_arena, &test_plane);
 }
 
 void init(App_memory* memory, Init_data* init_data){

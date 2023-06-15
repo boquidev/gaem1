@@ -10,15 +10,11 @@
 
 
 // scale must be 1,1,1 by default
-struct Object3d
-{
+
+struct Object3d{
 #define OBJECT3D_STRUCTURE \
 	u32 mesh_uid;\
 	u32 tex_uid;\
-	u32 vertex_shader_uid;\
-	u32 pixel_shader_uid;\
-	u32 blend_state_uid;\
-	u32 depth_stencil_uid;\
 	\
 	V3 scale;\
 	V3 pos;\
@@ -26,6 +22,29 @@ struct Object3d
 	Color color;
 
 	OBJECT3D_STRUCTURE
+};
+
+enum RENDERER_REQUEST_TYPE_FLAGS{
+	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
+	REQUEST_FLAG_SET_VS 					= 1 << 1,
+	REQUEST_FLAG_SET_PS					= 1 << 2,
+	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 3,
+	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 4,
+	//TODO: instancing request type
+	//TODO: set texture or mesh request type
+};
+
+struct Renderer_request{
+	u32 type_flags;
+	union{
+		Object3d object3d;
+		struct{
+			u32 vshader_uid;
+			u32 pshader_uid;
+			u32 blend_state_uid;
+			u32 depth_stencil_uid;	
+		};
+	};
 };
 
 #define MAX_ENTITIES 5000
@@ -350,29 +369,31 @@ push_create_depth_stencil_request(App_memory* memory, Init_data* init_data, u32*
 }
 
 internal void
-draw(List* render_list, Memory_arena* arena,
-	u32 mesh_uid,
-	u32 texture_uid,
-	u32 vshader_uid,
-	u32 pshader_uid,
-	u32 blend_state_uid,
-	u32 depth_stencil_uid,
-	V3 scale,
-	V3 pos,
-	V3 rotation,
-	Color color
+draw(List* render_list, Memory_arena* arena, 
+	Object3d* object3d
+// 	u32 mesh_uid,
+// 	u32 texture_uid,
+// 	u32 vshader_uid,
+// 	u32 pshader_uid,
+// 	u32 blend_state_uid,
+// 	u32 depth_stencil_uid,
+// 	V3 scale,
+// 	V3 pos,
+// 	V3 rotation,
+// 	Color color
 ){
 	Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, arena);
-	*render_object = {
-		mesh_uid,
-		texture_uid,
-		vshader_uid,
-		pshader_uid,
-		blend_state_uid,
-		depth_stencil_uid,
-		scale,
-		pos,
-		rotation,
-		color
-	};
+	*render_object = *object3d;
+	// *render_object = {
+	// 	mesh_uid,
+	// 	texture_uid,
+	// 	vshader_uid,
+	// 	pshader_uid,
+	// 	blend_state_uid,
+	// 	depth_stencil_uid,
+	// 	scale,
+	// 	pos,
+	// 	rotation,
+	// 	color
+	// };
 }
