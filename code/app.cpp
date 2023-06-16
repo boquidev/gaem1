@@ -193,7 +193,7 @@ void update(App_memory* memory){
 				V3 accel = 10*(move_v - entity->velocity);
 				entity->velocity = entity->velocity + (memory->delta_time * accel);
 				if(entity->velocity.x || entity->velocity.z)
-					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
+					entity->rotation.z = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
 				#define COLLISION_RESPONSE_CODE \
 				until(j, MAX_ENTITIES){\
 					Entity* entity2 = &memory->entities[j];\

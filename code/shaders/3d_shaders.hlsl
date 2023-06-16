@@ -45,9 +45,7 @@ PSINPUT vs( VSINPUT input )
 	result.pixel_pos = mul( world_projection, pos_from_camera );
 	result.texcoord = input.texcoord;
 	// result.color = object_color;
-	result.color = float4(
-		input.normal, 1
-	);	
+	result.color = float4(normalize( mul( (float3x3)object_transform , input.normal) ), 1 );	
 	return result;
 }
 

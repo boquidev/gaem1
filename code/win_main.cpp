@@ -690,7 +690,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 						XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
 						XMMatrixRotationX(object->rotation.x) *
 						XMMatrixRotationY(object->rotation.y) *
-						XMMatrixRotationZ(-object->rotation.z) *
+						XMMatrixRotationZ(object->rotation.z) *
 						XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z
 					); 
 						//TODO: for some reason +z is backwards and -z is forward into the depth 

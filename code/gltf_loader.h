@@ -273,7 +273,9 @@ gltf_primitives_to_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitiv
             vertices[i].texcoord = texcoords[i];
         Color_u16* colors = primitive->colors;
 
-        vertices[i].normal = primitive->normals[i];
+        vertices[i].normal.x = primitive->normals[i].x;
+        vertices[i].normal.y = primitive->normals[i].y;
+        vertices[i].normal.z = -primitive->normals[i].z;
         // I WON'T USE VERTEX COLORING
         // if(colors)
         // {
