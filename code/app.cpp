@@ -104,7 +104,7 @@ void update(App_memory* memory){
 				new_unit->scale = {1.0f, 1.0f, 1.0f};
 				new_unit->rotation.y = 0;
 				new_unit->color = {1,1,1,1};
-				new_unit->mesh_uid = memory->meshes.turret_mesh_uid;
+				new_unit->mesh_uid = memory->meshes.icosphere_uid;
 				new_unit->tex_uid = memory->textures.white_tex_uid;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
@@ -193,7 +193,7 @@ void update(App_memory* memory){
 				V3 accel = 10*(move_v - entity->velocity);
 				entity->velocity = entity->velocity + (memory->delta_time * accel);
 				if(entity->velocity.x || entity->velocity.z)
-					entity->rotation.z = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
+					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
 				#define COLLISION_RESPONSE_CODE \
 				until(j, MAX_ENTITIES){\
 					Entity* entity2 = &memory->entities[j];\
@@ -308,7 +308,7 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
 	memory->camera_rotation.x = PI32/2;
-	memory->camera_pos.y = 15.0f;
+	memory->camera_pos.y = 17.0f;
 
 
 	memory->entities[memory->player_uid].health = 1;
@@ -494,4 +494,6 @@ void init(App_memory* memory, Init_data* init_data){
 	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/new_test_orientation.glb"));
 	
 	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_uid, string("data/ball.glb"));
+
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.icosphere_uid, string("data/icosphere.glb"));
 }

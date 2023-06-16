@@ -149,6 +149,7 @@ struct Meshes
 	u32 plane_mesh_uid;
 
 	u32 ball_uid;
+	u32 icosphere_uid;
 
 	u32 test_orientation_uid;
 	u32 test_orientation2_uid;

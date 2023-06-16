@@ -33,6 +33,7 @@ struct PSINPUT
 {
 	float4 pixel_pos : SV_POSITION;
 	float2 texcoord : TEXCOORD;
+	float3 normal : NORMAL;
 	float4 color : COLOR0;
 };
 
@@ -44,8 +45,8 @@ PSINPUT vs( VSINPUT input )
 	float4 pos_from_camera = mul( world_view, vertex_world_pos);
 	result.pixel_pos = mul( world_projection, pos_from_camera );
 	result.texcoord = input.texcoord;
-	// result.color = object_color;
-	result.color = float4(normalize( mul( (float3x3)object_transform , input.normal) ), 1 );	
+	result.color = object_color;	
+	result.normal = normalize( mul( (float3x3)object_transform , input.normal) );
 	return result;
 }
 
@@ -64,6 +65,7 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 		texcolor.r * input.color.r, 
 		texcolor.g * input.color.g,
 		texcolor.b * input.color.b,
-		1);
+		texcolor.a * input.color.a);
+	result.xyz = (input.normal.y+input.normal.x+input.normal.z) * result.xyz;
 	return result;
 }
