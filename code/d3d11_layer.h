@@ -130,41 +130,6 @@ struct Depth_stencil
 };
 
 internal Dx_mesh
-OLD_dx11_init_mesh(D3D* dx, Mesh_primitive* data, D3D11_PRIMITIVE_TOPOLOGY topology)
-{
-	Dx_mesh result = {0};
-
-	// VERTEX BUFFER
-	D3D11_BUFFER_DESC bd = {0};
-	bd.ByteWidth        = data->vertices_count * data->vertex_size;
-	bd.Usage            = D3D11_USAGE_DEFAULT;
-	bd.BindFlags        = D3D11_BIND_VERTEX_BUFFER;
-	
-	D3D11_SUBRESOURCE_DATA init_data = {0};
-	init_data.pSysMem            = data->vertices;
-
-	ASSERTHR(dx->device->CreateBuffer( &bd, &init_data, &result.vertex_buffer));
-
-	// INDEX BUFFER
-	bd = {0};
-	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.CPUAccessFlags = 0;
-	bd.MiscFlags = 0;
-	bd.ByteWidth = data->indices_count*sizeof(u16);
-	bd.StructureByteStride = sizeof(u16);
-
-	init_data = {0};
-	init_data.pSysMem = data->indices;
-	ASSERTHR(dx->device->CreateBuffer(&bd, &init_data, &result.index_buffer));
-
-	result.topology = topology;
-	result.vertices_count = data->vertices_count;
-	result.vertex_size = data->vertex_size;
-	result.indices_count = data->indices_count;
-	return result;
-}
-internal Dx_mesh
 dx11_init_mesh(D3D* dx, void* vertices, u32 v_count, int v_size, u16* indices, u32 i_count, D3D11_PRIMITIVE_TOPOLOGY topology)
 {
 	Dx_mesh result = {0};
@@ -200,7 +165,7 @@ internal Dx_mesh
 dx11_init_mesh(D3D* dx, Mesh_primitive* primitives, D3D11_PRIMITIVE_TOPOLOGY topology)
 {
 	return dx11_init_mesh(dx, 
-		primitives->vertices, primitives->vertices_count, primitives->vertex_size, 
+		primitives->vertices, primitives->vertex_count, primitives->vertex_size, 
 		primitives->indices, primitives->indices_count,
 		topology
 	);

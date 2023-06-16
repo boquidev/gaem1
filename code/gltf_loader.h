@@ -38,35 +38,10 @@ struct GLB
     u32 bin_size;
 };
 
-struct V4_u8
-{
-    u8 x;
-    u8 y;
-    u8 z;
-    u8 w;
-};
-
-struct Color_u16
-{
-    u16 r;
-    u16 g;
-    u16 b;
-    u16 a;
-};
-
 struct Mesh_material
 {
     bool double_sided;
     Color base_color; // to get this i will need to read string as float
-};
-
-struct Mesh_primitive
-{
-    void* vertices;
-    u32 vertex_size;
-    u32 vertices_count;
-    u16* indices;
-    u32 indices_count;
 };
 
 enum PRIMITIVE_INDICES
@@ -284,19 +259,21 @@ gltf_get_meshes(
 internal Mesh_primitive
 gltf_primitives_to_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitive)
 {
-    Mesh_primitive result = {0}; 
+    Mesh_primitive result = {0};
     result.vertex_size = sizeof(Vertex3d);
-    result.vertices = arena_push_size(arena, primitive->vertices_count * result.vertex_size);
+    result.vertices = ARENA_PUSH_STRUCTS(arena,Vertex3d, primitive->vertices_count);
     Vertex3d* vertices = (Vertex3d*)result.vertices;
+    V2* texcoords = primitive->texcoords;
     for(u32 i = 0; i<primitive->vertices_count; i++)
     {
         vertices[i].pos.x = primitive->vertices[i].x;
         vertices[i].pos.y = primitive->vertices[i].y;
         vertices[i].pos.z = -primitive->vertices[i].z;
-        V2* texcoords = primitive->texcoords;
         if(texcoords)
             vertices[i].texcoord = texcoords[i];
         Color_u16* colors = primitive->colors;
+
+        vertices[i].normal = primitive->normals[i];
         // I WON'T USE VERTEX COLORING
         // if(colors)
         // {
@@ -308,11 +285,12 @@ gltf_primitives_to_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitiv
         // }
     }
     result.indices = ARENA_PUSH_STRUCTS(arena, u16, primitive->indices_count);
+
     for(u32 i=0; i<primitive->indices_count; i++)
     {
-        result.indices[i] = primitive->indices[i];
+        result.indices[i] = primitive->indices[primitive->indices_count-1-i];
     }
-    result.vertices_count = primitive->vertices_count;
+    result.vertex_count = primitive->vertices_count;
     result.indices_count = primitive->indices_count;
     return result;
 }

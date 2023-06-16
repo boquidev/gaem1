@@ -213,8 +213,42 @@ struct Color32
 	u8 a;
 };
 
-struct Vertex3d
-{
+struct Vertex3d{
 	V3 pos;
 	V2 texcoord;
+	V3 normal;
+};
+struct Vertex_2d{
+	V3 pos;
+	V2 texcoord;
+};
+
+
+struct V4_u8
+{
+    u8 x;
+    u8 y;
+    u8 z;
+    u8 w;
+};
+
+struct Color_u16
+{
+    u16 r;
+    u16 g;
+    u16 b;
+    u16 a;
+};
+
+struct Mesh_primitive
+{
+    void* vertices;
+	 u32 vertex_size;
+    // V3* vertex_positions;
+    // V2* vertex_texcoords;
+    // V3* vertex_normals;
+
+    u32 vertex_count;
+    u16* indices;
+    u32 indices_count;
 };

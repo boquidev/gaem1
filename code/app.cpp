@@ -293,7 +293,7 @@ void render(App_memory* memory, Int2 screen_size, List* render_list){
 	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 	request->object3d = {
 		memory->meshes.plane_mesh_uid,
-		memory->textures.white_tex_uid,
+		memory->textures.atlas_tex_uid,
 		{1,1,1},
 		{0,0,0},
 		{0,0,0},
@@ -319,20 +319,23 @@ void init(App_memory* memory, Init_data* init_data){
 		Vertex_shader_from_file_request vs_request = {0};
 		vs_request.p_uid = &memory->vshaders.default_vshader_uid;
 		vs_request.filename = string("x:/source/code/shaders/3d_shaders.hlsl");
-		vs_request.ie_count = 2;
+		vs_request.ie_count = 3;
 		vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
 		
 		vs_request.ie_names[0] = string("POSITION");
 		vs_request.ie_names[1] = string("TEXCOORD");
+		vs_request.ie_names[2] = string("NORMAL");
+
 
 		vs_request.ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, vs_request.ie_count);
 		vs_request.ie_sizes[0] = sizeof(float)*3;
 		vs_request.ie_sizes[1] = sizeof(float)*2;
+		vs_request.ie_sizes[2] = sizeof(float)*3;
 		
 		push_vertex_shader_from_file_request(memory, init_data, vs_request);
 
-		push_pixel_shader_from_file_request(
-			memory, init_data, &memory->pshaders.default_pshader_uid, vs_request.filename
+		push_pixel_shader_from_file_request(memory, init_data, 
+			&memory->pshaders.default_pshader_uid, vs_request.filename
 		);
 
 		push_create_blend_state_request(memory, init_data, 
@@ -407,7 +410,9 @@ void init(App_memory* memory, Init_data* init_data){
 	u32 white_tex_pixels[] = {0xffffffff};
 	push_tex_from_surface_request(memory, init_data, &memory->textures.white_tex_uid, 1, 1, white_tex_pixels);
 
-	push_tex_from_file_request(memory, init_data, &memory->textures.test_uid, string("data/test_atlas.png"));
+	push_tex_from_file_request(memory, init_data, &memory->textures.atlas_tex_uid, string("data/test_atlas.png"));
+
+	push_tex_from_file_request(memory, init_data, &memory->textures.ogre_tex_uid, string("data/ogre_color.png"));
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
@@ -451,13 +456,16 @@ void init(App_memory* memory, Init_data* init_data){
 	);
 	push_mesh_from_primitives_request(memory, init_data,&memory->meshes.plane_mesh_uid,plane_primitives);
 
-	Vertex3d test_vertices[] =
+	Vertex3d test_vertices[8] =
 	{
-		{{-0.5, 0, 1}},
-		{{0.5, 0, 1}},
-		{{0, 1, 1}},
-		{{2, 0.5, 0.5}},
-		{{0, 0.5, -2}}
+		{{-0.5, 0, 1},{},{-1,0,1}},
+		{{0.5, 0, 1},{},{1,0,1}},
+		{{-0.1f, 1, 1},{},{0,1,0}},
+		{{2, 0.5, 0.5},{},{1,0.5f,0.5f}},
+		{{0.1f, 0.5, -2},{},{0,0.1f,-1}},
+		{{0,3,-3}, {}, {0,1,0}},
+		{{3,-1,-3}, {}, {1,-0.1f,0}},
+		{{-3,-1,-3}, {}, {-1,-0.1f,0}}
 	};
 	u16 test_indices[] = 
 	{
@@ -466,7 +474,8 @@ void init(App_memory* memory, Init_data* init_data){
 		4,3,1,
 		4,2,3,
 		1,2,0,
-		1,3,2
+		1,3,2,
+		5,6,7
 	};
 
 	Mesh_primitive* test_orientation_primitives = save_primitives(
@@ -482,7 +491,7 @@ void init(App_memory* memory, Init_data* init_data){
 
 	push_mesh_from_file_request(memory, init_data,&memory->meshes.turret_mesh_uid, string("data/turret.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/test_orientation.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/new_test_orientation.glb"));
 	
 	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_uid, string("data/ball.glb"));
 }

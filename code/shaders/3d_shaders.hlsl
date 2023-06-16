@@ -26,6 +26,7 @@ struct VSINPUT
 {
 	float3 vertex_pos : POSITION;
 	float2 texcoord : TEXCOORD;
+	float3 normal : NORMAL;
 };
 
 struct PSINPUT
@@ -43,10 +44,10 @@ PSINPUT vs( VSINPUT input )
 	float4 pos_from_camera = mul( world_view, vertex_world_pos);
 	result.pixel_pos = mul( world_projection, pos_from_camera );
 	result.texcoord = input.texcoord;
-	result.color = object_color;
-	// result.color = float4(
-	// 	vertex_world_pos.xyz, 1
-	// );	
+	// result.color = object_color;
+	result.color = float4(
+		input.normal, 1
+	);	
 	return result;
 }
 
@@ -65,6 +66,6 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 		texcolor.r * input.color.r, 
 		texcolor.g * input.color.g,
 		texcolor.b * input.color.b,
-		texcolor.a * input.color.a);
+		1);
 	return result;
 }

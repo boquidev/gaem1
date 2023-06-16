@@ -368,7 +368,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
-	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_NONE);
+	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
 
 	// TODO: CONVERT THIS TWO LISTS INTO STATIC ARRAYS IF BEING DYNAMIC SERVES NO PURPOSE AT ALL
 	List blend_states_list = {0};
@@ -678,8 +678,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 			// OBJECT TRANSFORM
 			//TODO: make a GENERAL RENDER REQUEST QUEUE 
-			foreach(object_node, &render_list, i)
-			{
+			foreach(object_node, &render_list, i){
 				Renderer_request* request = (Renderer_request*)object_node->data;
 				nextnode(object_node);
 				ASSERT(request->type_flags); //assert at least one flag is set

@@ -158,7 +158,8 @@ struct Textures
 {
 	u32 default_tex_uid;
 	u32 white_tex_uid;
-	u32 test_uid;
+	u32 atlas_tex_uid;
+	u32 ogre_tex_uid;
 };
 
 struct VShaders
@@ -287,14 +288,15 @@ struct Init_data
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??
+// PROBABLY WITH A MACRO
 internal Mesh_primitive*
-save_primitives(Memory_arena* arena, void* vertices, u32 vertex_size, u32 vertices_count, u16* indices, u32 indices_count)
+save_primitives(Memory_arena* arena, void* vertices, u32 v_size, u32 v_count, u16* indices, u32 indices_count)
 {
 	Mesh_primitive* result = ARENA_PUSH_STRUCT(arena, Mesh_primitive);
 	*result = {0};
-	result->vertices = arena_push_data(arena, vertices, vertices_count*vertex_size);
-	result->vertices_count = vertices_count;
-	result->vertex_size = vertex_size;
+	result->vertices = arena_push_data(arena, vertices, v_count*v_size);
+	result->vertex_count = v_count;
+	result->vertex_size = v_size;
 
 	result->indices = (u16*)arena_push_data(arena, indices, indices_count*sizeof(u16));
 	result->indices_count = indices_count;
