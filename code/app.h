@@ -1,8 +1,8 @@
+#include "defined_lists.h"
 #include <math.h>
 #include "helpers.h"
 #include "gltf_loader.h"
 
-#include "defined_lists.h"
 
 #define update_type(name) void (*name)(App_memory*)
 #define render_type(name) void (*name)(App_memory*, Int2, List* )
