@@ -61,6 +61,7 @@ enum UNIT_TYPE{
 struct Entity
 {
 	b32 visible;
+	b32 active;
 	b32 selectable;
 	ENTITY_TYPE type;//TODO: make this the identifier of what kind of entity it is
 	UNIT_TYPE unit_type;
@@ -83,8 +84,7 @@ struct Entity
 
 	// u32 parent_uid;
 	u32 team_uid;
-
-	r32 radius;
+	r32 current_scale;
 
 	union{
 		Object3d object3d;

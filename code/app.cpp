@@ -29,6 +29,9 @@ void update(App_memory* memory){
 
 		Entity* mc = &entities[memory->player_uid];
 		mc->visible = true;
+		mc->active = true;
+		mc->current_scale = 1.0f;
+
 		mc->team_uid = 0;
 		mc->speed = 10.0f;
 		mc->type = ENTITY_QUEEN;
@@ -59,7 +62,7 @@ void update(App_memory* memory){
 	b32 first_intersection = false;
 	// CURSOR RAYCASTING
 	UNTIL(i, MAX_ENTITIES){
-		if(entities[i].visible && 
+		if(entities[i].active && 
 			entities[i].selectable &&
 			entities[i].team_uid == entities[memory->player_uid].team_uid 
 		){
@@ -97,6 +100,7 @@ void update(App_memory* memory){
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				new_unit->visible = true;
+				new_unit->current_scale = MIN(1.0f, memory->delta_time);
 				new_unit->selectable = true;
 				new_unit->type = ENTITY_UNIT;
 				new_unit->unit_type = UNIT_TURRET;
@@ -125,6 +129,7 @@ void update(App_memory* memory){
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				new_unit->visible = true;
+				new_unit->current_scale = MIN(1.0f, memory->delta_time);
 				new_unit->selectable = true;
 				new_unit->type = ENTITY_UNIT;
 				new_unit->unit_type = UNIT_SPAWNER;
@@ -176,6 +181,7 @@ void update(App_memory* memory){
 		u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 		Entity* enemy = &entities[new_entity_index];
 		enemy->visible = true;
+		enemy->current_scale = MIN(1.0f, memory->delta_time);
 		enemy->mesh_uid = memory->meshes.test_orientation_uid;
 		enemy->tex_uid = memory->textures.white_tex_uid;
 		enemy->shooting_cooldown = 1.1f;
@@ -184,7 +190,7 @@ void update(App_memory* memory){
 		enemy->target_pos = entities[memory->player_uid].pos;
 		enemy->team_uid = 1; //TODO: put something that is not the player's team
 
-		enemy->pos = {0,0,2};
+		enemy->pos = {4,0,4};
 		enemy->target_move_pos = enemy->pos;
 		enemy->scale = {1,1,1};
 		enemy->color = {1,0,0,1};
@@ -196,7 +202,13 @@ void update(App_memory* memory){
 		Entity* entity = &entities[i]; 
 		if(!entity->visible) continue;
 
-		if( entity->type == ENTITY_UNIT ) {
+		if( !entity->active){
+			entity->current_scale += memory->delta_time;
+			if(entity->current_scale > 1.0f){
+				entity->current_scale = 1.0f;
+				entity->active = true;
+			}
+		} else if ( entity->type == ENTITY_UNIT ) {
 			// IF IT IS A TURRET
 			entity->shooting_cd_time_left -= memory->delta_time;
 			if(entity->shooting_cd_time_left < 0){
@@ -208,7 +220,11 @@ void update(App_memory* memory){
 					Entity* new_bullet = &entities[new_entity_index];
 					new_bullet->health = 1; //TODO: for now this is just so it doesn't disappear, CHANGE IT
 					new_bullet->lifetime = 5.0f;
+
 					new_bullet->visible = 1;
+					new_bullet->active = true;
+					new_bullet->current_scale = 1.0f;
+
 					new_bullet->type = ENTITY_PROJECTILE;
 					new_bullet->speed = 50;
 					new_bullet->object3d.mesh_uid = memory->meshes.ball_uid;
@@ -225,7 +241,9 @@ void update(App_memory* memory){
 				} else if( entity->type == UNIT_SPAWNER){
 					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 					Entity* new_unit = &entities[new_entity_index];
+
 					new_unit->visible = true;
+					new_unit->current_scale = MIN(1.0f, memory->delta_time);
 					new_unit->selectable = true;
 					new_unit->type = ENTITY_UNIT;
 					new_unit->unit_type = UNIT_TURRET;
@@ -245,9 +263,7 @@ void update(App_memory* memory){
 					new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 				}
 			}
-		}
-		// DYNAMICS
-		{
+		}{// DYNAMICS / COLLISIONS
 			entity->pos.y = 0;//TODO: clamping height position
 			if(i == memory->player_uid){
 				V3 move_v = (entity->target_move_pos - entity->pos);
@@ -259,7 +275,7 @@ void update(App_memory* memory){
 				UNTIL(j, MAX_ENTITIES){\
 					Entity* entity2 = &entities[j];\
 					if(entity2->visible && entity2->type != ENTITY_PROJECTILE &&  i != j){\
-						r32 overlapping = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);\
+						r32 overlapping = sphere_vs_sphere(entity->pos, entity->current_scale, entity2->pos, entity2->current_scale);\
 						if(overlapping > 0){\
 							V3 collision_direction = v3_normalize(entity2->pos - entity->pos);\
 							entity->velocity = entity->velocity - ((overlapping/memory->delta_time) * collision_direction);\
@@ -294,6 +310,7 @@ void update(App_memory* memory){
 				// 	entity->rotation.y -= TAU32;
 				// entity->rotation.y += 10*(target_rotation - entity->rotation.y) * memory->delta_time;
 			}
+		}{// PROJECTILES
 			if(entity->lifetime){
 				entity->lifetime -= memory->delta_time;
 				if(entity->lifetime < 0){
@@ -323,8 +340,8 @@ void update(App_memory* memory){
 					}
 				}
 			}
-			entity->pos = entity->pos + (memory->delta_time * entity->velocity);
 		}
+		entity->pos = entity->pos + (memory->delta_time * entity->velocity);
 	}
 }
 
@@ -344,6 +361,7 @@ void render(App_memory* memory, Int2 screen_size, LIST(Renderer_request,render_l
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 			request->object3d = memory->entities[i].object3d;
+			request->object3d.scale = memory->entities[i].current_scale * request->object3d.scale;
 		}
 	}
 
