@@ -264,7 +264,7 @@ void update(App_memory* memory){
 	}
 }
 
-void render(App_memory* memory, Int2 screen_size, NEW_LIST(Renderer_request,render_list)){
+void render(App_memory* memory, Int2 screen_size, LIST(Renderer_request,render_list)){
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
 	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;

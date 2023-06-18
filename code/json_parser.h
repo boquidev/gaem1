@@ -33,10 +33,10 @@ struct Json_var
             JSON_VALUE_TYPE value_type;
         };
         struct {
-            NEW_LIST(Json_var, list);// Json_var list
+            LIST(Json_var, list);// Json_var list
         };
         struct {
-            NEW_LIST(Json_var, object_keys); // Json_var list
+            LIST(Json_var, object_keys); // Json_var list
         };
     };
     JSON_VAR_TYPE var_type;

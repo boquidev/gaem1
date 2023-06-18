@@ -1,11 +1,10 @@
 #include <math.h>
 #include "helpers.h"
-#include "defined_lists.h"
 #include "gltf_loader.h"
 
 
 #define update_type(name) void (*name)(App_memory*)
-#define render_type(name) void (*name)(App_memory*, Int2, NEW_LIST(Renderer_request,) )
+#define render_type(name) void (*name)(App_memory*, Int2, LIST(Renderer_request,) )
 #define init_type(name) void (*name)(App_memory*, Init_data* )
 
 
@@ -272,14 +271,14 @@ struct Create_depth_stencil_request
 
 struct Init_data
 {
-	NEW_LIST(From_file_request, mesh_from_file_requests);
-	NEW_LIST(Mesh_from_primitives_request, mesh_from_primitives_requests);
-	NEW_LIST(Tex_from_surface_request, tex_from_surface_requests);
-	NEW_LIST(From_file_request, tex_from_file_requests);
-	NEW_LIST(Vertex_shader_from_file_request, vs_ff_requests);
-	NEW_LIST(From_file_request, ps_ff_requests);
-	NEW_LIST(Create_blend_state_request, create_blend_state_requests);
-	NEW_LIST(Create_depth_stencil_request, create_depth_stencil_requests);
+	LIST(From_file_request, mesh_from_file_requests);
+	LIST(Mesh_from_primitives_request, mesh_from_primitives_requests);
+	LIST(Tex_from_surface_request, tex_from_surface_requests);
+	LIST(From_file_request, tex_from_file_requests);
+	LIST(Vertex_shader_from_file_request, vs_ff_requests);
+	LIST(From_file_request, ps_ff_requests);
+	LIST(Create_blend_state_request, create_blend_state_requests);
+	LIST(Create_depth_stencil_request, create_depth_stencil_requests);
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??
@@ -375,7 +374,7 @@ push_create_depth_stencil_request(App_memory* memory, Init_data* init_data, u32*
 }
 
 // internal void
-// draw(NEW_LIST(Render_request, render_list), Memory_arena* arena, 
+// draw(LIST(Render_request, render_list), Memory_arena* arena, 
 // 	Object3d* object3d
 // // 	u32 mesh_uid,
 // // 	u32 texture_uid,

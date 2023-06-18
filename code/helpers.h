@@ -96,7 +96,92 @@ struct Surface
 	void* data;
 };
 
-// MY LINKED LIST IMPLEMENTATION
+// LINKED LISTS WITH MACRO FUNCTIONS
+
+#define LIST(type, var_name) type* var_name[3]
+#define LIST_LAST(l) l[1]
+#define LIST_SIZE(l) ((u32)(l[2]))
+#define NEXT_ELEM(e) {void** cast = &(void*)e;*cast = *((void**)(e+1));}
+#define LIST_GET(l,index, node) node = l[0];UNTIL(unique_index##__LINE__,(index)){NEXT_ELEM(node);}
+#define FOR_EACH(l, iterator) for(u32 iterator = 0; iterator < LIST_SIZE(l); iterator++)
+
+#define PUSH_BACK(l, arena, out){\
+	if(!l[0]){\
+		void** cast = &(void*)(l[0]);\
+		*cast = arena_push_size(arena, sizeof(*l[0]) + sizeof(l[0]));\
+		l[1] = l[0];\
+	}else{\
+		void** p_last_element = (void**)(l[1]+1);\
+		void** cast = &(void*)(l[1]);\
+		*cast = arena_push_size(arena, sizeof(*l[0]) + sizeof(l[0]));\
+		*p_last_element = l[1];\
+	}\
+	u32* size = (u32*)l+2;\
+	*size += 1;\
+	out = l[1];\
+}
+
+
+// TEMPORARILY ORPHAN 
+
+struct Color
+{
+	r32 r;
+	r32 g;
+	r32 b;
+	r32 a;
+};
+
+struct Color32
+{
+	u8 r;
+	u8 g;
+	u8 b;
+	u8 a;
+};
+
+struct Vertex3d{
+	V3 pos;
+	V2 texcoord;
+	V3 normal;
+};
+struct Vertex_2d{
+	V3 pos;
+	V2 texcoord;
+};
+
+
+struct V4_u8
+{
+    u8 x;
+    u8 y;
+    u8 z;
+    u8 w;
+};
+
+struct Color_u16
+{
+    u16 r;
+    u16 g;
+    u16 b;
+    u16 a;
+};
+
+struct Mesh_primitive
+{
+    void* vertices;
+	 u32 vertex_size;
+    // V3* vertex_positions;
+    // V2* vertex_texcoords;
+    // V3* vertex_normals;
+
+    u32 vertex_count;
+    u16* indices;
+    u32 indices_count;
+};
+
+
+// OLD LINKED LISTS
 
 // struct List_node
 // {
@@ -199,63 +284,3 @@ struct Surface
 // 	copy_mem(data, node_data, size);
 // 	return node_data;
 // }
-
-
-// TEMPORARILY ORPHAN 
-
-
-struct Color
-{
-	r32 r;
-	r32 g;
-	r32 b;
-	r32 a;
-};
-
-struct Color32
-{
-	u8 r;
-	u8 g;
-	u8 b;
-	u8 a;
-};
-
-struct Vertex3d{
-	V3 pos;
-	V2 texcoord;
-	V3 normal;
-};
-struct Vertex_2d{
-	V3 pos;
-	V2 texcoord;
-};
-
-
-struct V4_u8
-{
-    u8 x;
-    u8 y;
-    u8 z;
-    u8 w;
-};
-
-struct Color_u16
-{
-    u16 r;
-    u16 g;
-    u16 b;
-    u16 a;
-};
-
-struct Mesh_primitive
-{
-    void* vertices;
-	 u32 vertex_size;
-    // V3* vertex_positions;
-    // V2* vertex_texcoords;
-    // V3* vertex_normals;
-
-    u32 vertex_count;
-    u16* indices;
-    u32 indices_count;
-};
