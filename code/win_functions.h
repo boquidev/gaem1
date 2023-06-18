@@ -25,7 +25,7 @@ win_read_file(String filename, Memory_arena* arena)
 
 			
 			else
-				arena_pop_size(arena, file_size_32);
+				arena_pop_back_size(arena, file_size_32);
 		}
 	}
 	ASSERT(result.size);

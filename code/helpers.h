@@ -38,31 +38,38 @@ compare_mem(void* p1, void* p2, u32 size)
 }
 
 // MEMORY ARENAS YEAH
-struct Memory_arena
-{
+struct Memory_arena{
 	u8* data;
 	u32 used;
 	u32 size;
 };
 
 internal u8*
-arena_push_size(Memory_arena* arena, u32 size)
-{
+arena_push_size(Memory_arena* arena, u32 size){
 	u8* result = arena->data+arena->used;
 	arena->used += size;
 	return result;
 }
 
 internal void
-arena_pop_size(Memory_arena* arena, u32 size)
-{
+arena_pop_back_size(Memory_arena* arena, u32 size){
 	arena->used -= size;
 	set_mem(arena->data+arena->used, size, 0);
 }
 
+// TODO: THIS IS ILLEGAL and very slow
+// internal void
+// arena_pop_size(Memory_arena* arena, void* data, u32 size){
+// 	u8* first_unused_byte = arena->data+arena->used;
+// 	u8* skipped_data = ((u8*)data)+size;
+// 	ASSERT(data>=arena->data && skipped_data<=first_unused_byte);
+
+// 	copy_mem(skipped_data,data, first_unused_byte-skipped_data);
+// 	arena_pop_back_size(arena, size);
+// }
+
 internal u8*
-arena_push_data(Memory_arena* arena, void* data, u32 size)
-{
+arena_push_data(Memory_arena* arena, void* data, u32 size){
 	ASSERT((arena->used + size) <= arena->size);
 	u8* result = arena_push_size(arena, size);
 	copy_mem(data, result, size);

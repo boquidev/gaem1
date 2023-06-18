@@ -1,6 +1,6 @@
-#include "defined_lists.h"
 #include <math.h>
 #include "helpers.h"
+#include "defined_lists.h"
 #include "gltf_loader.h"
 
 

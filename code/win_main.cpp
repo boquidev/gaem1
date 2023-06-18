@@ -113,6 +113,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	App_memory memory = {0};
 	memory.temp_arena = temp_arena;
 	memory.permanent_arena = permanent_arena;
+
+	testruct* l[3] = {0};
+	test_function(l,temp_arena);
 	
 	// GETTING CLIENT SIZES
 	Int2 client_size = win_get_client_sizes(global_main_window);
@@ -327,7 +330,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
 			u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
 			win_write_file(concat_strings(request->filename, string(".json"), temp_arena), formated_json, new_size);
-			arena_pop_size(temp_arena, MEGABYTES(4));
+			arena_pop_back_size(temp_arena, MEGABYTES(4));
 		}
 	#endif
 		u32 meshes_count = 0;
@@ -429,7 +432,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	global_running = 1;
 	while(global_running)
 	{
-		arena_pop_size(temp_arena, temp_arena->used);
+		arena_pop_back_size(temp_arena, temp_arena->used);
 
 		// HANDLE WINDOW RESIZING
 		Int2 current_client_size = win_get_client_sizes(global_main_window);
