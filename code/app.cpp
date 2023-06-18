@@ -3,6 +3,7 @@
 void update(App_memory* memory){
 	User_input* input = memory->input;
 	User_input* holding_inputs = memory->holding_inputs;
+	Entity* entities = memory->entities;
 
 	r32 delta_time = 1;
 	r32 camera_speed = 1.0f;
@@ -26,17 +27,18 @@ void update(App_memory* memory){
 
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
-		Entity* ogre = &memory->entities[memory->player_uid];
-		ogre->visible = true;
-		ogre->team_uid = 0;
-		ogre->speed = 10.0f;
-		ogre->mesh_uid = memory->meshes.ball_uid;
-		ogre->tex_uid = memory->textures.white_tex_uid;
-		ogre->scale = {1.0f,1.0f,1.0f};
-		ogre->color = {1,1,1,1};
-		// ogre->pos.x += input_vector.x *  ogre->speed * delta_time;
-		// ogre->pos.z += input_vector.y * ogre->speed * delta_time;
-		ogre->target_move_pos = v3_addition(ogre->pos, {input_vector.x*ogre->speed, 0, input_vector.y*ogre->speed});
+		Entity* mc = &entities[memory->player_uid];
+		mc->visible = true;
+		mc->team_uid = 0;
+		mc->speed = 10.0f;
+		mc->type = ENTITY_QUEEN;
+		mc->mesh_uid = memory->meshes.ball_uid;
+		mc->tex_uid = memory->textures.white_tex_uid;
+		mc->scale = {1.0f,1.0f,1.0f};
+		mc->color = {1,1,1,1};
+		// mc->pos.x += input_vector.x *  mc->speed * delta_time;
+		// mc->pos.z += input_vector.y * mc->speed * delta_time;
+		mc->target_move_pos = v3_addition(mc->pos, {input_vector.x*mc->speed, 0, input_vector.y*mc->speed});
 	}
 
 	//TODO: make this into a function screen to world
@@ -57,16 +59,18 @@ void update(App_memory* memory){
 	b32 first_intersection = false;
 	// CURSOR RAYCASTING
 	UNTIL(i, MAX_ENTITIES){
-		if(memory->entities[i].visible && 
-			memory->entities[i].selectable &&
-			memory->entities[i].team_uid == memory->entities[memory->player_uid].team_uid &&
-			i != memory->player_uid 
+		if(entities[i].visible && 
+			entities[i].selectable &&
+			entities[i].team_uid == entities[memory->player_uid].team_uid 
 		){
-			Entity* entity = &memory->entities[i];
-			entity->color = {1,1,1,1};
+			
+			entities[i].color = {1,1,1,1};
 
 			r32 intersected_t = 0;
-			if(line_vs_sphere(cursor_world_pos, z_direction, entity->object3d.pos, entity->scale.x, &intersected_t)){
+			if(line_vs_sphere(cursor_world_pos, z_direction, 
+				entities[i].object3d.pos, entities[i].scale.x, 
+				&intersected_t)
+			){
 				if(!first_intersection){
 					first_intersection = true;
 					closest_t = intersected_t;
@@ -80,31 +84,63 @@ void update(App_memory* memory){
 		}
 	}
 	// HANDLING INPUT
-	Entity* highlighted_entity = &memory->entities[memory->highlighted_uid];
-	highlighted_entity->object3d.color = {1,1,0,1};	
+	entities[memory->highlighted_uid].color = {1,1,0,1};	
 	if(input->L == 1)
-		memory->creating_unit = !memory->creating_unit;
-	if(memory->creating_unit) {// SELECTED UNIT TO CREATE
-		if(input->cursor_primary == 1){
+		memory->creating_unit -= 1;
+	if(input->R == 1)
+		memory->creating_unit += 1;
+	if(memory->creating_unit % 3 == 1) {// SELECTED UNIT TO CREATE
+		if(input->cursor_primary == -1){
 			// CREATING UNIT
-			if(memory->teams_resources[memory->entities[memory->player_uid].team_uid] > 0){
-				memory->teams_resources[memory->entities[memory->player_uid].team_uid] -= 1;
-				u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
-				Entity* new_unit = &memory->entities[new_entity_index];
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
+				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+				Entity* new_unit = &entities[new_entity_index];
 				new_unit->visible = true;
 				new_unit->selectable = true;
+				new_unit->type = ENTITY_UNIT;
+				new_unit->unit_type = UNIT_TURRET;
 
 				new_unit->health = 2;
 
 				new_unit->pos = cursor_world_pos;
 				new_unit->target_move_pos = new_unit->pos;
 
-				new_unit->team_uid = memory->entities[memory->player_uid].team_uid;
+				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				new_unit->shooting_cooldown = 0.9f;
+				new_unit->shooting_cd_time_left = new_unit->shooting_cooldown;
 				new_unit->scale = {1.0f, 1.0f, 1.0f};
 				new_unit->rotation.y = 0;
 				new_unit->color = {1,1,1,1};
 				new_unit->mesh_uid = memory->meshes.icosphere_uid;
+				new_unit->tex_uid = memory->textures.white_tex_uid;
+				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+			}
+		}
+	} else if ( memory->creating_unit % 3 == 2){
+		if(input->cursor_primary == -1){
+			// CREATING UNIT
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
+				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+				Entity* new_unit = &entities[new_entity_index];
+				new_unit->visible = true;
+				new_unit->selectable = true;
+				new_unit->type = ENTITY_UNIT;
+				new_unit->unit_type = UNIT_SPAWNER;
+
+				new_unit->health = 2;
+
+				new_unit->pos = cursor_world_pos;
+				new_unit->target_move_pos = new_unit->pos;
+
+				new_unit->team_uid = entities[memory->player_uid].team_uid;
+				new_unit->shooting_cooldown = 5.0f;
+				new_unit->shooting_cd_time_left = new_unit->shooting_cooldown;
+				new_unit->scale = {1.0f, 1.0f, 1.0f};
+				new_unit->rotation.y = 0;
+				new_unit->color = {1,1,1,1};
+				new_unit->mesh_uid = memory->meshes.test_orientation_uid;
 				new_unit->tex_uid = memory->textures.white_tex_uid;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
@@ -121,7 +157,7 @@ void update(App_memory* memory){
 			}
 		}
 
-		Entity* selected_entity = &memory->entities[memory->selected_uid];
+		Entity* selected_entity = &entities[memory->selected_uid];
 		selected_entity->object3d.color = {0,1,0,1};
 
 		if( memory->selected_uid != memory->player_uid ){
@@ -137,15 +173,15 @@ void update(App_memory* memory){
 	if(memory->spawn_timer < 0){
 		memory->spawn_timer += 5.0f;
 
-		u32 new_entity_index = next_inactive_entity(memory->entities, &memory->last_inactive_entity);
-		Entity* enemy = &memory->entities[new_entity_index];
+		u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+		Entity* enemy = &entities[new_entity_index];
 		enemy->visible = true;
 		enemy->mesh_uid = memory->meshes.test_orientation_uid;
 		enemy->tex_uid = memory->textures.white_tex_uid;
 		enemy->shooting_cooldown = 1.1f;
 
 		enemy->health = 5;
-		enemy->target_pos = memory->entities[memory->player_uid].pos;
+		enemy->target_pos = entities[memory->player_uid].pos;
 		enemy->team_uid = 1; //TODO: put something that is not the player's team
 
 		enemy->pos = {0,0,2};
@@ -157,38 +193,63 @@ void update(App_memory* memory){
 	// UPDATING ENTITIES
 	UNTIL(i, MAX_ENTITIES){
 		// SHOOTING
-		Entity* entity = &memory->entities[i]; 
-		if( entity->visible && !entity->is_projectile && i!=memory->player_uid) {
+		Entity* entity = &entities[i]; 
+		if(!entity->visible) continue;
+
+		if( entity->type == ENTITY_UNIT ) {
 			// IF IT IS A TURRET
 			entity->shooting_cd_time_left -= memory->delta_time;
 			if(entity->shooting_cd_time_left < 0){
 				entity->shooting_cd_time_left = entity->shooting_cooldown;
 
-				u32 new_entity_index = next_inactive_entity(memory->entities,&memory->last_inactive_entity);
-				Entity* new_bullet = &memory->entities[new_entity_index];
-				new_bullet->health = 1; //TODO: for now this is just so it doesn't disappear, CHANGE IT
-				new_bullet->lifetime = 5.0f;
-				new_bullet->visible = 1;
-				new_bullet->is_projectile = 1;
-				new_bullet->speed = 50;
-				new_bullet->object3d.mesh_uid = memory->meshes.ball_uid;
-				new_bullet->object3d.tex_uid = memory->textures.white_tex_uid;
-				new_bullet->object3d.color = {0.6f,0.6f,0.6f,1};
-				Entity* parent = &memory->entities[i];
-				new_bullet->team_uid = parent->team_uid;
-				new_bullet->object3d.pos = parent->object3d.pos;
-				// TODO: go in the direction that parent is looking;
-				new_bullet->target_pos = parent->looking_at;
-				new_bullet->object3d.scale = {0.4f,0.4f,0.4f};
-				V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
-				new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
+				if(entity->unit_type == UNIT_TURRET){
+
+					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
+					Entity* new_bullet = &entities[new_entity_index];
+					new_bullet->health = 1; //TODO: for now this is just so it doesn't disappear, CHANGE IT
+					new_bullet->lifetime = 5.0f;
+					new_bullet->visible = 1;
+					new_bullet->type = ENTITY_PROJECTILE;
+					new_bullet->speed = 50;
+					new_bullet->object3d.mesh_uid = memory->meshes.ball_uid;
+					new_bullet->object3d.tex_uid = memory->textures.white_tex_uid;
+					new_bullet->object3d.color = {0.6f,0.6f,0.6f,1};
+					Entity* parent = &entities[i];
+					new_bullet->team_uid = parent->team_uid;
+					new_bullet->object3d.pos = parent->object3d.pos;
+					// TODO: go in the direction that parent is looking;
+					new_bullet->target_pos = parent->looking_at;
+					new_bullet->object3d.scale = {0.4f,0.4f,0.4f};
+					V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
+					new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
+				} else if( entity->type == UNIT_SPAWNER){
+					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+					Entity* new_unit = &entities[new_entity_index];
+					new_unit->visible = true;
+					new_unit->selectable = true;
+					new_unit->type = ENTITY_UNIT;
+					new_unit->unit_type = UNIT_TURRET;
+
+					new_unit->health = 2;
+
+					new_unit->pos = entity->target_pos;
+					new_unit->target_move_pos = new_unit->pos;
+
+					new_unit->team_uid = entity->team_uid;
+					new_unit->shooting_cooldown = 0.9f;
+					new_unit->scale = {1.0f, 1.0f, 1.0f};
+					new_unit->rotation.y = 0;
+					new_unit->color = {1,1,1,1};
+					new_unit->mesh_uid = memory->meshes.icosphere_uid;
+					new_unit->tex_uid = memory->textures.white_tex_uid;
+					new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+				}
 			}
 		}
 		// DYNAMICS
-		if(entity->visible){
+		{
 			entity->pos.y = 0;//TODO: clamping height position
-			if(i == memory->player_uid)
-			{
+			if(i == memory->player_uid){
 				V3 move_v = (entity->target_move_pos - entity->pos);
 				V3 accel = 10*(move_v - entity->velocity);
 				entity->velocity = entity->velocity + (memory->delta_time * accel);
@@ -196,8 +257,8 @@ void update(App_memory* memory){
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
 				#define COLLISION_RESPONSE_CODE \
 				UNTIL(j, MAX_ENTITIES){\
-					Entity* entity2 = &memory->entities[j];\
-					if(entity2->visible && !entity2->is_projectile && i != j){\
+					Entity* entity2 = &entities[j];\
+					if(entity2->visible && entity2->type != ENTITY_PROJECTILE &&  i != j){\
 						r32 overlapping = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);\
 						if(overlapping > 0){\
 							V3 collision_direction = v3_normalize(entity2->pos - entity->pos);\
@@ -207,7 +268,8 @@ void update(App_memory* memory){
 					}\
 				}
 				COLLISION_RESPONSE_CODE
-			}else if(!entity->is_projectile){
+			}else if(entity->type != ENTITY_PROJECTILE){
+				//TODO: make it dependent on the entity's speed so that not all entities move at the same speed
 				V3 move_v = (entity->target_move_pos - entity->pos);
 				V3 accel = 10*(move_v - (0.4f*entity->velocity));
 				entity->velocity = entity->velocity +( memory->delta_time * accel );
@@ -231,35 +293,37 @@ void update(App_memory* memory){
 				// else if(angle_difference < -TAU32/2)
 				// 	entity->rotation.y -= TAU32;
 				// entity->rotation.y += 10*(target_rotation - entity->rotation.y) * memory->delta_time;
-			}else{
-				if( entity->lifetime < 0 )
-				{
+			}
+			if(entity->lifetime){
+				entity->lifetime -= memory->delta_time;
+				if(entity->lifetime < 0){
 					*entity = {0};
 					memory->entity_generations[i]++;
-				}else{
-					entity->lifetime -= memory->delta_time;
-					UNTIL(i2, MAX_ENTITIES){
-						Entity* entity2 = &memory->entities[i2];
-						if(entity2->visible && 
-							entity->team_uid != entity2->team_uid
-						){
-							r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
-							if(intersect > 0){
-								entity2->health -= 1;
-								//TODO: this check should be done always for just the entities that use the health property
-								if(entity2->health <= 0){
-									*entity2 = {0};
-									memory->teams_resources[entity->team_uid] += 1;
-								}
-								*entity = {0}; 
-								memory->entity_generations[i]++;
-								break;
+				}
+			}
+			if(entity->type == ENTITY_PROJECTILE){
+				UNTIL(i2, MAX_ENTITIES){
+					Entity* entity2 = &entities[i2];
+					if(entity2->visible && 
+						entity->team_uid != entity2->team_uid
+					){
+						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
+						if(intersect > 0){
+							entity2->health -= 1;
+							//TODO: this check should be done always for just the entities that use the health property
+							// but i don't know how will i know who destroyed that entity to give respective reward
+							if(entity2->health <= 0){
+								*entity2 = {0};
+								memory->teams_resources[entity->team_uid] += 1;
 							}
+							*entity = {0}; 
+							memory->entity_generations[i]++;
+							break;
 						}
 					}
 				}
 			}
-			entity->object3d.pos = entity->object3d.pos + (memory->delta_time * entity->velocity);
+			entity->pos = entity->pos + (memory->delta_time * entity->velocity);
 		}
 	}
 }

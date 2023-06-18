@@ -47,11 +47,23 @@ struct Renderer_request{
 };
 
 #define MAX_ENTITIES 5000
+enum ENTITY_TYPE{
+	ENTITY_FORGOR_TO_ASSIGN_TYPE,
+	ENTITY_QUEEN,
+	ENTITY_UNIT,
+	ENTITY_PROJECTILE
+};
+enum UNIT_TYPE{
+	UNIT_NOT_A_UNIT,
+	UNIT_TURRET,
+	UNIT_SPAWNER
+};
 struct Entity
 {
 	b32 visible;
 	b32 selectable;
-	b32 is_projectile;//TODO: make this the identifier of what kind of entity it is
+	ENTITY_TYPE type;//TODO: make this the identifier of what kind of entity it is
+	UNIT_TYPE unit_type;
 
 	r32 lifetime;
 
@@ -62,6 +74,7 @@ struct Entity
 
 	V3 looking_at;
 	V3 target_pos;
+	
 	r32 shooting_cooldown;
 	r32 shooting_cd_time_left;
 
@@ -97,7 +110,7 @@ next_inactive_entity(Entity entities[], u32* last_inactive_i){
 struct Entity_handle
 {
 	u32 index;
-	u32 generation;
+	u32 generation; // this value updates when the entity is deleted
 };
 
 //TODO: use this
@@ -223,7 +236,7 @@ struct App_memory
 
 	s32 teams_resources[2];
 	
-	b32 creating_unit;
+	u32 creating_unit;
 
 	u32 last_inactive_entity;
 	Entity* entities;

@@ -440,7 +440,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			{
 				dx->render_target_view->Release();
 				Depth_stencil* ds_node = depth_stencils_list[0];
-				FOR_EACH(&depth_stencils_list, i){
+				FOR_EACH(depth_stencils_list, i){
 					Depth_stencil* current_ds = ds_node;
 					NEXT_ELEM(ds_node);
 					current_ds->view->Release();
