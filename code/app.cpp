@@ -6,7 +6,7 @@ void update(App_memory* memory){
 
 	r32 delta_time = 1;
 	r32 camera_speed = 1.0f;
-	r32 sensitivity = 1.0f;
+	r32 sensitivity = 2.0f;
 
 	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x;
 	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
@@ -30,7 +30,7 @@ void update(App_memory* memory){
 		ogre->visible = true;
 		ogre->team_uid = 0;
 		ogre->speed = 10.0f;
-		ogre->mesh_uid = memory->meshes.ogre_mesh_uid;
+		ogre->mesh_uid = memory->meshes.ball_uid;
 		ogre->tex_uid = memory->textures.white_tex_uid;
 		ogre->scale = {1.0f,1.0f,1.0f};
 		ogre->color = {1,1,1,1};
@@ -56,7 +56,7 @@ void update(App_memory* memory){
 	r32 closest_t = {0};
 	b32 first_intersection = false;
 	// CURSOR RAYCASTING
-	until(i, MAX_ENTITIES){
+	UNTIL(i, MAX_ENTITIES){
 		if(memory->entities[i].visible && 
 			memory->entities[i].selectable &&
 			memory->entities[i].team_uid == memory->entities[memory->player_uid].team_uid &&
@@ -155,7 +155,7 @@ void update(App_memory* memory){
 	}
 
 	// UPDATING ENTITIES
-	until(i, MAX_ENTITIES){
+	UNTIL(i, MAX_ENTITIES){
 		// SHOOTING
 		Entity* entity = &memory->entities[i]; 
 		if( entity->visible && !entity->is_projectile && i!=memory->player_uid) {
@@ -173,7 +173,7 @@ void update(App_memory* memory){
 				new_bullet->speed = 50;
 				new_bullet->object3d.mesh_uid = memory->meshes.ball_uid;
 				new_bullet->object3d.tex_uid = memory->textures.white_tex_uid;
-				new_bullet->object3d.color = {0.0f,0,0,1};
+				new_bullet->object3d.color = {0.6f,0.6f,0.6f,1};
 				Entity* parent = &memory->entities[i];
 				new_bullet->team_uid = parent->team_uid;
 				new_bullet->object3d.pos = parent->object3d.pos;
@@ -195,7 +195,7 @@ void update(App_memory* memory){
 				if(entity->velocity.x || entity->velocity.z)
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
 				#define COLLISION_RESPONSE_CODE \
-				until(j, MAX_ENTITIES){\
+				UNTIL(j, MAX_ENTITIES){\
 					Entity* entity2 = &memory->entities[j];\
 					if(entity2->visible && !entity2->is_projectile && i != j){\
 						r32 overlapping = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);\
@@ -238,7 +238,7 @@ void update(App_memory* memory){
 					memory->entity_generations[i]++;
 				}else{
 					entity->lifetime -= memory->delta_time;
-					until(i2, MAX_ENTITIES){
+					UNTIL(i2, MAX_ENTITIES){
 						Entity* entity2 = &memory->entities[i2];
 						if(entity2->visible && 
 							entity->team_uid != entity2->team_uid
@@ -273,7 +273,7 @@ void render(App_memory* memory, Int2 screen_size, List* render_list){
 	request->blend_state_uid = memory->blend_states.default_blend_state_uid;
 	request->depth_stencil_uid = memory->depth_stencils.default_depth_stencil_uid;
 
-	until(i, MAX_ENTITIES)
+	UNTIL(i, MAX_ENTITIES)
 	{
 		if(memory->entities[i].visible)
 		{
@@ -308,7 +308,7 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
 	memory->camera_rotation.x = PI32/2;
-	memory->camera_pos.y = 17.0f;
+	memory->camera_pos.y = 16.0f;
 
 
 	memory->entities[memory->player_uid].health = 1;

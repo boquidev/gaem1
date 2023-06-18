@@ -188,7 +188,7 @@ gltf_get_meshes(
 
     *meshes_count = meshes_var->list.size;
     Gltf_mesh* meshes_list = ARENA_PUSH_STRUCTS(arena, Gltf_mesh, meshes_var->list.size);
-    until(m, meshes_var->list.size)
+    UNTIL(m, meshes_var->list.size)
     {
         Json_var* current_mesh_var = LIST_GET_DATA_AS(&meshes_var->list, m, Json_var);
         {
@@ -205,7 +205,7 @@ gltf_get_meshes(
         Json_var* primitives_var = get_json_var(current_mesh_var, string("primitives"));
         meshes_list[m].primitives = ARENA_PUSH_STRUCTS(arena, Gltf_primitive, primitives_var->list.size);
         meshes_list[m].primitives_count = primitives_var->list.size;
-        until(p,primitives_var->list.size)
+        UNTIL(p,primitives_var->list.size)
         {
             Json_var* current_primitive_var = LIST_GET_DATA_AS(&primitives_var->list, p, Json_var);
 
@@ -215,7 +215,7 @@ gltf_get_meshes(
                 arena,
                 &values_count
                 );      
-            until(v, values_count)
+            UNTIL(v, values_count)
             {
                 s32 primitive_property_index = gltf_get_property_index(primitive_values[v].key);
                 if(primitive_property_index == MATERIAL_I) // TODO:

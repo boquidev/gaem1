@@ -10,7 +10,7 @@ internal void
 set_mem(void* mem, u32 size, u8 value)
 {
 	u8* scan = (u8*)mem;
-	until(i, size)
+	UNTIL(i, size)
 	{
 		*scan = value;
 		scan++;
@@ -20,7 +20,7 @@ set_mem(void* mem, u32 size, u8 value)
 internal void
 copy_mem(void* from, void* to, u32 size)
 {
-	until(i, size)
+	UNTIL(i, size)
 	{
 		((u8*)to)[i] = ((u8*)from)[i];
 	}
@@ -29,7 +29,7 @@ copy_mem(void* from, void* to, u32 size)
 internal bool
 compare_mem(void* p1, void* p2, u32 size)
 {
-	until(i, size)
+	UNTIL(i, size)
 	{
 		if(*(u8*)p1 != *(u8*)p2)
 			return false;

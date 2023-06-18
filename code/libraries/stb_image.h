@@ -3323,7 +3323,7 @@ static int stbi__process_frame_header(stbi__jpeg *z, int scan)
       // to simplify generation, we'll allocate enough memory to decode
       // the bogus oversized data from using interleaved MCUs and their
       // big blocks (e.g. a 16x16 iMCU on an image of width 33); we won't
-      // discard the extra data until colorspace conversion
+      // discard the extra data UNTIL colorspace conversion
       //
       // img_mcu_x, img_mcu_y: <=17 bits; comp[i].h and .v are <=4 (checked earlier)
       // so these muls can't overflow with 32-bit ints (which we require)
@@ -6211,7 +6211,7 @@ static void *stbi__psd_load(stbi__context *s, int *x, int *y, int *comp, int req
    // Finally, the image data.
    if (compression) {
       // RLE as used by .PSD and .TIFF
-      // Loop until you get the number of unpacked bytes you are expecting:
+      // Loop UNTIL you get the number of unpacked bytes you are expecting:
       //     Read the next source byte into n.
       //     If n is between 0 and 127 inclusive, copy the next n+1 bytes literally.
       //     Else if n is between -127 and -1 inclusive, copy the next byte -n+1 times.
@@ -6625,7 +6625,7 @@ static int stbi__gif_header(stbi__context *s, stbi__gif *g, int *comp, int is_in
    if (g->w > STBI_MAX_DIMENSIONS) return stbi__err("too large","Very large image (corrupt?)");
    if (g->h > STBI_MAX_DIMENSIONS) return stbi__err("too large","Very large image (corrupt?)");
 
-   if (comp != 0) *comp = 4;  // can't actually tell whether it's 3 or 4 until we parse the comments
+   if (comp != 0) *comp = 4;  // can't actually tell whether it's 3 or 4 UNTIL we parse the comments
 
    if (is_info) return 1;
 

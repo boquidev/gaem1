@@ -202,7 +202,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	List textures_list = {0};
 	// fuck this is too long
 	Tex_from_surface_request_List_node* tex_from_surface_request_node = init_data.tex_from_surface_requests.root;
-	until(i, init_data.tex_from_surface_requests.size)
+	UNTIL(i, init_data.tex_from_surface_requests.size)
 	{
 		Tex_from_surface_request* request = tex_from_surface_request_node->value;
 		nextnode(tex_from_surface_request_node);
@@ -213,7 +213,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 
 	From_file_request_List_node* tex_from_file_request_node = init_data.tex_from_file_requests.root;
-	until(i, init_data.tex_from_file_requests.size){
+	UNTIL(i, init_data.tex_from_file_requests.size){
 		From_file_request* request = tex_from_file_request_node->value;
 		nextnode(tex_from_file_request_node);
 
@@ -236,7 +236,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	{
 		Vertex_shader_from_file_request_List_node* vs_ff_request_node = init_data.vs_ff_requests.root;
-		until(i, init_data.vs_ff_requests.size){
+		UNTIL(i, init_data.vs_ff_requests.size){
 			Vertex_shader_from_file_request* request = vs_ff_request_node->value;
 			nextnode(vs_ff_request_node);
 
@@ -247,7 +247,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			
 			D3D11_INPUT_ELEMENT_DESC* ied = ARENA_PUSH_STRUCTS(temp_arena, D3D11_INPUT_ELEMENT_DESC, request->ie_count);
 			u32 current_aligned_byte_offset = 0;
-			until(j, request->ie_count){
+			UNTIL(j, request->ie_count){
 				ied[j].SemanticName = request->ie_names[j].text;
 				// ied[j].SemanticIndex // this is in case the element is bigger than a float4 (a matrix for example)
 				ied[j].Format = input_element_format_from_size(request->ie_sizes[j]);
@@ -261,7 +261,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 
 		From_file_request_List_node* ps_ff_request_node = init_data.ps_ff_requests.root;
-		until(i, init_data.ps_ff_requests.size){
+		UNTIL(i, init_data.ps_ff_requests.size){
 			From_file_request* request = ps_ff_request_node->value;
 			nextnode(ps_ff_request_node);
 
@@ -314,7 +314,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// LOADING MESHES FROM FILES
 	From_file_request_List_node* mff_request_node = init_data.mesh_from_file_requests.root;
-	until(i, init_data.mesh_from_file_requests.size)
+	UNTIL(i, init_data.mesh_from_file_requests.size)
 	{
 		From_file_request* request = mff_request_node->value;
 		nextnode(mff_request_node);
@@ -355,7 +355,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 	// CREATING MESHES FROM MANUALLY DEFINED PRIMITIVES
 	Mesh_from_primitives_request_List_node* mfp_request_node = init_data.mesh_from_primitives_requests.root;
-	until(i, init_data.mesh_from_primitives_requests.size)
+	UNTIL(i, init_data.mesh_from_primitives_requests.size)
 	{
 		Mesh_from_primitives_request* request = mfp_request_node->value;
 		nextnode(mfp_request_node);
@@ -373,7 +373,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// TODO: CONVERT THIS TWO LISTS INTO STATIC ARRAYS IF BEING DYNAMIC SERVES NO PURPOSE AT ALL
 	List blend_states_list = {0};
 	Create_blend_state_request_List_node* bs_request_node = init_data.create_blend_state_requests.root;
-	until(i, init_data.create_blend_state_requests.size){
+	UNTIL(i, init_data.create_blend_state_requests.size){
 		Create_blend_state_request* request = bs_request_node->value;
 		nextnode(bs_request_node);
 
@@ -384,7 +384,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	List depth_stencils_list = {0};
 	Create_depth_stencil_request_List_node* ds_request_node = init_data.create_depth_stencil_requests.root;
-	until(i, init_data.create_depth_stencil_requests.size){
+	UNTIL(i, init_data.create_depth_stencil_requests.size){
 		Create_depth_stencil_request* request = ds_request_node->value;
 		nextnode(ds_request_node);
 
@@ -618,7 +618,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}
 		}
 		//TODO: shortcuts system
-		until(i, ARRAYCOUNT(input.buttons))
+		UNTIL(i, ARRAYCOUNT(input.buttons))
 		{
 			// input.buttons[i] = holding_inputs.buttons[i] + input.buttons[i]*holding_inputs.buttons[i];
 			if(holding_inputs.buttons[i]) {
