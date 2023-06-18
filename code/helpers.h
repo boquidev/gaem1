@@ -98,107 +98,107 @@ struct Surface
 
 // MY LINKED LIST IMPLEMENTATION
 
-struct List_node
-{
-	List_node* next_node;
-	u32 size;
-	void* data;
-};
-struct List
-{
-	List_node* root;
-	List_node* last;
-	u32 size;
-};
+// struct List_node
+// {
+// 	List_node* next_node;
+// 	u32 size;
+// 	void* data;
+// };
+// struct List
+// {
+// 	List_node* root;
+// 	List_node* last;
+// 	u32 size;
+// };
 
-internal List_node*
-list_get(List* list, u32 index)
-{
-	ASSERT(index<list->size);
-	List_node* result = list->root;
-	for(u32 i=0; i<index; i++)
-	{
-		result = result->next_node;
-	}
-	return result;
-}
-internal void*
-list_get_data(List* list, u32 index)
-{
-	return list_get(list, index)->data;
-}
-#define LIST_GET_DATA_AS(list, i, type) (type*)list_get_data(list, i)
+// internal List_node*
+// list_get(List* list, u32 index)
+// {
+// 	ASSERT(index<list->size);
+// 	List_node* result = list->root;
+// 	for(u32 i=0; i<index; i++)
+// 	{
+// 		result = result->next_node;
+// 	}
+// 	return result;
+// }
+// internal void*
+// list_get_data(List* list, u32 index)
+// {
+// 	return list_get(list, index)->data;
+// }
+// #define LIST_GET_DATA_AS(list, i, type) (type*)list_get_data(list, i)
 
-internal List_node*
-list_push_back(List* list, Memory_arena* arena)
-{
-	List_node* result = {0};
-	if(!list->size)
-	{
-		list->root = ARENA_PUSH_STRUCT(arena,List_node); 
-		result = list->root;
-		list->last = list->root;
-	}else{
-		List_node* current_last = list->last;
-		current_last->next_node = ARENA_PUSH_STRUCT(arena, List_node);
-		result = current_last->next_node;
-		list->last = result;
-	}
-	list->size++;
-	return result;
-}
-internal void*
-list_push_back_size(List* list, u32 size, Memory_arena* arena)
-{
-	List_node* new_node = list_push_back(list, arena);
-	new_node->data = arena_push_size(arena, size);
-	new_node->size = size;
-	return new_node->data;
-}
-#define LIST_PUSH_BACK_STRUCT(list, type, arena) (type*)list_push_back_size(list, sizeof(type), arena);
+// internal List_node*
+// list_push_back(List* list, Memory_arena* arena)
+// {
+// 	List_node* result = {0};
+// 	if(!list->size)
+// 	{
+// 		list->root = ARENA_PUSH_STRUCT(arena,List_node); 
+// 		result = list->root;
+// 		list->last = list->root;
+// 	}else{
+// 		List_node* current_last = list->last;
+// 		current_last->next_node = ARENA_PUSH_STRUCT(arena, List_node);
+// 		result = current_last->next_node;
+// 		list->last = result;
+// 	}
+// 	list->size++;
+// 	return result;
+// }
+// internal void*
+// list_push_back_size(List* list, u32 size, Memory_arena* arena)
+// {
+// 	List_node* new_node = list_push_back(list, arena);
+// 	new_node->data = arena_push_size(arena, size);
+// 	new_node->size = size;
+// 	return new_node->data;
+// }
+// #define LIST_PUSH_BACK_STRUCT(list, type, arena) (type*)list_push_back_size(list, sizeof(type), arena);
 
-internal void*
-list_push_back_data(List* list,void* data, u32 size, Memory_arena* arena)
-{
-	void* node_data = list_push_back_size(list, size, arena);
-	copy_mem(data, node_data, size);
-	return node_data;
-}
+// internal void*
+// list_push_back_data(List* list,void* data, u32 size, Memory_arena* arena)
+// {
+// 	void* node_data = list_push_back_size(list, size, arena);
+// 	copy_mem(data, node_data, size);
+// 	return node_data;
+// }
 
-internal List_node*
-list_push_front(List* list, Memory_arena* arena)
-{
-	List_node* result = {0};
-	if(!list->size)
-	{
-		list->root = ARENA_PUSH_STRUCT(arena,List_node); 
-		result = list->root;
-		list->last = list->root;
-	}else{
-		result = ARENA_PUSH_STRUCT(arena, List_node);
-		result->next_node = list->root;
-		list->root = result;
-	}
-	list->size++;
-	return result;
-}
-internal void*
-list_push_front_size(List* list, u32 size, Memory_arena* arena)
-{
-	List_node* new_node = list_push_front(list, arena);
-	new_node->data = arena_push_size(arena, size);
-	new_node->size = size;
-	return new_node->data;
-}
-#define LIST_PUSH_FRONT_STRUCT(list, type, arena) (type*)list_push_front_size(list, sizeof(type), arena);
+// internal List_node*
+// list_push_front(List* list, Memory_arena* arena)
+// {
+// 	List_node* result = {0};
+// 	if(!list->size)
+// 	{
+// 		list->root = ARENA_PUSH_STRUCT(arena,List_node); 
+// 		result = list->root;
+// 		list->last = list->root;
+// 	}else{
+// 		result = ARENA_PUSH_STRUCT(arena, List_node);
+// 		result->next_node = list->root;
+// 		list->root = result;
+// 	}
+// 	list->size++;
+// 	return result;
+// }
+// internal void*
+// list_push_front_size(List* list, u32 size, Memory_arena* arena)
+// {
+// 	List_node* new_node = list_push_front(list, arena);
+// 	new_node->data = arena_push_size(arena, size);
+// 	new_node->size = size;
+// 	return new_node->data;
+// }
+// #define LIST_PUSH_FRONT_STRUCT(list, type, arena) (type*)list_push_front_size(list, sizeof(type), arena);
 
-internal void*
-list_push_front_data(List* list,void* data, u32 size, Memory_arena* arena)
-{
-	void* node_data = list_push_front_size(list, size, arena);
-	copy_mem(data, node_data, size);
-	return node_data;
-}
+// internal void*
+// list_push_front_data(List* list,void* data, u32 size, Memory_arena* arena)
+// {
+// 	void* node_data = list_push_front_size(list, size, arena);
+// 	copy_mem(data, node_data, size);
+// 	return node_data;
+// }
 
 
 // TEMPORARILY ORPHAN 

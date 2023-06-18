@@ -264,9 +264,9 @@ void update(App_memory* memory){
 	}
 }
 
-void render(App_memory* memory, Int2 screen_size, List* render_list){
+void render(App_memory* memory, Int2 screen_size, NEW_LIST(Renderer_request,render_list)){
 	Renderer_request* request = 0;
-	request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+	PUSH_BACK(render_list, memory->temp_arena,request);
 	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
 	request->vshader_uid = memory->vshaders.default_vshader_uid;
 	request->pshader_uid = memory->pshaders.default_pshader_uid;
@@ -277,19 +277,19 @@ void render(App_memory* memory, Int2 screen_size, List* render_list){
 	{
 		if(memory->entities[i].visible)
 		{
-			request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 			request->object3d = memory->entities[i].object3d;
 		}
 	}
 
-	request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_DEPTH_STENCIL;
 	request->vshader_uid = memory->vshaders.ui_vshader_uid;
 	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
 
-	request = LIST_PUSH_BACK_STRUCT(render_list, Renderer_request, memory->temp_arena);
+	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 	request->object3d = {
 		memory->meshes.plane_mesh_uid,

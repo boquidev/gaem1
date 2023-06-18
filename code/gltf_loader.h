@@ -182,15 +182,15 @@ gltf_get_meshes(
     char* bin_buffer = (char*)glb->bin_chunk; 
     Json_var json_structure = get_json_structure(&json_buffer, arena);
     Json_var* meshes_var = get_json_var(&json_structure, string("meshes"));
-    List* accessors_list = &get_json_var(&json_structure, string("accessors"))->list;
-    List* buffer_views_list = &get_json_var(&json_structure, string("bufferViews"))->list;
-    List* buffers_list = &get_json_var(&json_structure, string("buffers"))->list;
+    Json_var** accessors_list = get_json_var(&json_structure, string("accessors"))->list;
+    Json_var** buffer_views_list = get_json_var(&json_structure, string("bufferViews"))->list;
+    Json_var** buffers_list = get_json_var(&json_structure, string("buffers"))->list;
 
-    *meshes_count = meshes_var->list.size;
-    Gltf_mesh* meshes_list = ARENA_PUSH_STRUCTS(arena, Gltf_mesh, meshes_var->list.size);
-    UNTIL(m, meshes_var->list.size)
+    *meshes_count = LIST_SIZE(meshes_var->list);
+    Gltf_mesh* meshes_list = ARENA_PUSH_STRUCTS(arena, Gltf_mesh, LIST_SIZE(meshes_var->list));
+    UNTIL(m, LIST_SIZE(meshes_var->list))
     {
-        Json_var* current_mesh_var = LIST_GET_DATA_AS(&meshes_var->list, m, Json_var);
+        Json_var* current_mesh_var; LIST_GET(meshes_var->list, m, current_mesh_var);
         {
             Json_var* name_var = get_json_var(current_mesh_var, string("name"));
             meshes_list[m].name = name_var->value_data; //TODO: be careful when popping the arena
@@ -203,11 +203,11 @@ gltf_get_meshes(
                 POINTS, LINES, or TRIANGLES
             */
         Json_var* primitives_var = get_json_var(current_mesh_var, string("primitives"));
-        meshes_list[m].primitives = ARENA_PUSH_STRUCTS(arena, Gltf_primitive, primitives_var->list.size);
-        meshes_list[m].primitives_count = primitives_var->list.size;
-        UNTIL(p,primitives_var->list.size)
+        meshes_list[m].primitives = ARENA_PUSH_STRUCTS(arena, Gltf_primitive, LIST_SIZE(primitives_var->list));
+        meshes_list[m].primitives_count = LIST_SIZE(primitives_var->list);
+        UNTIL(p,LIST_SIZE(primitives_var->list))
         {
-            Json_var* current_primitive_var = LIST_GET_DATA_AS(&primitives_var->list, p, Json_var);
+            Json_var* current_primitive_var; LIST_GET(primitives_var->list, p, current_primitive_var);
 
             u32 values_count = 0;
             Json_pair* primitive_values = json_var_get_all_values(
@@ -222,7 +222,7 @@ gltf_get_meshes(
                     continue;
 
                 s32 accessor_i = string_to_int(primitive_values[v].value);
-                Json_var* accessor_var = LIST_GET_DATA_AS(accessors_list, accessor_i, Json_var);
+                Json_var* accessor_var; LIST_GET(accessors_list, (u32)accessor_i, accessor_var);
                 
                 String component_type = get_json_var(accessor_var, string("componentType"))->value_data;
                 // TODO: normalize if normalized
@@ -235,7 +235,8 @@ gltf_get_meshes(
                 s32 elements_size = gltf_get_elements_size( elements_type );
 
                 s32 buffer_view_index = get_json_value_as_int(accessor_var, string("bufferView"));
-                Json_var* buffer_view_var = LIST_GET_DATA_AS(buffer_views_list, buffer_view_index, Json_var);
+                Json_var* buffer_view_var; 
+                LIST_GET(buffer_views_list, (u32)buffer_view_index, buffer_view_var);
                 u32 buffer_view_length = get_json_value_as_int(buffer_view_var,string("byteLength"));
                 ASSERT((s32)buffer_view_length >= (elements_count * elements_size * component_type_size));
                 u32 byte_offset = get_json_value_as_int(buffer_view_var, string("byteOffset"));

@@ -40,12 +40,6 @@ typedef double r64;
 
 #define UNTIL(i, range) for(u32 i=0; i<range;i++)
 
-// node is the name you want to use, list is a List*, i is the iterator name
-#define foreach(node_name, list, i) \
-    List_node* node_name = (list)->root; \
-    for(s32 i=0; i<(s32)(list)->size; i++)
-#define NEXTNODE(node) node = node->next_node
-
 #define KILOBYTES(value) ((value) * 1024LL)
 #define MEGABYTES(value) (KILOBYTES(value) * 1024LL)
 #define GIGABYTES(value) (MEGABYTES(value) * 1024LL)

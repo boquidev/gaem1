@@ -5,7 +5,7 @@
 
 
 #define update_type(name) void (*name)(App_memory*)
-#define render_type(name) void (*name)(App_memory*, Int2, List* )
+#define render_type(name) void (*name)(App_memory*, Int2, NEW_LIST(Renderer_request,) )
 #define init_type(name) void (*name)(App_memory*, Init_data* )
 
 
@@ -269,23 +269,17 @@ struct Create_depth_stencil_request
 	b32 enable_depth;
 };
 
-DEFINE_LIST(From_file_request);
-DEFINE_LIST(Mesh_from_primitives_request);
-DEFINE_LIST(Tex_from_surface_request);
-DEFINE_LIST(Vertex_shader_from_file_request);
-DEFINE_LIST(Create_blend_state_request);
-DEFINE_LIST(Create_depth_stencil_request);
 
 struct Init_data
 {
-	LIST(From_file_request) mesh_from_file_requests;
-	LIST(Mesh_from_primitives_request) mesh_from_primitives_requests;
-	LIST(Tex_from_surface_request) tex_from_surface_requests;
-	LIST(From_file_request) tex_from_file_requests;
-	LIST(Vertex_shader_from_file_request) vs_ff_requests;
-	LIST(From_file_request) ps_ff_requests;
-	LIST(Create_blend_state_request) create_blend_state_requests;
-	LIST(Create_depth_stencil_request) create_depth_stencil_requests;
+	NEW_LIST(From_file_request, mesh_from_file_requests);
+	NEW_LIST(Mesh_from_primitives_request, mesh_from_primitives_requests);
+	NEW_LIST(Tex_from_surface_request, tex_from_surface_requests);
+	NEW_LIST(From_file_request, tex_from_file_requests);
+	NEW_LIST(Vertex_shader_from_file_request, vs_ff_requests);
+	NEW_LIST(From_file_request, ps_ff_requests);
+	NEW_LIST(Create_blend_state_request, create_blend_state_requests);
+	NEW_LIST(Create_depth_stencil_request, create_depth_stencil_requests);
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??
@@ -310,7 +304,8 @@ save_primitives(Memory_arena* arena, void* vertices, u32 v_size, u32 v_count, u1
 internal void
 push_tex_from_surface_request(App_memory* memory, Init_data* init_data,u32* index_handle, u32 width, u32 height, u32* pixels)
 {
-	Tex_from_surface_request* request = init_data->tex_from_surface_requests.push_back(memory->temp_arena);
+	Tex_from_surface_request* request; 
+	PUSH_BACK(init_data->tex_from_surface_requests,memory->temp_arena, request);
 	request->p_tex_uid = index_handle;
 	request->surface = {width,height};
 	request->surface.data = arena_push_data(memory->temp_arena, pixels, width*height*sizeof(u32));
@@ -320,7 +315,8 @@ internal void
 push_tex_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
 {
 	// pushes the request in the initdata in the temp arena
-	From_file_request* request = init_data->tex_from_file_requests.push_back(memory->temp_arena);
+	From_file_request* request;
+	PUSH_BACK(init_data->tex_from_file_requests, memory->temp_arena, request);
 	request->p_uid = index_handle;
 	request->filename = filename;
 }
@@ -329,7 +325,8 @@ push_tex_from_file_request(App_memory* memory, Init_data* init_data, u32* index_
 internal void
 push_mesh_from_primitives_request(App_memory* memory, Init_data* init_data, u32* index_handle, Mesh_primitive* primitives)
 {
-	Mesh_from_primitives_request* request = init_data->mesh_from_primitives_requests.push_back(memory->temp_arena);
+	Mesh_from_primitives_request* request;
+	PUSH_BACK(init_data->mesh_from_primitives_requests, memory->temp_arena, request);
 	request->p_mesh_uid = index_handle;
 	request->primitives = primitives;
 }
@@ -339,64 +336,70 @@ internal void
 push_mesh_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
 {
 	// pushes the request in the initdata in the temp arena
-	From_file_request* request = init_data->mesh_from_file_requests.push_back(memory->temp_arena);
+	From_file_request* request;
+	PUSH_BACK(init_data->mesh_from_file_requests, memory->temp_arena, request);
 	request->p_uid = index_handle;
 	request->filename = filename;
 }
 
+//TODO: why is this one different from the others
 internal void
 push_vertex_shader_from_file_request(App_memory* memory, Init_data* init_data, Vertex_shader_from_file_request request){
-	Vertex_shader_from_file_request* result = init_data->vs_ff_requests.push_back(memory->temp_arena);
+	Vertex_shader_from_file_request* result;
+	PUSH_BACK(init_data->vs_ff_requests, memory->temp_arena, result);
 	*result = request;
 }
 
 internal void
 push_pixel_shader_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename){
-	From_file_request* request = init_data->ps_ff_requests.push_back(memory->temp_arena);
+	From_file_request* request;
+	PUSH_BACK(init_data->ps_ff_requests, memory->temp_arena, request);
 	request->p_uid = index_handle;
 	request->filename = filename;
 }
 
 internal void
 push_create_blend_state_request(App_memory* memory, Init_data* init_data, u32* index_handle, b32 enable_alpha_blending){
-	Create_blend_state_request* bs_request = init_data->create_blend_state_requests.push_back(memory->temp_arena);
-	bs_request->p_uid = index_handle;
-	bs_request->enable_alpha_blending = enable_alpha_blending;
+	Create_blend_state_request* request;
+	PUSH_BACK(init_data->create_blend_state_requests, memory->temp_arena, request);
+	request->p_uid = index_handle;
+	request->enable_alpha_blending = enable_alpha_blending;
 }
 
 internal void
 push_create_depth_stencil_request(App_memory* memory, Init_data* init_data, u32* index_handle, b32 enable_depth){
-	Create_depth_stencil_request* ds_request = init_data->create_depth_stencil_requests.push_back(memory->temp_arena);
-	ds_request->p_uid = index_handle;
-	ds_request->enable_depth = enable_depth;
+	Create_depth_stencil_request* request;
+	PUSH_BACK(init_data->create_depth_stencil_requests, memory->temp_arena, request);
+	request->p_uid = index_handle;
+	request->enable_depth = enable_depth;
 }
 
-internal void
-draw(List* render_list, Memory_arena* arena, 
-	Object3d* object3d
-// 	u32 mesh_uid,
-// 	u32 texture_uid,
-// 	u32 vshader_uid,
-// 	u32 pshader_uid,
-// 	u32 blend_state_uid,
-// 	u32 depth_stencil_uid,
-// 	V3 scale,
-// 	V3 pos,
-// 	V3 rotation,
-// 	Color color
-){
-	Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, arena);
-	*render_object = *object3d;
-	// *render_object = {
-	// 	mesh_uid,
-	// 	texture_uid,
-	// 	vshader_uid,
-	// 	pshader_uid,
-	// 	blend_state_uid,
-	// 	depth_stencil_uid,
-	// 	scale,
-	// 	pos,
-	// 	rotation,
-	// 	color
-	// };
-}
+// internal void
+// draw(NEW_LIST(Render_request, render_list), Memory_arena* arena, 
+// 	Object3d* object3d
+// // 	u32 mesh_uid,
+// // 	u32 texture_uid,
+// // 	u32 vshader_uid,
+// // 	u32 pshader_uid,
+// // 	u32 blend_state_uid,
+// // 	u32 depth_stencil_uid,
+// // 	V3 scale,
+// // 	V3 pos,
+// // 	V3 rotation,
+// // 	Color color
+// ){
+// 	Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, arena);
+// 	*render_object = *object3d;
+// 	// *render_object = {
+// 	// 	mesh_uid,
+// 	// 	texture_uid,
+// 	// 	vshader_uid,
+// 	// 	pshader_uid,
+// 	// 	blend_state_uid,
+// 	// 	depth_stencil_uid,
+// 	// 	scale,
+// 	// 	pos,
+// 	// 	rotation,
+// 	// 	color
+// 	// };
+// }

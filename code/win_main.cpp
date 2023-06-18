@@ -113,9 +113,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	App_memory memory = {0};
 	memory.temp_arena = temp_arena;
 	memory.permanent_arena = permanent_arena;
-
-	testruct* l[3] = {0};
-	test_function(l,temp_arena);
 	
 	// GETTING CLIENT SIZES
 	Int2 client_size = win_get_client_sizes(global_main_window);
@@ -202,35 +199,35 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	app.init(&memory, &init_data);
 	
 	// CREATING TEXTURES
-	List textures_list = {0};
+	NEW_LIST(Dx11_texture_view*, textures_list) = {0};
 	// fuck this is too long
-	NODE(Tex_from_surface_request)* tex_from_surface_request_node = init_data.tex_from_surface_requests.root;
-	UNTIL(i, init_data.tex_from_surface_requests.size)
+	Tex_from_surface_request* tex_from_surface_request_node = init_data.tex_from_surface_requests[0];
+	UNTIL(i, LIST_SIZE(init_data.tex_from_surface_requests))
 	{
-		Tex_from_surface_request* request = tex_from_surface_request_node->value;
-		NEXTNODE(tex_from_surface_request_node);
+		Tex_from_surface_request* request = tex_from_surface_request_node;
+		NEXT_ELEM(tex_from_surface_request_node);
 
-		*request->p_tex_uid = textures_list.size;
-		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, memory.permanent_arena);
+		*request->p_tex_uid = LIST_SIZE(textures_list);
+		Dx11_texture_view** texture_view; PUSH_BACK(textures_list, memory.permanent_arena, texture_view);
 		dx11_create_texture_view(dx, &request->surface, texture_view);
 	}
 
-	NODE(From_file_request)* tex_from_file_request_node = init_data.tex_from_file_requests.root;
-	UNTIL(i, init_data.tex_from_file_requests.size){
-		From_file_request* request = tex_from_file_request_node->value;
-		NEXTNODE(tex_from_file_request_node);
+	From_file_request* tex_from_file_request_node = init_data.tex_from_file_requests[0];
+	UNTIL(i, LIST_SIZE(init_data.tex_from_file_requests)){
+		From_file_request* request = tex_from_file_request_node;
+		NEXT_ELEM(tex_from_file_request_node);
 
 		int comp;
 		Surface tex_surface = {0};
 		tex_surface.data = stbi_load(request->filename.text, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
 		ASSERT(tex_surface.data);
-		*request->p_uid = textures_list.size;
-		Dx11_texture_view** texture_view = LIST_PUSH_BACK_STRUCT(&textures_list, Dx11_texture_view*, permanent_arena);
+		*request->p_uid = LIST_SIZE(textures_list);
+		Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
 		dx11_create_texture_view(dx, &tex_surface, texture_view);
 	}
 	
-	List vertex_shaders_list = {0};
-	List pixel_shaders_list = {0};
+	NEW_LIST(Vertex_shader, vertex_shaders_list) = {0};
+	NEW_LIST(Dx11_pixel_shader*, pixel_shaders_list) = {0};
 	// GETTING COMPILED SHADERS
 	// 3D SHADERS
 		// VERTEX SHADER	
@@ -238,13 +235,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	//TODO: remember the last write_time of the file when doing runtime compiling
 
 	{
-		NODE(Vertex_shader_from_file_request)* vs_ff_request_node = init_data.vs_ff_requests.root;
-		UNTIL(i, init_data.vs_ff_requests.size){
-			Vertex_shader_from_file_request* request = vs_ff_request_node->value;
-			NEXTNODE(vs_ff_request_node);
+		Vertex_shader_from_file_request* vs_ff_request_node = init_data.vs_ff_requests[0];
+		UNTIL(i, LIST_SIZE(init_data.vs_ff_requests)){
+			Vertex_shader_from_file_request* request = vs_ff_request_node;
+			NEXT_ELEM(vs_ff_request_node);
 
-			*request->p_uid = vertex_shaders_list.size;
-			Vertex_shader* vs = LIST_PUSH_BACK_STRUCT(&vertex_shaders_list, Vertex_shader, permanent_arena);
+			*request->p_uid = LIST_SIZE(vertex_shaders_list);
+			Vertex_shader* vs; PUSH_BACK(vertex_shaders_list, permanent_arena, vs);
 			File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
 			dx11_create_vs(dx, compiled_vs, &vs->shader);
 			
@@ -263,15 +260,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_create_input_layout(dx, compiled_vs, ied, request->ie_count, &vs->input_layout);
 		}
 
-		NODE(From_file_request)* ps_ff_request_node = init_data.ps_ff_requests.root;
-		UNTIL(i, init_data.ps_ff_requests.size){
-			From_file_request* request = ps_ff_request_node->value;
-			NEXTNODE(ps_ff_request_node);
+		From_file_request* ps_ff_request_node = init_data.ps_ff_requests[0];
+		UNTIL(i, LIST_SIZE(init_data.ps_ff_requests)){
+			From_file_request* request = ps_ff_request_node;
+			NEXT_ELEM(ps_ff_request_node);
 
-			*request->p_uid = pixel_shaders_list.size;
+			*request->p_uid = LIST_SIZE(pixel_shaders_list);
 
 			File_data compiled_ps = dx11_get_compiled_shader(request->filename, temp_arena, "ps", PS_PROFILE);
-			Dx11_pixel_shader** ps = LIST_PUSH_BACK_STRUCT(&pixel_shaders_list, Dx11_pixel_shader*, permanent_arena);
+			Dx11_pixel_shader** ps; PUSH_BACK(pixel_shaders_list, permanent_arena, ps);
 			dx11_create_ps(dx, compiled_ps, ps);
 		}
 			
@@ -313,14 +310,14 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	//TODO: make meshes_list an array of size = sizeof(Meshes)/sizeof(u32*)
 	// but i am not sure if doing that i will not be able to create new meshes at runtime
 	// we'll see
-	List meshes_list = {0};
+	NEW_LIST(Dx_mesh, meshes_list) = {0};
 
 	// LOADING MESHES FROM FILES
-	NODE(From_file_request)* mff_request_node = init_data.mesh_from_file_requests.root;
-	UNTIL(i, init_data.mesh_from_file_requests.size)
+	From_file_request* mff_request_node = init_data.mesh_from_file_requests[0];
+	UNTIL(i, LIST_SIZE(init_data.mesh_from_file_requests))
 	{
-		From_file_request* request = mff_request_node->value;
-		NEXTNODE(mff_request_node);
+		From_file_request* request = mff_request_node;
+		NEXT_ELEM(mff_request_node);
 		File_data glb_file = win_read_file(request->filename, temp_arena);
 		GLB glb = {0};
 		glb_get_chunks(glb_file.data, 
@@ -348,23 +345,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// }
 		}
 		
-		*request->p_uid = meshes_list.size;
+		*request->p_uid = LIST_SIZE(meshes_list);
 
-		Dx_mesh* current_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+		Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
 		*current_mesh = dx11_init_mesh(dx, 
 		&primitives[0],
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		
 	}
 	// CREATING MESHES FROM MANUALLY DEFINED PRIMITIVES
-	NODE(Mesh_from_primitives_request)* mfp_request_node = init_data.mesh_from_primitives_requests.root;
-	UNTIL(i, init_data.mesh_from_primitives_requests.size)
+	Mesh_from_primitives_request* mfp_request_node = init_data.mesh_from_primitives_requests[0];
+	UNTIL(i, LIST_SIZE(init_data.mesh_from_primitives_requests))
 	{
-		Mesh_from_primitives_request* request = mfp_request_node->value;
-		NEXTNODE(mfp_request_node);
+		Mesh_from_primitives_request* request = mfp_request_node;
+		NEXT_ELEM(mfp_request_node);
 
-		*request->p_mesh_uid = meshes_list.size;
-		Dx_mesh* current_mesh = LIST_PUSH_BACK_STRUCT(&meshes_list, Dx_mesh, permanent_arena);
+		*request->p_mesh_uid = LIST_SIZE(meshes_list);
+		Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
 		*current_mesh = dx11_init_mesh(dx, 
 		request->primitives, 
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -374,25 +371,25 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
 
 	// TODO: CONVERT THIS TWO LISTS INTO STATIC ARRAYS IF BEING DYNAMIC SERVES NO PURPOSE AT ALL
-	List blend_states_list = {0};
-	NODE(Create_blend_state_request)* bs_request_node = init_data.create_blend_state_requests.root;
-	UNTIL(i, init_data.create_blend_state_requests.size){
-		Create_blend_state_request* request = bs_request_node->value;
-		NEXTNODE(bs_request_node);
+	NEW_LIST(Dx11_blend_state*, blend_states_list) = {0};
+	Create_blend_state_request* bs_request_node = init_data.create_blend_state_requests[0];
+	UNTIL(i, LIST_SIZE(init_data.create_blend_state_requests)){
+		Create_blend_state_request* request = bs_request_node;
+		NEXT_ELEM(bs_request_node);
 
-		*request->p_uid = blend_states_list.size;
-		Dx11_blend_state** blend_state = LIST_PUSH_BACK_STRUCT(&blend_states_list, Dx11_blend_state*, memory.permanent_arena);
+		*request->p_uid = LIST_SIZE(blend_states_list);
+		Dx11_blend_state** blend_state; PUSH_BACK(blend_states_list, memory.permanent_arena, blend_state);
 		dx11_create_blend_state(dx, blend_state, request->enable_alpha_blending);
 	}
 
-	List depth_stencils_list = {0};
-	NODE(Create_depth_stencil_request)* ds_request_node = init_data.create_depth_stencil_requests.root;
-	UNTIL(i, init_data.create_depth_stencil_requests.size){
-		Create_depth_stencil_request* request = ds_request_node->value;
-		NEXTNODE(ds_request_node);
+	NEW_LIST(Depth_stencil, depth_stencils_list) = {0};
+	Create_depth_stencil_request* ds_request_node = init_data.create_depth_stencil_requests[0];
+	UNTIL(i, LIST_SIZE(init_data.create_depth_stencil_requests)){
+		Create_depth_stencil_request* request = ds_request_node;
+		NEXT_ELEM(ds_request_node);
 
-		*request->p_uid = depth_stencils_list.size;
-		Depth_stencil* depth_stencil = LIST_PUSH_BACK_STRUCT(&depth_stencils_list, Depth_stencil, memory.permanent_arena);
+		*request->p_uid = LIST_SIZE(depth_stencils_list);
+		Depth_stencil* depth_stencil; PUSH_BACK(depth_stencils_list, memory.permanent_arena, depth_stencil);
 		dx11_create_depth_stencil_state(dx, &depth_stencil->state, request->enable_depth);
 	}
 
@@ -442,9 +439,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(dx->render_target_view)
 			{
 				dx->render_target_view->Release();
-				foreach(ds_node, &depth_stencils_list, i){
-					Depth_stencil* current_ds = (Depth_stencil*)ds_node->data;
-					NEXTNODE(ds_node);
+				Depth_stencil* ds_node = depth_stencils_list[0];
+				WALK_LIST(&depth_stencils_list, i){
+					Depth_stencil* current_ds = ds_node;
+					NEXT_ELEM(ds_node);
 					current_ds->view->Release();
 				}
 				dx->render_target_view = 0;
@@ -461,9 +459,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 				dx11_create_render_target_view(dx, &dx->render_target_view);
 
-				foreach(ds_node, &depth_stencils_list, i){
-					Depth_stencil* current_ds = (Depth_stencil*) ds_node->data;
-					NEXTNODE(ds_node);
+				Depth_stencil* ds_node = depth_stencils_list[0];
+				WALK_LIST(depth_stencils_list, i){
+					Depth_stencil* current_ds = ds_node;
+					NEXT_ELEM(ds_node);
 					dx11_create_depth_stencil_view(dx, &current_ds->view, client_size.x, client_size.y);
 				}
 				
@@ -637,16 +636,17 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		app.update(&memory);
 
 		// APP RENDER
-		List render_list = {0};
-		app.render(&memory, client_size, &render_list);
+		NEW_LIST(Renderer_request, render_list) = {0};
+		app.render(&memory, client_size, render_list);
 
 		if(dx->render_target_view)
 		{
 			// apparently always need to clear this buffers before rendering to them
 			dx->context->ClearRenderTargetView(dx->render_target_view, (float*)&bg_color);
-			foreach(ds_node, &depth_stencils_list, i){
-				Depth_stencil* current_ds = (Depth_stencil*) ds_node->data;
-				NEXTNODE(ds_node);
+			Depth_stencil* ds_node = depth_stencils_list[0];
+			WALK_LIST(depth_stencils_list, i){
+				Depth_stencil* current_ds = ds_node;
+				NEXT_ELEM(ds_node);
 
 				dx->context->ClearDepthStencilView(
 					current_ds->view, 
@@ -654,7 +654,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					1, 0);   
 			}
 			//TODO: this should be done by the render requests from the app layer
-			dx11_bind_render_target_view(dx, &dx->render_target_view, ((Depth_stencil*)depth_stencils_list.root->data)->view);
+			dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencils_list[0]->view);
 			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
 			dx11_bind_sampler(dx, &dx->sampler);
 
@@ -681,9 +681,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 			// OBJECT TRANSFORM
 			//TODO: make a GENERAL RENDER REQUEST QUEUE 
-			foreach(object_node, &render_list, i){
-				Renderer_request* request = (Renderer_request*)object_node->data;
-				NEXTNODE(object_node);
+			Renderer_request* object_node = render_list[0];
+			WALK_LIST(render_list, i){
+				Renderer_request* request = object_node;
+				NEXT_ELEM(object_node);
 				ASSERT(request->type_flags); //assert at least one flag is set
 				if(request->type_flags & REQUEST_FLAG_RENDER_OBJECT){
 					Object3d* object = &request->object3d;
@@ -698,23 +699,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					); 
 						//TODO: for some reason +z is backwards and -z is forward into the depth 
 
-					Dx_mesh* object_mesh = (Dx_mesh*)list_get_data(&meshes_list, object->mesh_uid);
-					Dx11_texture_view** texture_view = (Dx11_texture_view**)list_get_data(&textures_list, object->tex_uid);
+					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
+					Dx11_texture_view** texture_view; LIST_GET(textures_list, object->tex_uid, texture_view);
 					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, texture_view, &object_transform_matrix);
 				}if(request->type_flags & REQUEST_FLAG_SET_VS){
-					Vertex_shader* vertex_shader = (Vertex_shader*)list_get_data(&vertex_shaders_list,request->vshader_uid);
+					Vertex_shader* vertex_shader; LIST_GET(vertex_shaders_list, request->vshader_uid, vertex_shader);
 					dx11_bind_vs(dx, vertex_shader->shader);
 					dx11_bind_input_layout(dx, vertex_shader->input_layout);
 				}if(request->type_flags & REQUEST_FLAG_SET_PS){
-					Dx11_pixel_shader** pixel_shader = (Dx11_pixel_shader**)list_get_data(&pixel_shaders_list, request->pshader_uid);
+					Dx11_pixel_shader** pixel_shader; LIST_GET(pixel_shaders_list, request->pshader_uid, pixel_shader);
 					dx11_bind_ps(dx, *pixel_shader);
 				}if(request->type_flags & REQUEST_FLAG_SET_BLEND_STATE){
-					Dx11_blend_state** blend_state = (Dx11_blend_state**)list_get_data(&blend_states_list, request->blend_state_uid);
+					Dx11_blend_state** blend_state; LIST_GET(blend_states_list, request->blend_state_uid, blend_state);
 					dx11_bind_blend_state(dx, *blend_state);
 				}if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
-					Depth_stencil* depth_stencil = (Depth_stencil*)list_get_data(&depth_stencils_list, request->depth_stencil_uid);
+					Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);
 					dx11_bind_depth_stencil_state(dx, depth_stencil->state);
 					dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencil->view);
 				}
@@ -791,42 +792,51 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	projection_buffer.buffer->Release();
 	object_color_buffer.buffer->Release();
 
-	foreach(mesh_node, &meshes_list, i)
+	Dx_mesh* mesh_node = meshes_list[0];
+	WALK_LIST(meshes_list, i)
 	{
-		Dx_mesh* current_mesh = (Dx_mesh*)mesh_node->data;
-		NEXTNODE(mesh_node);
+		Dx_mesh* current_mesh = mesh_node;
+		NEXT_ELEM(mesh_node);
 		current_mesh->vertex_buffer->Release();
 		current_mesh->index_buffer->Release();
 	}
-	foreach(texture_node, &textures_list, i)
+	Dx11_texture_view** texture_node = textures_list[0];
+	WALK_LIST(textures_list, i)
 	{
-		Dx11_texture_view** current_tex = (Dx11_texture_view**)texture_node->data;
-		NEXTNODE(texture_node);
+		Dx11_texture_view** current_tex = texture_node;
+		NEXT_ELEM(texture_node);
 		(*current_tex)->Release();
 	}
 
-	foreach(vsnodes, &vertex_shaders_list, i){
-		Vertex_shader* current_vs = (Vertex_shader*)vsnodes->data;
-		NEXTNODE(vsnodes);
+	Vertex_shader* vsnodes = vertex_shaders_list[0];
+	WALK_LIST(vertex_shaders_list, i){
+		Vertex_shader* current_vs = vsnodes;
+		NEXT_ELEM(vsnodes);
 
 		current_vs->shader->Release();
 		current_vs->input_layout->Release();
 	}
-	foreach(psnodes, &pixel_shaders_list, i){
-		Dx11_pixel_shader** current_ps = (Dx11_pixel_shader**)psnodes->data;
-		NEXTNODE(psnodes);
+
+	Dx11_pixel_shader** psnodes = pixel_shaders_list[0];
+	WALK_LIST(pixel_shaders_list, i){
+		Dx11_pixel_shader** current_ps = psnodes;
+		NEXT_ELEM(psnodes);
 
 		(*current_ps)->Release();
 	}
-	foreach(blendnodes, &blend_states_list, i){
-		Dx11_blend_state** current_blend = (Dx11_blend_state**)blendnodes->data;
-		NEXTNODE(blendnodes);
+
+	Dx11_blend_state** blendnodes = blend_states_list[0];
+	WALK_LIST(blend_states_list, i){
+		Dx11_blend_state** current_blend = blendnodes;
+		NEXT_ELEM(blendnodes);
 
 		(*current_blend)->Release();
 	}
-	foreach(stencilnodes, &depth_stencils_list, i){
-		Depth_stencil* current_stencil = (Depth_stencil*)stencilnodes->data;
-		NEXTNODE(stencilnodes);
+
+	Depth_stencil* stencilnodes = depth_stencils_list[0];
+	WALK_LIST(depth_stencils_list, i){
+		Depth_stencil* current_stencil = stencilnodes;
+		NEXT_ELEM(stencilnodes);
 
 		current_stencil->view->Release();
 		current_stencil->state->Release();

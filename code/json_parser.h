@@ -33,10 +33,10 @@ struct Json_var
             JSON_VALUE_TYPE value_type;
         };
         struct {
-            List list;// Json_var list
+            NEW_LIST(Json_var, list);// Json_var list
         };
         struct {
-            List object_keys; // Json_var list
+            NEW_LIST(Json_var, object_keys); // Json_var list
         };
     };
     JSON_VAR_TYPE var_type;
@@ -77,9 +77,9 @@ json_var_get_all_values(Json_var* root, Memory_arena* arena, u32* count)
     }
     else if(root->var_type == JSON_VAR_OBJECT || root->var_type == JSON_VAR_LIST)
     {
-        for(u32 i=0; i<root->list.size; i++)
+        for(u32 i=0; i<LIST_SIZE(root->list); i++)
         {
-            Json_var* current_var = LIST_GET_DATA_AS(&root->list, i, Json_var);
+            Json_var* current_var; LIST_GET(root->list, i,current_var);
             json_var_get_all_values(current_var, arena, count);
         }
     }else ASSERT(!"Null or undefined json var type");
@@ -104,9 +104,9 @@ get_json_var(Json_var* root, String path_to_key)
             case JSON_VAR_OBJECT:
             case JSON_VAR_LIST:
                 {
-                    for(u32 i=0; i<posible_result->object_keys.size; i++)
+                    for(u32 i=0; i< LIST_SIZE(posible_result->object_keys); i++)
                     {
-                        Json_var* current_element = LIST_GET_DATA_AS(&posible_result->object_keys, i, Json_var);
+                        Json_var* current_element; LIST_GET(posible_result->object_keys, i, current_element);
                         if(compare_strings(current_element->key, key_to_find))
                         {
                             posible_result = current_element;
@@ -244,7 +244,7 @@ scan_json_to_structure(Json_buffer* buffer, Memory_arena* arena, Json_var* curre
                 }
                 case '\"':
                 {
-                    Json_var* new_var = LIST_PUSH_BACK_STRUCT(&current_var->object_keys, Json_var, arena);
+                    Json_var* new_var; PUSH_BACK(current_var->object_keys, arena, new_var);
                     json_scan_string(buffer, arena, &new_var->key);
 
                     scan_json_to_structure(buffer, arena, new_var);
@@ -289,9 +289,9 @@ scan_json_to_structure(Json_buffer* buffer, Memory_arena* arena, Json_var* curre
                 case '{':
                 {   //TODO: this is useless for now
                     // current_var->list_type = JSON_VAR_OBJECT;
-                    Json_var* new_var = LIST_PUSH_BACK_STRUCT(&current_var->list,Json_var, arena); 
-                    ASSERT(current_var->list.size);
-                    new_var->key = number_to_string(current_var->list.size-1, arena);
+                    Json_var* new_var; PUSH_BACK(current_var->list, arena, new_var); 
+                    ASSERT(LIST_SIZE(current_var->list));
+                    new_var->key = number_to_string(LIST_SIZE(current_var->list)-1, arena);
                     scan_json_to_structure(buffer, arena, new_var);
                     if(*BUFFER_GET_POS(buffer) == ']')
                     {
@@ -308,9 +308,9 @@ scan_json_to_structure(Json_buffer* buffer, Memory_arena* arena, Json_var* curre
                         )
                     { //TODO: this is useless for now
                         // current_var->list_type = JSON_VAR_VALUE;
-                        Json_var* new_var = LIST_PUSH_BACK_STRUCT(&current_var->list, Json_var, arena); 
-                        ASSERT(current_var->list.size);
-                        new_var->key = number_to_string(current_var->list.size-1, arena);
+                        Json_var* new_var; PUSH_BACK(current_var->list, arena, new_var); 
+                        ASSERT(LIST_SIZE(current_var->list));
+                        new_var->key = number_to_string(LIST_SIZE(current_var->list)-1, arena);
                         scan_json_to_structure(buffer, arena, new_var);
                         if(*BUFFER_GET_POS(buffer) == ']')
                         {
