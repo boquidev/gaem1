@@ -107,7 +107,7 @@ void update(App_memory* memory){
 
 				new_unit->health = 2;
 
-				new_unit->pos = cursor_world_pos;
+				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
@@ -136,7 +136,7 @@ void update(App_memory* memory){
 
 				new_unit->health = 2;
 
-				new_unit->pos = cursor_world_pos;
+				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
@@ -167,11 +167,11 @@ void update(App_memory* memory){
 
 		if( memory->selected_uid != memory->player_uid ){
 			if( input->cursor_secondary > 0)
-				selected_entity->target_pos = cursor_world_pos;
+				selected_entity->target_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 			else if( input->cursor_primary > 0)
 				memory->selected_uid = memory->player_uid;
 			else if( input->move > 0)
-				selected_entity->target_move_pos = cursor_world_pos;
+				selected_entity->target_move_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 		}
 	}	
 	// memory->spawn_timer -= memory->delta_time;
@@ -271,25 +271,20 @@ void update(App_memory* memory){
 				entity->velocity = entity->velocity + (memory->delta_time * accel);
 				if(entity->velocity.x || entity->velocity.z)
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
-				#define COLLISION_RESPONSE_CODE \
-				UNTIL(j, MAX_ENTITIES){\
-					Entity* entity2 = &entities[j];\
-					if(entity2->visible && entity2->type != ENTITY_PROJECTILE &&  i != j){\
-						r32 overlapping = sphere_vs_sphere(entity->pos, entity->current_scale, entity2->pos, entity2->current_scale);\
-						if(overlapping > 0){\
-							V3 collision_direction = v3_normalize(entity2->pos - entity->pos);\
-							entity->velocity = entity->velocity - ((overlapping/memory->delta_time) * collision_direction);\
-							entity2->velocity = entity2->velocity + ((overlapping/memory->delta_time) * collision_direction);\
-						}\
-					}\
+					
+				UNTIL(j, MAX_ENTITIES){
+					if(i!=j)
+						test_collision(&entities[i], &entities[j], memory->delta_time);
 				}
-				COLLISION_RESPONSE_CODE
 			}else if(entity->type != ENTITY_PROJECTILE){
 				//TODO: make it dependent on the entity's speed so that not all entities move at the same speed
 				V3 move_v = (entity->target_move_pos - entity->pos);
 				V3 accel = 10*(move_v - (0.4f*entity->velocity));
 				entity->velocity = entity->velocity +( memory->delta_time * accel );
-				COLLISION_RESPONSE_CODE
+				UNTIL(j, MAX_ENTITIES){
+					if(i!=j)
+						test_collision(&entities[i], &entities[j], memory->delta_time);
+				}
 
 				//TODO: when unit is moving and shooting, shoots seem to come from the body
 				// and that's because it should spawn in the tip of the cannon instead of the center

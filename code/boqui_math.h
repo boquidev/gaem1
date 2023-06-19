@@ -121,14 +121,14 @@ struct Int3
 union V3
 {
     struct {
-        r32 r;
-        r32 g;
-        r32 b;
-    };
-    struct {
         r32 x;
         r32 y;
         r32 z;
+    };
+    struct {
+        r32 r;
+        r32 g;
+        r32 b;
     };
     Int3 i;
     V2 v2;
@@ -145,6 +145,10 @@ v3_addition(V3 v1, V3 v2){
 internal V3
 operator +(V3 v1, V3 v2){
     return v3_addition(v1, v2);
+}
+internal b32
+operator ==(V3 v1, V3  v2){
+    return (v1.x==v2.x && v1.y==v2.y && v1.z==v2.z);
 }
 
 internal V3
