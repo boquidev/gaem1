@@ -299,7 +299,6 @@ struct Create_depth_stencil_request
 	b32 enable_depth;
 };
 
-
 struct Init_data
 {
 	LIST(From_file_request, mesh_from_file_requests);
@@ -310,6 +309,7 @@ struct Init_data
 	LIST(From_file_request, ps_ff_requests);
 	LIST(Create_blend_state_request, create_blend_state_requests);
 	LIST(Create_depth_stencil_request, create_depth_stencil_requests);
+	LIST(From_file_request, load_font_requests);
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??

@@ -125,9 +125,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	Int2 client_size = win_get_client_sizes(global_main_window);
 	if(client_size.y) memory.aspect_ratio = (r32)client_size.x / (r32)client_size.y;
 
-	// TESTING FONTS 
-	char* font_file = "x:/source/fonts/Inconsolata-Regular.ttf";
-	r32 lines_height = 18; 
+
 
 
 
@@ -207,7 +205,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		ASSERT(app.init);
 	}
 
-	// APP INITIALIZE 
+	// APP INIT
 	Init_data init_data = {0};
 	app.init(&memory, &init_data);
 	
@@ -238,16 +236,96 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
 		dx11_create_texture_view(dx, &tex_surface, texture_view);
 	}
+
+	//  LOADING FONT
+	r32 lines_height = 18; 
+	LIST(Dx11_font_atlas, font_atlas_list);
+
+	From_file_request* load_font_request_node = init_data.load_font_requests[0];
+	UNTIL(r, LIST_SIZE(init_data.load_font_requests)){
+		From_file_request* request = load_font_request_node;
+		NEXT_ELEM(load_font_request_node);
+
+		// TESTING FONTS 
+		File_data font_file = win_read_file(request->filename, temp_arena);
+		//currently just supporting ANSI characters
+		//TODO: learn how to do UNICODE
+
+		// GETTING BITMAPS AND INFO
+		*request->p_uid = LIST_SIZE(font_atlas_list);
+		Dx11_font_atlas* new_atlas; PUSH_BACK(font_atlas_list, temp_arena, new_atlas);
+
+		stbtt_fontinfo font;
+		Font_character_info* charinfo = new_atlas->char_infos;
+		Color32* charbitmaps [CHARS_COUNT];
+		stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
+		UNTIL(c, LAST_CHAR-FIRST_CHAR){
+			u32 codepoint = c+FIRST_CHAR;
+			u8* monobitmap = stbtt_GetCodepointBitmap(
+				&font, 0, stbtt_ScaleForPixelHeight(&font, lines_height), codepoint, 
+				&charinfo[c].w, &charinfo[c].h, 
+				&charinfo[c].xoffset, &charinfo[c].yoffset
+			);
+			u32 bitmap_size = charinfo[c].w * charinfo[c].h;
+			charbitmaps[c] = ARENA_PUSH_STRUCTS(temp_arena, Color32, bitmap_size);
+			Color32* bitmap =  charbitmaps[c];
+			UNTIL(p, bitmap_size){
+				bitmap[p].r = 255;
+				bitmap[p].g = 255;
+				bitmap[p].b = 255;
+				bitmap[p].a = monobitmap[p];
+			}
+			stbtt_FreeBitmap(monobitmap,0);
+		}
+		// PACKING BITMAP RECTS
+
+		//total_atlas_size = atlas_side*atlas_side
+		s32 atlas_side = find_bigger_exponent_of_2((u32)(lines_height*(lines_height/2)*CHARS_COUNT));
+
+		stbrp_context pack_context = {0};
+		stbrp_node* pack_nodes = ARENA_PUSH_STRUCTS(temp_arena, stbrp_node, atlas_side);
+		stbrp_init_target(&pack_context, atlas_side, atlas_side, pack_nodes, atlas_side);
+
+		stbrp_rect* rects = ARENA_PUSH_STRUCTS(temp_arena, stbrp_rect, CHARS_COUNT);
+		UNTIL(i, CHARS_COUNT){
+			rects[i].w = charinfo[i].w;
+			rects[i].h = charinfo[i].h;
+		}
+		stbrp_pack_rects(&pack_context, rects, CHARS_COUNT);
+		// CREATE TEXTURE ATLAS AND COPY EACH CHARACTER BITMAP INTO IT USING THE POSITIONS OBTAINED FROM PACK
+		Color32* atlas_pixels = ARENA_PUSH_STRUCTS(permanent_arena, Color32, atlas_side*atlas_side);
+
+		new_atlas->width = atlas_side;
+		new_atlas->height = atlas_side;
+
+		UNTIL(i, CHARS_COUNT){
+			ASSERT(rects[i].was_packed);
+			if(rects[i].was_packed){
+				charinfo[i].x = rects[i].x;
+				charinfo[i].y = rects[i].y;
+				// width and height had already been set before
+
+				u32 first_char_pixel = (rects[i].y*atlas_side) + rects[i].x;
+				Color32* charpixels = charbitmaps[i];
+				UNTIL(y, (u32)rects[i].h){
+					UNTIL(x, (u32)rects[i].w){
+						u32 current_pixel = first_char_pixel + (y*atlas_side) + x;
+						atlas_pixels[current_pixel] = charpixels[(y*rects[i].w) + x];
+					}
+				}
+			}
+		}
+		Surface atlas_surface = {(u32)new_atlas->width, (u32)new_atlas->height, atlas_pixels};
+		dx11_create_texture_view(dx, &atlas_surface, &new_atlas->tex);
+	}
+
+	// SHADERS
+	//TODO: remember the last write_time of the file when doing runtime compiling
 	
 	LIST(Vertex_shader, vertex_shaders_list) = {0};
 	LIST(Dx11_pixel_shader*, pixel_shaders_list) = {0};
-	// GETTING COMPILED SHADERS
-	// 3D SHADERS
-		// VERTEX SHADER	
-	String shaders_3d_filename = string("x:/source/code/shaders/3d_shaders.hlsl");
-	//TODO: remember the last write_time of the file when doing runtime compiling
-
 	{
+		// VERTEX SHADERS	
 		Vertex_shader_from_file_request* vs_ff_request_node = init_data.vs_ff_requests[0];
 		UNTIL(i, LIST_SIZE(init_data.vs_ff_requests)){
 			Vertex_shader_from_file_request* request = vs_ff_request_node;
@@ -272,7 +350,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}
 			dx11_create_input_layout(dx, compiled_vs, ied, request->ie_count, &vs->input_layout);
 		}
-
+		// PIXEL SHADERS
 		From_file_request* ps_ff_request_node = init_data.ps_ff_requests[0];
 		UNTIL(i, LIST_SIZE(init_data.ps_ff_requests)){
 			From_file_request* request = ps_ff_request_node;

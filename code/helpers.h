@@ -95,6 +95,14 @@ struct Surface
 	u32 height;
 	void* data;
 };
+internal u32
+find_bigger_exponent_of_2(u32 target_value){
+	u32 result = 2;
+	while(target_value>(result*result)){
+		result = result*2;
+	}
+	return result;
+}
 
 // LINKED LISTS WITH MACRO FUNCTIONS
 
@@ -123,6 +131,16 @@ struct Surface
 
 
 // TEMPORARILY ORPHAN 
+
+struct Font_character_info{
+	union{
+		Rect rect;
+		struct{
+			s32 x, y, w, h;
+		};
+	};
+	s32 xoffset, yoffset;
+};
 
 struct Color
 {

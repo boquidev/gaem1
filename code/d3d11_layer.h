@@ -129,6 +129,13 @@ struct Depth_stencil
 	Dx11_depth_stencil_view* view;
 };
 
+struct Dx11_font_atlas{
+	Font_character_info char_infos[CHARS_COUNT];
+	s32 width;
+	s32 height;
+	Dx11_texture_view* tex;
+};
+
 internal Dx_mesh
 dx11_init_mesh(D3D* dx, void* vertices, u32 v_count, int v_size, u16* indices, u32 i_count, D3D11_PRIMITIVE_TOPOLOGY topology)
 {
