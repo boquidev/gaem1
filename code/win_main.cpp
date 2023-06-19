@@ -12,6 +12,13 @@
 #define STBI_ONLY_PNG
 #include "libraries/stb_image.h"
 
+#define STB_RECT_PACK_IMPLEMENTATION
+#include "libraries/stb_rect_pack.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "libraries/stb_truetype.h"
+// STB END
+
 
 HWND global_main_window = 0;
 b32 global_running = 0;
@@ -117,6 +124,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// GETTING CLIENT SIZES
 	Int2 client_size = win_get_client_sizes(global_main_window);
 	if(client_size.y) memory.aspect_ratio = (r32)client_size.x / (r32)client_size.y;
+
+	// TESTING FONTS 
+	char* font_file = "x:/source/fonts/Inconsolata-Regular.ttf";
+	r32 lines_height = 18; 
+
+
 
 	// DIRECTX11
 	// INITIALIZE DIRECT3D

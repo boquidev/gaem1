@@ -32,6 +32,8 @@ void update(App_memory* memory){
 		mc->active = true;
 		mc->current_scale = 1.0f;
 
+		mc->health = 10;
+
 		mc->team_uid = 0;
 		mc->speed = 10.0f;
 		mc->type = ENTITY_QUEEN;
