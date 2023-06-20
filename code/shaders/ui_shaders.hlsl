@@ -35,7 +35,8 @@ PSINPUT vs(VSINPUT input){
 
 	result.vertex_pos = mul(object_transform , float4(input.vertex_pos, 1));
 	result.color = object_color;
-	result.texcoord = input.texcoord;
+	result.texcoord.x = object_texrect.x + (input.texcoord.x * object_texrect.z);
+	result.texcoord.y = object_texrect.y + (input.texcoord.y * object_texrect.w);
 
 	return result;
 }

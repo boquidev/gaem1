@@ -378,6 +378,7 @@ void render(App_memory* memory, Int2 screen_size, LIST(Renderer_request,render_l
 		{0,0,0},
 		{1,1,1,1}
 	};
+	request->object3d.tex_uid.rect_uid = 'P'-FIRST_CHAR;
 
 	// draw(render_list, memory->temp_arena, &test_plane);
 }
