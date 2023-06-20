@@ -133,12 +133,7 @@ find_bigger_exponent_of_2(u32 target_value){
 // TEMPORARILY ORPHAN 
 
 struct Font_character_info{
-	union{
-		Rect rect;
-		struct{
-			s32 x, y, w, h;
-		};
-	};
+	s32 w, h;
 	s32 xoffset, yoffset;
 };
 

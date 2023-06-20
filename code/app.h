@@ -10,10 +10,16 @@
 
 // scale must be 1,1,1 by default
 
-struct Object3d{
+struct Tex_uid{
+	u32 uid;
+	b32 is_atlas;
+	u32 rect_uid;
+};
+
+struct  Object3d{
 #define OBJECT3D_STRUCTURE \
 	u32 mesh_uid;\
-	u32 tex_uid;\
+	Tex_uid tex_uid;\
 	\
 	V3 scale;\
 	V3 pos;\
@@ -187,10 +193,10 @@ struct Meshes
 
 struct Textures
 {
-	u32 default_tex_uid;
-	u32 white_tex_uid;
-	u32 atlas_tex_uid;
-	u32 ogre_tex_uid;
+	Tex_uid default_tex_uid;
+	Tex_uid white_tex_uid;
+	Tex_uid ogre_tex_uid;
+	Tex_uid font_atlas_uid;
 };
 
 struct VShaders
@@ -273,10 +279,14 @@ struct Mesh_from_primitives_request
 	Mesh_primitive* primitives; //TODO: this could be the whole struct instead of a pointer
 };
 
-struct Tex_from_surface_request
-{
-	u32* p_tex_uid;
+struct Tex_from_surface_request{
+	Tex_uid* p_uid;
 	Surface surface; 
+};
+
+struct Tex_from_file_request{
+	Tex_uid* p_uid;
+	String filename;
 };
 
 struct Vertex_shader_from_file_request
@@ -304,12 +314,12 @@ struct Init_data
 	LIST(From_file_request, mesh_from_file_requests);
 	LIST(Mesh_from_primitives_request, mesh_from_primitives_requests);
 	LIST(Tex_from_surface_request, tex_from_surface_requests);
-	LIST(From_file_request, tex_from_file_requests);
+	LIST(Tex_from_file_request, tex_from_file_requests);
 	LIST(Vertex_shader_from_file_request, vs_ff_requests);
 	LIST(From_file_request, ps_ff_requests);
 	LIST(Create_blend_state_request, create_blend_state_requests);
 	LIST(Create_depth_stencil_request, create_depth_stencil_requests);
-	LIST(From_file_request, load_font_requests);
+	LIST(Tex_from_file_request, load_font_requests);
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??
@@ -332,21 +342,30 @@ save_primitives(Memory_arena* arena, void* vertices, u32 v_size, u32 v_count, u1
 // AND I HAVE 4 FUNCTIONS THAT ARE VERY SIMILAR
 
 internal void
-push_tex_from_surface_request(App_memory* memory, Init_data* init_data,u32* index_handle, u32 width, u32 height, u32* pixels)
+push_tex_from_surface_request(App_memory* memory, Init_data* init_data,Tex_uid* index_handle, u32 width, u32 height, u32* pixels)
 {
 	Tex_from_surface_request* request; 
 	PUSH_BACK(init_data->tex_from_surface_requests,memory->temp_arena, request);
-	request->p_tex_uid = index_handle;
+	request->p_uid = index_handle;
 	request->surface = {width,height};
 	request->surface.data = arena_push_data(memory->temp_arena, pixels, width*height*sizeof(u32));
 }
 // returns the address reserved for the mesh's uid
 internal void
-push_tex_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
+push_tex_from_file_request(App_memory* memory, Init_data* init_data, Tex_uid* index_handle, String filename)
 {
 	// pushes the request in the initdata in the temp arena
-	From_file_request* request;
+	Tex_from_file_request* request;
 	PUSH_BACK(init_data->tex_from_file_requests, memory->temp_arena, request);
+	request->p_uid = index_handle;
+	request->filename = filename;
+}
+
+internal void
+push_load_font_request(App_memory* memory, Init_data* init_data, Tex_uid* index_handle, String filename){
+	// THIS IS EXACTLY THE SAME AS THE FUNCTION ABOVE EXCEPT FOR ONE THING FUCKK
+	Tex_from_file_request* request;
+	PUSH_BACK(init_data->load_font_requests, memory->temp_arena, request);
 	request->p_uid = index_handle;
 	request->filename = filename;
 }

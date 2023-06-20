@@ -372,7 +372,7 @@ void render(App_memory* memory, Int2 screen_size, LIST(Renderer_request,render_l
 	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 	request->object3d = {
 		memory->meshes.plane_mesh_uid,
-		memory->textures.atlas_tex_uid,
+		memory->textures.font_atlas_uid,
 		{1,1,1},
 		{0,0,0},
 		{0,0,0},
@@ -480,6 +480,8 @@ void init(App_memory* memory, Init_data* init_data){
 	);
 
 */
+	push_load_font_request(memory, init_data, &memory->textures.font_atlas_uid, string("x:/source/fonts/Inconsolata-Regular.ttf"));
+
 	u32 default_tex_pixels[] = {
 		0x7f000000, 0xffff0000,
 		0xff00ff00, 0xff0000ff,
@@ -488,8 +490,6 @@ void init(App_memory* memory, Init_data* init_data){
 
 	u32 white_tex_pixels[] = {0xffffffff};
 	push_tex_from_surface_request(memory, init_data, &memory->textures.white_tex_uid, 1, 1, white_tex_pixels);
-
-	push_tex_from_file_request(memory, init_data, &memory->textures.atlas_tex_uid, string("data/test_atlas.png"));
 
 	push_tex_from_file_request(memory, init_data, &memory->textures.ogre_tex_uid, string("data/ogre_color.png"));
 

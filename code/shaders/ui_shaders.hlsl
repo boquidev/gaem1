@@ -1,12 +1,14 @@
 
-cbuffer object_buffer : register(b0)
-{
+cbuffer object_buffer : register(b0){
 	matrix object_transform;
 }
 
-cbuffer object_color : register(b3)
-{
+cbuffer object_color : register(b3){
 	float4 object_color;
+}
+
+cbuffer object_texrect : register(b4){
+	float4 object_texrect;
 }
 
 cbuffer Constants

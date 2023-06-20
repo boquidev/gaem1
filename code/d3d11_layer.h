@@ -66,6 +66,7 @@ enum CONSTANT_BUFFER_REGISTER_INDEX
 	WORLD_VIEW_BUFFER_REGISTER_INDEX = 1,
 	WORLD_PROJECTION_BUFFER_REGISTER_INDEX = 2,
 	OBJECT_COLOR_BUFFER_REGISTER_INDEX = 3,
+	OBJECT_TEXRECT_BUFFER_REGISTER_INDEX = 4,
 };
 
 struct D3D_constant_buffer
@@ -129,12 +130,18 @@ struct Depth_stencil
 	Dx11_depth_stencil_view* view;
 };
 
-struct Dx11_font_atlas{
-	Font_character_info char_infos[CHARS_COUNT];
-	s32 width;
-	s32 height;
-	Dx11_texture_view* tex;
+struct Dx11_texture{
+	Dx11_texture_view* texview;
+	b32 is_atlas;
+	struct { //TODO: maybe not leave this as an anonymous struct
+		u32 texcount;
+		// this are normalized coordinates 0.0->1.0 with 1.0 being the atlas width/height;
+		Rect* texrects; 
+		// the offsets are in pixels;
+		Int2* texoffsets;
+	};
 };
+
 
 internal Dx_mesh
 dx11_init_mesh(D3D* dx, void* vertices, u32 v_count, int v_size, u16* indices, u32 i_count, D3D11_PRIMITIVE_TOPOLOGY topology)
@@ -530,7 +537,7 @@ dx11_modify_resource(D3D* dx, Dx11_resource* resource, void* data, u32 size)
 internal void
 dx11_draw_mesh(
 	D3D* dx, Dx11_buffer* object_buffer, 
-	Dx_mesh* mesh, Dx11_texture_view** texture, XMMATRIX* matrix
+	Dx_mesh* mesh, XMMATRIX* matrix
 ){
 	dx11_modify_resource(dx, object_buffer, matrix, sizeof(*matrix));
 		
@@ -538,7 +545,6 @@ dx11_draw_mesh(
 	dx11_bind_vertex_buffer(dx, mesh->vertex_buffer, mesh->vertex_size);
 	// RASTERIZER STAGE
 	// PIXEL SHADER STAGE
-	dx11_bind_texture_view(dx, texture);
 
 	dx->context->IASetIndexBuffer(mesh->index_buffer, DXGI_FORMAT_R16_UINT, 0);
 	// FINALLY DRAW
