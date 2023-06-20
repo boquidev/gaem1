@@ -258,7 +258,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		atlas_texture->texcount = CHARS_COUNT;
 
 		stbtt_fontinfo font;
-		Font_character_info charinfo [CHARS_COUNT]; //TODO: do i need this on the app layer? 
+		Font_character_info* charinfo = memory.font_charinfo; //TODO: do i need this on the app layer? 
 		Color32* charbitmaps [CHARS_COUNT];
 		stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
 		UNTIL(c, LAST_CHAR-FIRST_CHAR){

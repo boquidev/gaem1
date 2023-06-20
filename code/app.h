@@ -229,6 +229,8 @@ struct App_memory
 	Meshes meshes;
 	Textures textures;
 
+	Font_character_info font_charinfo[CHARS_COUNT];
+
 	VShaders vshaders;
 	PShaders pshaders;
 
@@ -266,6 +268,44 @@ struct App_memory
 	Entity* entities;
 	u32* entity_generations;
 };
+
+internal void
+printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_list),String text, V2 pos){
+	r32 half_pixel_offset = 0.25f;
+	r32 line_height = 18;
+	Renderer_request* request = 0;
+	r32 xpos = pos.x;
+	UNTIL(c, text.length){
+		char current_char = text.text[c];
+		char char_index = current_char - FIRST_CHAR;
+
+		if(current_char == ' ')
+			xpos += 16.0f/screen_size.x;
+		else{			
+			PUSH_BACK(render_list, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+			request->object3d = {
+				memory->meshes.plane_mesh_uid,
+				memory->textures.font_atlas_uid,
+				{1,1,1},
+				{xpos,pos.y,0},
+				{0,0,0},
+				{1,1,1,1}
+			};
+			request->object3d.tex_uid.rect_uid = char_index;
+			Font_character_info charinfo = memory->font_charinfo[char_index];
+			request->object3d.scale.x = (2.0f*charinfo.w) / screen_size.x;
+			request->object3d.scale.y = (2.0f*charinfo.h) / screen_size.y;
+			r32 xoffset = (charinfo.xoffset+half_pixel_offset)/screen_size.x;
+			r32 yoffset = (2*(line_height+charinfo.yoffset)+half_pixel_offset)/screen_size.y;
+			//TODO: this
+			request->object3d.pos.x += xoffset; 
+			request->object3d.pos.y -= yoffset;
+			// xpos += request->object3d.scale.x + (xoffset)
+			xpos += 16.0f / screen_size.x;
+		}
+	}
+}
 
 struct From_file_request
 {

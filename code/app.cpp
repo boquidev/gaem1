@@ -91,9 +91,9 @@ void update(App_memory* memory){
 	// HANDLING INPUT
 	entities[memory->highlighted_uid].color = {1,1,0,1};	
 	if(input->L == 1)
-		memory->creating_unit -= 1;
+		memory->creating_unit = (memory->creating_unit+2)%3;
 	if(input->R == 1)
-		memory->creating_unit += 1;
+		memory->creating_unit = ((memory->creating_unit+1) % 3);
 	if(memory->creating_unit % 3 == 1) {// SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
 			// CREATING UNIT
@@ -368,17 +368,7 @@ void render(App_memory* memory, Int2 screen_size, LIST(Renderer_request,render_l
 	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
 
-	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	request->object3d = {
-		memory->meshes.plane_mesh_uid,
-		memory->textures.font_atlas_uid,
-		{1,1,1},
-		{0,0,0},
-		{0,0,0},
-		{1,1,1,1}
-	};
-	request->object3d.tex_uid.rect_uid = 'P'-FIRST_CHAR;
+	printo_screen(memory, screen_size, render_list, string("tesssting this text rendering function yeahh: "), {-1,1});
 
 	// draw(render_list, memory->temp_arena, &test_plane);
 }

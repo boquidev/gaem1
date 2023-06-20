@@ -16,7 +16,6 @@ cbuffer Constants
 	float2 ScreenDimensions : RENDER_TARGET_DIMENSIONS;
 }
 
-
 struct VSINPUT
 {
 	float3 vertex_pos : POSITION;
