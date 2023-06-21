@@ -16,7 +16,6 @@ struct Tex_uid{
 	u32 rect_uid;
 };
 
-struct  Object3d{
 #define OBJECT3D_STRUCTURE \
 	u32 mesh_uid;\
 	Tex_uid tex_uid;\
@@ -26,8 +25,10 @@ struct  Object3d{
 	V3 rotation;\
 	Color color;
 
+struct  Object3d{
 	OBJECT3D_STRUCTURE
 };
+
 #define DEFAULT_OBJECT3D(objectp) \
 	objectp->scale = {1,1,1};\
 	objectp->color = {1,1,1,1};

@@ -361,31 +361,34 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	printo_screen(memory, screen_size, render_list, string("here i will show the fps (probably): 69 fps"), {-1,1});
 
 	{
-		Object3d template_object;
+		Object3d template_object = {0};
 		template_object.mesh_uid = memory->meshes.plane_mesh_uid;
 		template_object.tex_uid = memory->textures.font_atlas_uid;
 		template_object.scale = {5,5,5};
 		template_object.color = {1,1,1,1};
-		Renderer_request* request_1;
-		PUSH_BACK(render_list, memory->temp_arena, request_1);
-		request_1->type_flags = REQUEST_FLAG_RENDER_IMAGE;
-		request_1->object3d = template_object;
-		request_1->object3d.tex_uid.rect_uid = '0'-FIRST_CHAR;
-		request_1->object3d.pos = {-0.2f, -0.8f, 0};
 
-		Renderer_request* request_2;
-		PUSH_BACK(render_list, memory->temp_arena, request_2);
-		request_2->type_flags = REQUEST_FLAG_RENDER_IMAGE;
-		request_2->object3d = template_object;
-		request_2->object3d.tex_uid.rect_uid = '1'-FIRST_CHAR;
-		request_2->object3d.pos = {0, -0.8f, 0};
+		Renderer_request* requests [3];
+		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
+		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		requests[0]->object3d = template_object;
+		requests[0]->object3d.tex_uid.rect_uid = '0'-FIRST_CHAR;
+		requests[0]->object3d.pos = {-0.2f, -0.8f, 0};
+
+		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
+		requests[1]->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		requests[1]->object3d = template_object;
+		requests[1]->object3d.tex_uid.rect_uid = '1'-FIRST_CHAR;
+		requests[1]->object3d.pos = {0, -0.8f, 0};
 		
-		Renderer_request* request_3;
-		PUSH_BACK(render_list, memory->temp_arena, request_3);
-		request_3->type_flags = REQUEST_FLAG_RENDER_IMAGE;
-		request_3->object3d = template_object;
-		request_3->object3d.tex_uid.rect_uid = '2'-FIRST_CHAR;
-		request_3->object3d.pos = {0.2f, -0.8f, 0};
+		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
+		requests[2]->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		requests[2]->object3d = template_object;
+		requests[2]->object3d.tex_uid.rect_uid = '2'-FIRST_CHAR;
+		requests[2]->object3d.pos = {0.2f, -0.8f, 0};
+
+		Renderer_request* selected = requests[memory->creating_unit];
+		selected->object3d.scale = 1.2f*template_object.scale;
+		selected->object3d.color = {0.5f,1,0.5f,1};
 	}
 
 
