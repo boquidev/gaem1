@@ -27,21 +27,12 @@ void update(App_memory* memory){
 
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
-		Entity* mc = &entities[memory->player_uid];
-		DEFAULT_ENTITY(mc);
-		mc->active = true;
-		mc->current_scale = 1.0f;
-
-		mc->health = 10;
-
-		mc->team_uid = 0;
-		mc->speed = 10.0f;
-		mc->type = ENTITY_QUEEN;
-		mc->mesh_uid = memory->meshes.ball_uid;
-		mc->tex_uid = memory->textures.white_tex_uid;
-		// mc->pos.x += input_vector.x *  mc->speed * delta_time;
-		// mc->pos.z += input_vector.y * mc->speed * delta_time;
-		mc->target_move_pos = v3_addition(mc->pos, {input_vector.x*mc->speed, 0, input_vector.y*mc->speed});
+		Entity* player = &entities[memory->player_uid];
+		// player->pos.x += input_vector.x *  player->speed * delta_time;
+		// player->pos.z += input_vector.y * player->speed * delta_time;
+		player->mesh_uid = memory->meshes.ball_uid;
+		player->tex_uid = memory->textures.white_tex_uid;
+		player->target_move_pos = v3_addition(player->pos, {input_vector.x*player->speed, 0, input_vector.y*player->speed});
 	}
 
 	//TODO: make this into a function screen to world
@@ -99,23 +90,13 @@ void update(App_memory* memory){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				DEFAULT_ENTITY(new_unit);
-				new_unit->current_scale = MIN(1.0f, memory->delta_time);
-				new_unit->selectable = true;
-				new_unit->type = ENTITY_UNIT;
-				new_unit->unit_type = UNIT_TURRET;
-
-				new_unit->health = 2;
+				DEFAULT_TURRET(new_unit);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
-				new_unit->shooting_cooldown = 0.9f;
-				new_unit->shooting_cd_time_left = new_unit->shooting_cooldown;
-				new_unit->rotation.y = 0;
-				new_unit->mesh_uid = memory->meshes.icosphere_uid;
-				new_unit->tex_uid = memory->textures.white_tex_uid;
+				// new_unit->rotation.y = 0;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
 		}
@@ -126,23 +107,13 @@ void update(App_memory* memory){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				DEFAULT_ENTITY(new_unit);
-				new_unit->current_scale = MIN(1.0f, memory->delta_time);
-				new_unit->selectable = true;
-				new_unit->type = ENTITY_UNIT;
-				new_unit->unit_type = UNIT_SPAWNER;
-
-				new_unit->health = 2;
+				DEFAULT_SPAWNER(new_unit);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
-				new_unit->shooting_cooldown = 5.0f;
-				new_unit->shooting_cd_time_left = new_unit->shooting_cooldown;
-				new_unit->rotation.y = 0;
-				new_unit->mesh_uid = memory->meshes.test_orientation_uid;
-				new_unit->tex_uid = memory->textures.white_tex_uid;
+				// new_unit->rotation.y = 0;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
 		}
@@ -171,25 +142,25 @@ void update(App_memory* memory){
 		}
 	}	
 	// memory->spawn_timer -= memory->delta_time;
-	if(memory->spawn_timer < 0){
-		memory->spawn_timer += 5.0f;
+	// if(memory->spawn_timer < 0){
+	// 	memory->spawn_timer += 5.0f;
 
-		u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-		Entity* enemy = &entities[new_entity_index];
-		DEFAULT_ENTITY(enemy);
-		enemy->current_scale = MIN(1.0f, memory->delta_time);
-		enemy->mesh_uid = memory->meshes.test_orientation_uid;
-		enemy->tex_uid = memory->textures.white_tex_uid;
-		enemy->shooting_cooldown = 1.1f;
+	// 	u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+	// 	Entity* enemy = &entities[new_entity_index];
+	// 	DEFAULT_ENTITY(enemy);
+	// 	enemy->current_scale = MIN(1.0f, memory->delta_time);
+	// 	enemy->mesh_uid = memory->meshes.test_orientation_uid;
+	// 	enemy->tex_uid = memory->textures.white_tex_uid;
+	// 	enemy->shooting_cooldown = 1.1f;
 
-		enemy->health = 5;
-		enemy->target_pos = entities[memory->player_uid].pos;
-		enemy->team_uid = 1; //TODO: put something that is not the player's team
+	// 	enemy->health = 5;
+	// 	enemy->target_pos = entities[memory->player_uid].pos;
+	// 	enemy->team_uid = 1; //TODO: put something that is not the player's team
 
-		enemy->pos = {4,0,4};
-		enemy->target_move_pos = enemy->pos;
-		enemy->color = {1,0,0,1};
-	}
+	// 	enemy->pos = {4,0,4};
+	// 	enemy->target_move_pos = enemy->pos;
+	// 	enemy->color = {1,0,0,1};
+	// }
 
 	// UPDATING ENTITIES
 	UNTIL(i, MAX_ENTITIES){
@@ -204,55 +175,53 @@ void update(App_memory* memory){
 				entity->active = true;
 			}
 		} else if ( entity->type == ENTITY_UNIT ) {
-			// IF IT IS A TURRET
 			entity->shooting_cd_time_left -= memory->delta_time;
+			if(entity->team_uid != 0)
+				entity->target_pos = entities[memory->player_uid].pos;
+
 			if(entity->shooting_cd_time_left < 0){
 				entity->shooting_cd_time_left = entity->shooting_cooldown;
+			
 
 				if(entity->unit_type == UNIT_TURRET){
-
 					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 					Entity* new_bullet = &entities[new_entity_index];
-					DEFAULT_ENTITY(new_bullet);
-					new_bullet->health = 1; //TODO: for now this is just so it doesn't disappear, CHANGE IT
-					new_bullet->lifetime = 5.0f;
-
-					new_bullet->current_scale = 1.0f;
-
-					new_bullet->type = ENTITY_PROJECTILE;
+					DEFAULT_PROJECTILE(new_bullet);
+					//TODO: for now this is just so it doesn't disappear
+					// actually it could be a feature :)
+					new_bullet->health = 1; 
 					new_bullet->speed = 50;
-					new_bullet->mesh_uid = memory->meshes.ball_uid;
-					new_bullet->tex_uid = memory->textures.white_tex_uid;
-					new_bullet->color = {0.6f,0.6f,0.6f,1};
+
 					Entity* parent = &entities[i];
 					new_bullet->team_uid = parent->team_uid;
 					new_bullet->pos = parent->object3d.pos;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
 					new_bullet->target_pos = parent->looking_at;
-					new_bullet->scale = {0.4f,0.4f,0.4f};
+
 					V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
 					new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
+
 				} else if( entity->type == UNIT_SPAWNER){
 					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+					V3 target_distance = entity->target_pos - entity->pos;
+					r32 target_distance_magnitude = v3_magnitude(target_distance);
+#define MAX_SPAWN_DISTANCE 5.0f
+					V3 spawn_pos;
+					if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
+						spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
+					else
+						spawn_pos = entity->target_pos;
+
 					Entity* new_unit = &entities[new_entity_index];
-					DEFAULT_ENTITY(new_unit);
+					DEFAULT_TURRET(new_unit);
 
-					new_unit->current_scale = MIN(1.0f, memory->delta_time);
-					new_unit->selectable = true;
-					new_unit->type = ENTITY_UNIT;
-					new_unit->unit_type = UNIT_TURRET;
-
-					new_unit->health = 2;
-
-					new_unit->pos = entity->target_pos;
+					new_unit->pos = spawn_pos;
 					new_unit->target_move_pos = new_unit->pos;
 
 					new_unit->team_uid = entity->team_uid;
-					new_unit->shooting_cooldown = 0.9f;
-					new_unit->rotation.y = 0;
-					new_unit->mesh_uid = memory->meshes.icosphere_uid;
-					new_unit->tex_uid = memory->textures.white_tex_uid;
+					// new_unit->rotation.y = 0;
 					new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+
 				}
 			}
 		}{// DYNAMICS / COLLISIONS
@@ -358,7 +327,18 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
 
-	printo_screen(memory, screen_size, render_list, string("here i will show the fps (probably): 69 fps"), {-1,1});
+	printo_screen(memory, screen_size, render_list,
+		string("here i will show the fps (probably): 69 fps"), {-1,1}, {1,1,1,1});
+	UNTIL(i, MAX_ENTITIES){
+		if(memory->entities[i].visible && memory->entities[i].type != ENTITY_PROJECTILE){
+			String health_string = number_to_string(memory->entities[i].health, memory->temp_arena);
+			printo_screen(memory, screen_size, render_list,
+				health_string, 
+				{2*memory->entities[i].pos.x/(memory->fov*memory->aspect_ratio), 2*memory->entities[i].pos.z/memory->fov},
+				{0,1,0,1}
+			);
+		}
+	}
 
 	{
 		Object3d template_object = {0};
@@ -402,10 +382,18 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->camera_rotation.x = PI32/2;
 	memory->camera_pos.y = 16.0f;
 
+	Entity* player = &memory->entities[memory->player_uid];
+	DEFAULT_ENTITY(player);
+	player->health = 10;
+	player->team_uid = 0;
+	memory->teams_resources[player->team_uid] = 10;
+	player->active = true;
+	player->current_scale = 1.0f;
 
-	memory->entities[memory->player_uid].health = 1;
-	memory->entities[memory->player_uid].team_uid = 0;
-	memory->teams_resources[memory->entities[memory->player_uid].team_uid] = 200;
+	player->team_uid = 0;
+	player->speed = 10.0f;
+	player->type = ENTITY_QUEEN;
+	
 
 	{
 		Vertex_shader_from_file_request vs_request = {0};

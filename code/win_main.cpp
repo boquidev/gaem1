@@ -905,7 +905,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				//TODO: Missed Framerate
 			}
 
-			memory.delta_time = frame_seconds_elapsed;
+			// memory.delta_time = frame_seconds_elapsed;
+			memory.delta_time = 1.0f/monitor_refresh_hz;
 			u32 frame_ms_elapsed = (u32)(frame_seconds_elapsed*1000);
 			memory.time_ms += frame_ms_elapsed;
 			

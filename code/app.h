@@ -107,6 +107,41 @@ struct Entity{
 	entityp->visible = true;\
 	DEFAULT_OBJECT3D(entityp)
 
+#define DEFAULT_TURRET(t) \
+	DEFAULT_ENTITY(t)\
+	t->current_scale = MIN(1.0f, memory->delta_time);\
+	t->selectable = true;\
+	t->type = ENTITY_UNIT;\
+	t->unit_type = UNIT_TURRET;\
+	t->health = 2;\
+	t->shooting_cooldown = 0.9f;\
+	t->shooting_cd_time_left = t->shooting_cooldown;\
+	t->mesh_uid = memory->meshes.icosphere_uid;\
+	t->tex_uid = memory->textures.white_tex_uid;\
+
+#define DEFAULT_SPAWNER(s)\
+	DEFAULT_ENTITY(s)\
+	s->current_scale = MIN(1.0f, memory->delta_time);\
+	s->selectable = true;\
+	s->type = ENTITY_UNIT;\
+	s->unit_type = UNIT_SPAWNER;\
+	s->health = 2;\
+	s->shooting_cooldown = 5.0f;\
+	s->shooting_cd_time_left = s->shooting_cooldown;\
+	s->mesh_uid = memory->meshes.test_orientation_uid;\
+	s->tex_uid = memory->textures.white_tex_uid;\
+
+#define DEFAULT_PROJECTILE(p)\
+	DEFAULT_ENTITY(p)\
+					new_bullet->lifetime = 5.0f;\
+					new_bullet->active = true;\
+					new_bullet->current_scale = 1.0f;\
+					new_bullet->type = ENTITY_PROJECTILE;\
+					new_bullet->mesh_uid = memory->meshes.ball_uid;\
+					new_bullet->tex_uid = memory->textures.white_tex_uid;\
+					new_bullet->color = {0.6f,0.6f,0.6f,1};\
+					new_bullet->scale = {0.4f,0.4f,0.4f};\
+
 internal void
 test_collision(Entity* e1, Entity* e2, r32 delta_time){
 	if(e2->visible && e2->type != ENTITY_PROJECTILE ){
@@ -277,7 +312,7 @@ struct App_memory
 };
 
 internal void
-printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_list),String text, V2 pos){
+printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_list),String text, V2 pos, Color color){
 	r32 line_height = 18;
 	Renderer_request* request = 0;
 	r32 xpos = pos.x;
@@ -296,7 +331,7 @@ printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_
 				{1,1,1},
 				{xpos,pos.y,0},
 				{0,0,0},
-				{1,1,1,1}
+				color
 			};
 			request->object3d.tex_uid.rect_uid = char_index;
 			request->object3d.pos.y -= (2.0f*line_height)/screen_size.y;
