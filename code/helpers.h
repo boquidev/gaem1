@@ -133,7 +133,7 @@ find_bigger_exponent_of_2(u32 target_value){
 // TEMPORARILY ORPHAN 
 
 // THIS APPLIES TO ANY TEXTURE NOT JUST FONTS
-struct Font_character_info{
+struct Packed_tex_info{
 	s32 w, h;
 	s32 xoffset, yoffset;
 };

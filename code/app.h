@@ -4,7 +4,7 @@
 
 
 #define update_type(name) void (*name)(App_memory*)
-#define render_type(name) void (*name)(App_memory*, Int2, LIST(Renderer_request,) )
+#define render_type(name) void (*name)(App_memory*, LIST(Renderer_request,), Int2 )
 #define init_type(name) void (*name)(App_memory*, Init_data* )
 
 
@@ -28,13 +28,17 @@ struct  Object3d{
 
 	OBJECT3D_STRUCTURE
 };
+#define DEFAULT_OBJECT3D(objectp) \
+	objectp->scale = {1,1,1};\
+	objectp->color = {1,1,1,1};
 
 enum RENDERER_REQUEST_TYPE_FLAGS{
 	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
-	REQUEST_FLAG_SET_VS 					= 1 << 1,
-	REQUEST_FLAG_SET_PS					= 1 << 2,
-	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 3,
-	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 4,
+	REQUEST_FLAG_RENDER_IMAGE			= 1 << 1,
+	REQUEST_FLAG_SET_VS 					= 1 << 2,
+	REQUEST_FLAG_SET_PS					= 1 << 3,
+	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 4,
+	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 5,
 	//TODO: instancing request type
 	//TODO: set texture or mesh request type
 };
@@ -64,12 +68,11 @@ enum UNIT_TYPE{
 	UNIT_TURRET,
 	UNIT_SPAWNER
 };
-struct Entity
-{
+struct Entity{
 	b32 visible;
 	b32 active;
 	b32 selectable;
-	ENTITY_TYPE type;//TODO: make this the identifier of what kind of entity it is
+	ENTITY_TYPE type;
 	UNIT_TYPE unit_type;
 
 	r32 lifetime;
@@ -85,7 +88,6 @@ struct Entity
 	r32 shooting_cooldown;
 	r32 shooting_cd_time_left;
 
-	//TODO: i don't like this
 	r32 speed;
 
 	// u32 parent_uid;
@@ -99,6 +101,10 @@ struct Entity
 		};
 	};
 };
+
+#define DEFAULT_ENTITY(entityp) \
+	entityp->visible = true;\
+	DEFAULT_OBJECT3D(entityp)
 
 internal void
 test_collision(Entity* e1, Entity* e2, r32 delta_time){
@@ -229,7 +235,7 @@ struct App_memory
 	Meshes meshes;
 	Textures textures;
 
-	Font_character_info font_charinfo[CHARS_COUNT];
+	Packed_tex_info font_charinfo[CHARS_COUNT];
 
 	VShaders vshaders;
 	PShaders pshaders;
@@ -271,7 +277,6 @@ struct App_memory
 
 internal void
 printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_list),String text, V2 pos){
-	r32 half_pixel_offset = 0.25f;
 	r32 line_height = 18;
 	Renderer_request* request = 0;
 	r32 xpos = pos.x;
@@ -283,7 +288,7 @@ printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_
 			xpos += 16.0f/screen_size.x;
 		else{			
 			PUSH_BACK(render_list, memory->temp_arena, request);
-			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+			request->type_flags = REQUEST_FLAG_RENDER_IMAGE;
 			request->object3d = {
 				memory->meshes.plane_mesh_uid,
 				memory->textures.font_atlas_uid,
@@ -293,19 +298,14 @@ printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_
 				{1,1,1,1}
 			};
 			request->object3d.tex_uid.rect_uid = char_index;
-			Font_character_info charinfo = memory->font_charinfo[char_index];
-			request->object3d.scale.x = (2.0f*charinfo.w) / screen_size.x;
-			request->object3d.scale.y = (2.0f*charinfo.h) / screen_size.y;
-			r32 xoffset = (charinfo.xoffset+half_pixel_offset)/screen_size.x;
-			r32 yoffset = (2*(line_height+charinfo.yoffset)+half_pixel_offset)/screen_size.y;
-			//TODO: this
-			request->object3d.pos.x += xoffset; 
-			request->object3d.pos.y -= yoffset;
-			// xpos += request->object3d.scale.x + (xoffset)
+			request->object3d.pos.y -= (2.0f*line_height)/screen_size.y;
 			xpos += 16.0f / screen_size.x;
 		}
 	}
 }
+
+// REQUESTS STRUCTS AND FUNCTIONS BOILERPLATE
+// TODO: UNIFY ALL THIS FUNCTIONS AND STRUCTS TO BE JUST ONE THING
 
 struct From_file_request
 {

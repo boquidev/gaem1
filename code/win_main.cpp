@@ -258,7 +258,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		atlas_texture->texcount = CHARS_COUNT;
 
 		stbtt_fontinfo font;
-		Font_character_info* charinfo = memory.font_charinfo; //TODO: do i need this on the app layer? 
+		Packed_tex_info* charinfo = memory.font_charinfo; //TODO: do i need this on the app layer? 
 		Color32* charbitmaps [CHARS_COUNT];
 		stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
 		UNTIL(c, LAST_CHAR-FIRST_CHAR){
@@ -744,7 +744,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		// APP RENDER
 		LIST(Renderer_request, render_list) = {0};
-		app.render(&memory, client_size, render_list);
+		app.render(&memory, render_list, client_size);
 
 		if(dx->render_target_view)
 		{
@@ -822,20 +822,43 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
 				
-				// }if(request->type_flags & REQUEST_FLAG_RENDER_TEXT){//TODO: yeah not ready yet to do instancing
-				// 	Object3d* object = &request->object3d;
-				// 	ASSERT(object->color.a); // FORGOR TO SET THE COLOR
-				// 	ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
-				// 	XMMATRIX object_transform_matrix =
-				// 		XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
-				// 		XMMatrixRotationX(object->rotation.x) *
-				// 		XMMatrixRotationY(object->rotation.y) *
-				// 		XMMatrixRotationZ(object->rotation.z) *
-				// 		XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z
-				// 	); 
-				// 	Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
+				}if(request->type_flags & REQUEST_FLAG_RENDER_IMAGE){//TODO: yeah not ready yet to do instancing
+					Object3d* object = &request->object3d;
+					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
+					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
+					
+					Packed_tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
+					object->scale.x *= ((2.0f*tex_info.w) / client_size.x);
+					object->scale.y *= (2.0f*tex_info.h) / client_size.y;
+					
+					r32 half_pixel_offset = 0.25f;
+					r32 xoffset = (tex_info.xoffset+half_pixel_offset)/client_size.x;
+					r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/client_size.y;
+					request->object3d.pos.x += xoffset; 
+					request->object3d.pos.y -= yoffset;
 
-				// }if(resquest->type_flags & REQUEST_FLAG_SET_TEX){
+					XMMATRIX object_transform_matrix = 
+						XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
+						XMMatrixRotationX(object->rotation.x) *
+						XMMatrixRotationY(object->rotation.y) *
+						XMMatrixRotationZ(object->rotation.z) *
+						XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z); 
+
+					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
+					Dx11_texture* texture; LIST_GET(textures_list, object->tex_uid.uid, texture);
+
+					if(object->tex_uid.is_atlas){
+						// TODO: make sure this rect is normalized
+						Rect texrect = texture->texrects[object->tex_uid.rect_uid];
+						dx11_modify_resource(dx, object_texrect_buffer.buffer, &texrect, sizeof(Rect));
+					}else{
+						dx11_modify_resource(dx, object_texrect_buffer.buffer, &default_texrect, sizeof(Rect));
+					}
+					
+					dx11_bind_texture_view(dx, &texture->texview);
+					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
+
+					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
 					
 				}if(request->type_flags & REQUEST_FLAG_SET_VS){
 					Vertex_shader* vertex_shader; LIST_GET(vertex_shaders_list, request->vshader_uid, vertex_shader);

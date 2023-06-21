@@ -28,7 +28,7 @@ void update(App_memory* memory){
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
 		Entity* mc = &entities[memory->player_uid];
-		mc->visible = true;
+		DEFAULT_ENTITY(mc);
 		mc->active = true;
 		mc->current_scale = 1.0f;
 
@@ -39,8 +39,6 @@ void update(App_memory* memory){
 		mc->type = ENTITY_QUEEN;
 		mc->mesh_uid = memory->meshes.ball_uid;
 		mc->tex_uid = memory->textures.white_tex_uid;
-		mc->scale = {1.0f,1.0f,1.0f};
-		mc->color = {1,1,1,1};
 		// mc->pos.x += input_vector.x *  mc->speed * delta_time;
 		// mc->pos.z += input_vector.y * mc->speed * delta_time;
 		mc->target_move_pos = v3_addition(mc->pos, {input_vector.x*mc->speed, 0, input_vector.y*mc->speed});
@@ -94,14 +92,14 @@ void update(App_memory* memory){
 		memory->creating_unit = (memory->creating_unit+2)%3;
 	if(input->R == 1)
 		memory->creating_unit = ((memory->creating_unit+1) % 3);
-	if(memory->creating_unit % 3 == 1) {// SELECTED UNIT TO CREATE
+	if(memory->creating_unit == 1) { // SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
 			// CREATING UNIT
 			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				new_unit->visible = true;
+				DEFAULT_ENTITY(new_unit);
 				new_unit->current_scale = MIN(1.0f, memory->delta_time);
 				new_unit->selectable = true;
 				new_unit->type = ENTITY_UNIT;
@@ -115,22 +113,20 @@ void update(App_memory* memory){
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				new_unit->shooting_cooldown = 0.9f;
 				new_unit->shooting_cd_time_left = new_unit->shooting_cooldown;
-				new_unit->scale = {1.0f, 1.0f, 1.0f};
 				new_unit->rotation.y = 0;
-				new_unit->color = {1,1,1,1};
 				new_unit->mesh_uid = memory->meshes.icosphere_uid;
 				new_unit->tex_uid = memory->textures.white_tex_uid;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
 		}
-	} else if ( memory->creating_unit % 3 == 2){
+	} else if ( memory->creating_unit == 2){
 		if(input->cursor_primary == -1){
 			// CREATING UNIT
 			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				new_unit->visible = true;
+				DEFAULT_ENTITY(new_unit);
 				new_unit->current_scale = MIN(1.0f, memory->delta_time);
 				new_unit->selectable = true;
 				new_unit->type = ENTITY_UNIT;
@@ -144,9 +140,7 @@ void update(App_memory* memory){
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				new_unit->shooting_cooldown = 5.0f;
 				new_unit->shooting_cd_time_left = new_unit->shooting_cooldown;
-				new_unit->scale = {1.0f, 1.0f, 1.0f};
 				new_unit->rotation.y = 0;
-				new_unit->color = {1,1,1,1};
 				new_unit->mesh_uid = memory->meshes.test_orientation_uid;
 				new_unit->tex_uid = memory->textures.white_tex_uid;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
@@ -182,7 +176,7 @@ void update(App_memory* memory){
 
 		u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 		Entity* enemy = &entities[new_entity_index];
-		enemy->visible = true;
+		DEFAULT_ENTITY(enemy);
 		enemy->current_scale = MIN(1.0f, memory->delta_time);
 		enemy->mesh_uid = memory->meshes.test_orientation_uid;
 		enemy->tex_uid = memory->textures.white_tex_uid;
@@ -194,7 +188,6 @@ void update(App_memory* memory){
 
 		enemy->pos = {4,0,4};
 		enemy->target_move_pos = enemy->pos;
-		enemy->scale = {1,1,1};
 		enemy->color = {1,0,0,1};
 	}
 
@@ -220,31 +213,30 @@ void update(App_memory* memory){
 
 					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 					Entity* new_bullet = &entities[new_entity_index];
+					DEFAULT_ENTITY(new_bullet);
 					new_bullet->health = 1; //TODO: for now this is just so it doesn't disappear, CHANGE IT
 					new_bullet->lifetime = 5.0f;
 
-					new_bullet->visible = 1;
-					new_bullet->active = true;
 					new_bullet->current_scale = 1.0f;
 
 					new_bullet->type = ENTITY_PROJECTILE;
 					new_bullet->speed = 50;
-					new_bullet->object3d.mesh_uid = memory->meshes.ball_uid;
-					new_bullet->object3d.tex_uid = memory->textures.white_tex_uid;
-					new_bullet->object3d.color = {0.6f,0.6f,0.6f,1};
+					new_bullet->mesh_uid = memory->meshes.ball_uid;
+					new_bullet->tex_uid = memory->textures.white_tex_uid;
+					new_bullet->color = {0.6f,0.6f,0.6f,1};
 					Entity* parent = &entities[i];
 					new_bullet->team_uid = parent->team_uid;
-					new_bullet->object3d.pos = parent->object3d.pos;
-					// TODO: go in the direction that parent is looking;
+					new_bullet->pos = parent->object3d.pos;
+					// TODO: go in the direction that parent is looking (the parent's rotation);
 					new_bullet->target_pos = parent->looking_at;
-					new_bullet->object3d.scale = {0.4f,0.4f,0.4f};
+					new_bullet->scale = {0.4f,0.4f,0.4f};
 					V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
 					new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
 				} else if( entity->type == UNIT_SPAWNER){
 					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 					Entity* new_unit = &entities[new_entity_index];
+					DEFAULT_ENTITY(new_unit);
 
-					new_unit->visible = true;
 					new_unit->current_scale = MIN(1.0f, memory->delta_time);
 					new_unit->selectable = true;
 					new_unit->type = ENTITY_UNIT;
@@ -257,9 +249,7 @@ void update(App_memory* memory){
 
 					new_unit->team_uid = entity->team_uid;
 					new_unit->shooting_cooldown = 0.9f;
-					new_unit->scale = {1.0f, 1.0f, 1.0f};
 					new_unit->rotation.y = 0;
-					new_unit->color = {1,1,1,1};
 					new_unit->mesh_uid = memory->meshes.icosphere_uid;
 					new_unit->tex_uid = memory->textures.white_tex_uid;
 					new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
@@ -342,7 +332,7 @@ void update(App_memory* memory){
 	}
 }
 
-void render(App_memory* memory, Int2 screen_size, LIST(Renderer_request,render_list)){
+void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_size){
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
 	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
@@ -368,7 +358,36 @@ void render(App_memory* memory, Int2 screen_size, LIST(Renderer_request,render_l
 	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
 
-	printo_screen(memory, screen_size, render_list, string("tesssting this text rendering function yeahh: "), {-1,1});
+	printo_screen(memory, screen_size, render_list, string("here i will show the fps (probably): 69 fps"), {-1,1});
+
+	{
+		Object3d template_object;
+		template_object.mesh_uid = memory->meshes.plane_mesh_uid;
+		template_object.tex_uid = memory->textures.font_atlas_uid;
+		template_object.scale = {5,5,5};
+		template_object.color = {1,1,1,1};
+		Renderer_request* request_1;
+		PUSH_BACK(render_list, memory->temp_arena, request_1);
+		request_1->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		request_1->object3d = template_object;
+		request_1->object3d.tex_uid.rect_uid = '0'-FIRST_CHAR;
+		request_1->object3d.pos = {-0.2f, -0.8f, 0};
+
+		Renderer_request* request_2;
+		PUSH_BACK(render_list, memory->temp_arena, request_2);
+		request_2->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		request_2->object3d = template_object;
+		request_2->object3d.tex_uid.rect_uid = '1'-FIRST_CHAR;
+		request_2->object3d.pos = {0, -0.8f, 0};
+		
+		Renderer_request* request_3;
+		PUSH_BACK(render_list, memory->temp_arena, request_3);
+		request_3->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		request_3->object3d = template_object;
+		request_3->object3d.tex_uid.rect_uid = '2'-FIRST_CHAR;
+		request_3->object3d.pos = {0.2f, -0.8f, 0};
+	}
+
 
 	// draw(render_list, memory->temp_arena, &test_plane);
 }
