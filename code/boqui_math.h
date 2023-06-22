@@ -92,6 +92,10 @@ struct Int2
     s32 x;
     s32 y;
 };
+internal Int2
+operator -(Int2 i1, Int2 i2){
+    return {i1.x-i2.x, i1.y-i2.y};
+}
 
 internal r32 magnitude(r32 x, r32 y){return SQRT(x*x + y*y);}
 internal r32 v2_magnitude(V2 v){return magnitude(v.x, v.y);}

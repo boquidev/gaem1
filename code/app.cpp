@@ -1,5 +1,6 @@
 #include "app.h"
 
+#define BOSS_INDEX 1
 void update(App_memory* memory){
 	User_input* input = memory->input;
 	User_input* holding_inputs = memory->holding_inputs;
@@ -33,6 +34,10 @@ void update(App_memory* memory){
 		player->mesh_uid = memory->meshes.ball_uid;
 		player->tex_uid = memory->textures.white_tex_uid;
 		player->target_move_pos = v3_addition(player->pos, {input_vector.x*player->speed, 0, input_vector.y*player->speed});
+
+		Entity* boss = &entities[BOSS_INDEX];
+		boss->mesh_uid = memory->meshes.ogre_mesh_uid;
+		boss->tex_uid = memory->textures.ogre_tex_uid;
 	}
 
 	//TODO: make this into a function screen to world
@@ -394,6 +399,14 @@ void init(App_memory* memory, Init_data* init_data){
 	player->speed = 10.0f;
 	player->type = ENTITY_QUEEN;
 	
+	Entity* boss = &memory->entities[BOSS_INDEX];
+	DEFAULT_SPAWNER(boss);
+	boss->health = 100;
+	boss->pos = {0, 0, 15};
+	boss->target_move_pos = boss->pos;
+	boss->team_uid = 1;
+	boss->current_scale = 1.0f;
+
 
 	{
 		Vertex_shader_from_file_request vs_request = {0};

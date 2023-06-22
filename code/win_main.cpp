@@ -22,6 +22,7 @@
 
 HWND global_main_window = 0;
 b32 global_running = 0;
+Int2 global_client_size = {0};
 
 struct App_dll
 {
@@ -37,36 +38,122 @@ LRESULT CALLBACK
 win_main_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	LRESULT result = 0;
+	OutputDebugStringA("I AM IN THE MAIN WINDOW PROC \n");
+	result = DefWindowProc(window, message, wparam, lparam);
 
-	switch(message)
-	{
-		case WM_DESTROY:
-			ASSERT(false);
-		case WM_CLOSE:
-			global_running = 0;
-		break;
-		case WM_ACTIVATE:
-			// Check if the window is being activated or deactivated
+	// switch(message)
+	// {
+	// 	case WM_DESTROY:
+	// 		ASSERT(false);
+	// 	case WM_QUIT:
+	// 	case WM_CLOSE:
+	// 		global_running = 0;
+	// 	break;
+	// 	case WM_SIZING:
+	// 	case WM_SIZE:{// happens when the window is resized or moved
+	// 		if(wparam)
+	// 			result = DefWindowProc(window, message, wparam, lparam);
+
+	// 		// RECT windowrect;
+	// 		// GetWindowRect(window, &windowrect);
+	// 		// Int2 win_size = {windowrect.right-windowrect.left, windowrect.bottom-windowrect.top};
+	// 		// Int2 window_client_difference = win_size - global_client_size;
+	// 		s32 new_width = LOWORD(lparam);
+	// 		s32 new_height = HIWORD(lparam);
+	// 		if(global_client_size.x != new_width)
+	// 			new_height = (s32)(0.5f+(9*new_width/16));
+	// 		if(global_client_size.y != new_height)
+	// 			new_width = (s32)(0.5f+(16*new_height/9));
 			
-			// OutputDebugString(bool_to_string((wparam != WA_INACTIVE)).text);
-		break;
-		case WM_MOUSEWHEEL:
-		case WM_LBUTTONDBLCLK:
-		case WM_LBUTTONDOWN:
-		case WM_LBUTTONUP:
-		case WM_RBUTTONDOWN:
-		case WM_RBUTTONUP:
-		case WM_SYSKEYDOWN:
-		case WM_SYSKEYUP:
-		case WM_KEYDOWN:
-		case WM_KEYUP:
-			//error unprocessed input messages
-			ASSERT(false);
-		break;
+	// 		RECT new_win_size = {0,0,new_width,new_height};
+
+	// 		// bool success = AdjustWindowRectEx(&new_win_size, WS_OVERLAPPEDWINDOW,0,0);
+	// 		// s32 new_window_width = new_win_size.right - new_win_size.left;
+	// 		// s32 new_window_height = new_win_size.bottom - new_win_size.top;
+	// 		// success = SetWindowPos(window, 0, 0, 0, new_window_width, new_window_height,SWP_NOMOVE);
+	// 		// u32 error = GetLastError();
+	// 		// ASSERT(success);
+
+
+	// 	}break;
+	// 	// UNMANAGED MESSAGES (THE ONES THAT ARE UNCOMMENTED SEEM TO NOT AFFECT NORMAL FUNCTIONALITY)
+	// 	case WM_NCMOUSELEAVE:
+	// 	case WM_NCMOUSEMOVE:
+
 		
-		default:
-			result = DefWindowProc(window, message, wparam, lparam);
-	}
+	// 	case WM_IME_SETCONTEXT:
+	// 	case WM_IME_NOTIFY:
+
+	// 	case WM_ENTERSIZEMOVE:
+	// 	case WM_WINDOWPOSCHANGED:
+	// 	case WM_MOUSEMOVE: // WM_MOUSEFIRST
+
+	// 	case WM_ACTIVATE:
+	// 		// Check if the window is being activated or deactivated
+			
+	// 		// OutputDebugString(bool_to_string((wparam != WA_INACTIVE)).text);
+	// 	break;
+	// 	case WM_MOUSEWHEEL:
+	// 	case WM_LBUTTONDBLCLK:
+	// 	case WM_LBUTTONDOWN:
+	// 	case WM_LBUTTONUP:
+	// 	case WM_RBUTTONDOWN:
+	// 	case WM_RBUTTONUP:
+	// 	case WM_SYSKEYDOWN:
+	// 	case WM_SYSKEYUP:
+	// 	case WM_KEYDOWN:
+	// 	case WM_KEYUP:
+	// 		//error unprocessed input messages
+	// 		ASSERT(false);
+	// 	break;
+	// 	case WM_NCLBUTTONDOWN:
+	// 	case WM_NCPAINT:
+	// 	case WM_NCACTIVATE:
+	// 	case WM_NCHITTEST:
+	// 	case WM_NCCALCSIZE:
+	// 	case WM_PAINT:
+	// 	case WM_SETCURSOR:
+	// 	case WM_ACTIVATEAPP:
+
+	// 	case WM_MOVING: // just to monitor(use this instead of WM_SIZE)
+	// 	case WM_ERASEBKGND:
+	// 		result = DefWindowProc(window, message, wparam, lparam);
+	// 	break;
+		
+	// 	default:
+	// 		switch (message){
+	// 			//unmanaged messages
+
+	// 			case WM_SYSCOMMAND:
+	// 				OutputDebugStringA("WM_SYSCOMMAND \n");
+	// 			break;
+	// 			case WM_EXITSIZEMOVE:
+	// 				OutputDebugStringA("WM_EXITSIZEMOVE \n");
+	// 			break;
+	// 			case WM_CAPTURECHANGED:
+	// 				OutputDebugStringA("WM_CAPTURECHANGED \n");
+	// 			break;
+	// 			case WM_WINDOWPOSCHANGING:
+	// 				OutputDebugStringA("WM_WINDOWPOSCHANGING \n");
+	// 			break;
+	// 			case WM_GETMINMAXINFO:
+	// 				OutputDebugStringA("WM_GETMINMAXINFO \n");
+	// 			break;
+	// 			case WM_KILLFOCUS:
+	// 				OutputDebugStringA("WM_KILLFOCUS \n");
+	// 			break;
+
+	// 			break;
+
+	// 			default:
+					
+	// 				char text_buffer[256];
+	// 				wsprintfA(text_buffer, "%d \n", message);
+	// 				ASSERT(message != WM_SIZE);
+	// 				OutputDebugStringA(text_buffer);
+	// 		}
+	// 		result = DefWindowProc(window, message, wparam, lparam);
+	// }
 
 	return result;
 }
@@ -122,12 +209,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	memory.permanent_arena = permanent_arena;
 	
 	// GETTING CLIENT SIZES
-	Int2 client_size = win_get_client_sizes(global_main_window);
-	if(client_size.y) memory.aspect_ratio = (r32)client_size.x / (r32)client_size.y;
-
-
-
-
+	// Int2 global_client_size = win_get_client_sizes(global_main_window);
+	// if(global_client_size.y) 
+	// 	memory.aspect_ratio = (r32)global_client_size.x / (r32)global_client_size.y;
 
 	// DIRECTX11
 	// INITIALIZE DIRECT3D
@@ -540,9 +624,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		// HANDLE WINDOW RESIZING
 		Int2 current_client_size = win_get_client_sizes(global_main_window);
-		if(!dx->render_target_view || client_size.x != current_client_size.x || client_size.y != current_client_size.y)
+		if(!dx->render_target_view || global_client_size.x != current_client_size.x || global_client_size.y != current_client_size.y)
 		{
-			client_size = current_client_size;
+			s32 new_width = current_client_size.x;
+			s32 new_height = current_client_size.y;
+			// if(current_client_size.x != global_client_size.x){
+			// 	new_height = (s32)(0.5f+(9*current_client_size.x/16));
+			// }
+			// if(current_client_size.y != global_client_size.y){
+			// 	new_width = (s32)(0.5f+(16*new_height/9));
+			// }
+			RECT new_client_size = {0,0,new_width,new_height};
+			global_client_size = {new_width, new_height};
+
+			// bool success = AdjustWindowRectEx(&new_client_size, WS_OVERLAPPEDWINDOW,0,0);
+			// u32 new_window_width = new_client_size.right - new_client_size.left;
+			// u32 new_window_height = new_client_size.bottom - new_client_size.top;
+			// success = SetWindowPos(global_main_window, 0, 0, 0, new_window_width, new_window_height,SWP_NOMOVE);
 			if(dx->render_target_view)
 			{
 				dx->render_target_view->Release();
@@ -556,12 +654,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}
 			
 			//TODO: be careful with 8k monitors
-			if(client_size.x > 0 && client_size.y > 0 &&
-				client_size.x < 4000 && client_size.y < 4000
+			if(global_client_size.x > 0 && global_client_size.y > 0 &&
+				global_client_size.x < 4000 && global_client_size.y < 4000
 			){
-				ASSERT(client_size.x < 4000 && client_size.y < 4000);
-				memory.aspect_ratio = (r32)client_size.x / (r32) client_size.y;
-				hr = dx->swap_chain->ResizeBuffers(0, client_size.x, client_size.y, DXGI_FORMAT_UNKNOWN, 0);
+				ASSERT(global_client_size.x < 4000 && global_client_size.y < 4000);
+				// memory.aspect_ratio = (r32)global_client_size.x / (r32) global_client_size.y;
+				memory.aspect_ratio = 16.0f/9;
+				hr = dx->swap_chain->ResizeBuffers(0, global_client_size.x, global_client_size.y, DXGI_FORMAT_UNKNOWN, 0);
 				ASSERTHR(hr);
 
 				dx11_create_render_target_view(dx, &dx->render_target_view);
@@ -570,10 +669,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				FOR_EACH(depth_stencils_list, i){
 					Depth_stencil* current_ds = ds_node;
 					NEXT_ELEM(ds_node);
-					dx11_create_depth_stencil_view(dx, &current_ds->view, client_size.x, client_size.y);
+					dx11_create_depth_stencil_view(dx, &current_ds->view, global_client_size.x, global_client_size.y);
 				}
 				
-				dx11_set_viewport(dx, 0, 0, client_size.x, client_size.y);
+				dx11_set_viewport(dx, 0, 0, global_client_size.x, global_client_size.y);
 			}
 		}
 
@@ -603,129 +702,133 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(memory.lock_mouse)
 			{
 				SetCursorPos(center_point.x, center_point.y);
-				r32 px = (r32)(mousep.x-client_center_pos.x)/client_size.x;
-				r32 py = -(r32)(mousep.y-client_center_pos.y)/client_size.y;
+				r32 px = (r32)(mousep.x-client_center_pos.x)/global_client_size.x;
+				r32 py = -(r32)(mousep.y-client_center_pos.y)/global_client_size.y;
 				input.cursor_speed.x = px - input.cursor_pos.x;
 				input.cursor_speed.y = py - input.cursor_pos.y;
 				input.cursor_pos = {0,0};
 			}else
 				input.cursor_pos = {
-					(r32)(mousep.x - client_center_pos.x)/client_size.x, 
-					-(r32)(mousep.y - client_center_pos.y)/client_size.y};
+					(r32)(mousep.x - client_center_pos.x)/global_client_size.x, 
+					-(r32)(mousep.y - client_center_pos.y)/global_client_size.y};
 				
 		}
 		// HANDLING MESSAGES
-		MSG message;
-		while(PeekMessageA(&message, NULL, 0, 0, PM_REMOVE))
-		{
-			switch(message.message)
-			{
-				case WM_DESTROY:
-				case WM_CLOSE:
-				case WM_QUIT:
-					// THIS MESSAGES GO DIRECTLY INTO THE WINDOW PROCEDURE
-				break;
-				case WM_ACTIVATE:
-				{
-					// Check if the window is being activated or deactivated
-					// BUT THIS MESSAGES ONLY GOES THROUGH THE WINDOW PROCEDURE SO FUCK
-					// memory.is_window_in_focus = (message.wParam != WA_INACTIVE);
-				}break;
-				case WM_LBUTTONDBLCLK:
-				break;
-				case WM_LBUTTONDOWN:// just when the buttom is pushed
-				{
-					holding_inputs.cursor_primary = 1;
-				}
-				break;
-				case WM_LBUTTONUP:
-					holding_inputs.cursor_primary = 0;
-				break;
-				case WM_RBUTTONDOWN:
-					holding_inputs.cursor_secondary = 1;
-				break;
-				case WM_RBUTTONUP:
-					holding_inputs.cursor_secondary = 0;
-				break;
+		// MSG message;
+// 		while(GetMessageA(&message, global_main_window, 0, 0))
+// 		{
+// 			u32 message_value = message.message;
+// 			switch(message_value)
+// 			{
+// 				case WM_DESTROY:
+// 				case WM_CLOSE:
+// 				case WM_QUIT:
+// 				case WM_SYSCOMMAND:
+// 					ASSERT(false);
+// 					// THIS MESSAGES GO DIRECTLY INTO THE WINDOW PROCEDURE
+// 				break;
+// 				case WM_ACTIVATE:
+// 				{
+// 					// Check if the window is being activated or deactivated
+// 					// BUT THIS MESSAGES ONLY GOES THROUGH THE WINDOW PROCEDURE SO FUCK
+// 					// memory.is_window_in_focus = (message.wParam != WA_INACTIVE);
+// 				}break;
+// 				case WM_LBUTTONDBLCLK:
+// 				break;
+// 				case WM_LBUTTONDOWN:// just when the buttom is pushed
+// 				{
+// 					holding_inputs.cursor_primary = 1;
+// 				}
+// 				break;
+// 				case WM_LBUTTONUP:
+// 					holding_inputs.cursor_primary = 0;
+// 				break;
+// 				case WM_RBUTTONDOWN:
+// 					holding_inputs.cursor_secondary = 1;
+// 				break;
+// 				case WM_RBUTTONUP:
+// 					holding_inputs.cursor_secondary = 0;
+// 				break;
 
-				case WM_MOUSEWHEEL:
-				break;
+// 				case WM_MOUSEWHEEL:
+// 				break;
 
-				case WM_SYSKEYDOWN:
-				case WM_SYSKEYUP:
-				case WM_KEYDOWN:
-				case WM_KEYUP:
-				{
-					u32 vkcode = message.wParam;
-					u16 repeat_count = (u16)message.lParam;
-					b32 was_down = ((message.lParam & (1 <<  30)) != 0);
-					b32 is_down = ((message.lParam & (1 << 31)) == 0 );
-					ASSERT(is_down == 0 || is_down == 1);
-					if(is_down != was_down)
-					{
-						if(vkcode == 'A')
-							holding_inputs.d_left = is_down;
-						else if(vkcode == 'D')
-							holding_inputs.d_right = is_down;
-						else if(vkcode == 'W')
-							holding_inputs.d_up = is_down;
-						else if(vkcode == 'S')
-							holding_inputs.d_down = is_down;
-						else if(vkcode == VK_SPACE)
-							holding_inputs.move = is_down;
-						// else if(vkcode == VK_SHIFT)
-						// 	holding_inputs.backward = is_down;
-						else if(vkcode == 'F')
-							holding_inputs.cancel = is_down;
-						// else if(vkcode == 'X')
-						// 	holding_inputs.shoot = is_down;
-						else if(vkcode == 'Q')
-							holding_inputs.L = is_down;
-						else if(vkcode == 'E')
-							holding_inputs.R = is_down;
+// 				case WM_SYSKEYDOWN:
+// 				case WM_SYSKEYUP:
+// 				case WM_KEYDOWN:
+// 				case WM_KEYUP:
+// 				{
+// 					u32 vkcode = message.wParam;
+// 					u16 repeat_count = (u16)message.lParam;
+// 					b32 was_down = ((message.lParam & (1 <<  30)) != 0);
+// 					b32 is_down = ((message.lParam & (1 << 31)) == 0 );
+// 					ASSERT(is_down == 0 || is_down == 1);
+// 					if(is_down != was_down)
+// 					{
+// 						if(vkcode == 'A')
+// 							holding_inputs.d_left = is_down;
+// 						else if(vkcode == 'D')
+// 							holding_inputs.d_right = is_down;
+// 						else if(vkcode == 'W')
+// 							holding_inputs.d_up = is_down;
+// 						else if(vkcode == 'S')
+// 							holding_inputs.d_down = is_down;
+// 						else if(vkcode == VK_SPACE)
+// 							holding_inputs.move = is_down;
+// 						// else if(vkcode == VK_SHIFT)
+// 						// 	holding_inputs.backward = is_down;
+// 						else if(vkcode == 'F')
+// 							holding_inputs.cancel = is_down;
+// 						// else if(vkcode == 'X')
+// 						// 	holding_inputs.shoot = is_down;
+// 						else if(vkcode == 'Q')
+// 							holding_inputs.L = is_down;
+// 						else if(vkcode == 'E')
+// 							holding_inputs.R = is_down;
 						
 						
-						if(is_down)
-						{
-							if(vkcode == 'J')
-								memory.camera_rotation.z -= PI32/180;
-							else if(vkcode == 'L')
-								memory.camera_rotation.z += PI32/180;
-							else if(vkcode == 'U')
-								fov = fov/2;
-							else if(vkcode == 'O')
-								fov = fov*2;
-							else if(vkcode == 'P')
-								perspective_on = !perspective_on;
-							// else if(message.wParam == 'I')
-							// else if(message.wParam == 'K')
-							else if(vkcode == 'I')
-								memory.fov = memory.fov/2;
-							else if(vkcode == 'K')
-								memory.fov = memory.fov*2;
-							// else if(message.wParam == 'T')
-							// else if(message.wParam == 'F')
-							else if(vkcode == 'M')
-								memory.lock_mouse = !memory.lock_mouse;
-#if DEBUGMODE
-							else if(vkcode == VK_F5)
-								global_running = false;
-#endif
-						}
+// 						if(is_down)
+// 						{
+// 							if(vkcode == 'J')
+// 								memory.camera_rotation.z -= PI32/180;
+// 							else if(vkcode == 'L')
+// 								memory.camera_rotation.z += PI32/180;
+// 							else if(vkcode == 'U')
+// 								fov = fov/2;
+// 							else if(vkcode == 'O')
+// 								fov = fov*2;
+// 							else if(vkcode == 'P')
+// 								perspective_on = !perspective_on;
+// 							// else if(message.wParam == 'I')
+// 							// else if(message.wParam == 'K')
+// 							else if(vkcode == 'I')
+// 								memory.fov = memory.fov/2;
+// 							else if(vkcode == 'K')
+// 								memory.fov = memory.fov*2;
+// 							// else if(message.wParam == 'T')
+// 							// else if(message.wParam == 'F')
+// 							else if(vkcode == 'M')
+// 								memory.lock_mouse = !memory.lock_mouse;
+// #if DEBUGMODE
+// 							else if(vkcode == VK_F5)
+// 								global_running = false;
+// #endif
+// 						}
 
-						b32 AltKeyWasDown = ((message.lParam & (1 << 29)));
-						if ((vkcode == VK_F4) && AltKeyWasDown)
-						{
-							global_running = false;
-						}
-					}
+// 						b32 AltKeyWasDown = ((message.lParam & (1 << 29)));
+// 						if ((vkcode == VK_F4) && AltKeyWasDown)
+// 						{
+// 							global_running = false;
+// 						}
+// 					}
 
-				}break;
-				default:
-					TranslateMessage(&message);
-					DispatchMessageA(&message);
-			}
-		}
+// 				}break;
+// 				default:
+// 				message;
+// 					TranslateMessage(&message);
+// 					DispatchMessageA(&message);
+// 			}
+		// }
 		//TODO: shortcuts system
 		UNTIL(i, ARRAYCOUNT(input.buttons))
 		{
@@ -744,7 +847,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		// APP RENDER
 		LIST(Renderer_request, render_list) = {0};
-		app.render(&memory, render_list, client_size);
+		app.render(&memory, render_list, global_client_size);
 
 		if(dx->render_target_view)
 		{
@@ -828,12 +931,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
 					
 					Packed_tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
-					object->scale.x *= ((2.0f*tex_info.w) / client_size.x);
-					object->scale.y *= (2.0f*tex_info.h) / client_size.y;
+					object->scale.x *= ((2.0f*tex_info.w) / global_client_size.x);
+					object->scale.y *= (2.0f*tex_info.h) / global_client_size.y;
 					
 					r32 half_pixel_offset = 0.25f;
-					r32 xoffset = (tex_info.xoffset+half_pixel_offset)/client_size.x;
-					r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/client_size.y;
+					r32 xoffset = (tex_info.xoffset+half_pixel_offset)/global_client_size.x;
+					r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/global_client_size.y;
 					request->object3d.pos.x += xoffset; 
 					request->object3d.pos.y -= yoffset;
 
@@ -942,7 +1045,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx->swap_chain->Release();
 	dx->rasterizer_state->Release();
 	dx->sampler->Release();
-	dx->render_target_view->Release();
+	if(dx->render_target_view)
+		dx->render_target_view->Release();
 
 	object_buffer.buffer->Release();
 	view_buffer.buffer->Release();
@@ -998,6 +1102,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		current_stencil->view->Release();
 		current_stencil->state->Release();
 	}
+
+	
 
 #if DEBUGMODE
 	// Create an instance of the DXGI debug interface
