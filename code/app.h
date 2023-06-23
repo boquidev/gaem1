@@ -30,8 +30,8 @@ struct  Object3d{
 };
 
 #define DEFAULT_OBJECT3D(objectp) \
-	objectp->scale = {1,1,1};\
-	objectp->color = {1,1,1,1};
+	(objectp)->scale = {1,1,1};\
+	(objectp)->color = {1,1,1,1};
 
 enum RENDERER_REQUEST_TYPE_FLAGS{
 	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
@@ -104,32 +104,32 @@ struct Entity{
 };
 
 #define DEFAULT_ENTITY(entityp) \
-	entityp->visible = true;\
+	(entityp)->visible = true;\
 	DEFAULT_OBJECT3D(entityp)
 
 #define DEFAULT_TURRET(t) \
 	DEFAULT_ENTITY(t)\
-	t->current_scale = MIN(1.0f, memory->delta_time);\
-	t->selectable = true;\
-	t->type = ENTITY_UNIT;\
-	t->unit_type = UNIT_TURRET;\
-	t->health = 2;\
-	t->shooting_cooldown = 0.9f;\
-	t->shooting_cd_time_left = t->shooting_cooldown;\
-	t->mesh_uid = memory->meshes.icosphere_uid;\
-	t->tex_uid = memory->textures.white_tex_uid;\
+	(t)->current_scale = MIN(1.0f, memory->delta_time);\
+	(t)->selectable = true;\
+	(t)->type = ENTITY_UNIT;\
+	(t)->unit_type = UNIT_TURRET;\
+	(t)->health = 2;\
+	(t)->shooting_cooldown = 0.9f;\
+	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
+	(t)->mesh_uid = memory->meshes.icosphere_uid;\
+	(t)->tex_uid = memory->textures.white_tex_uid;\
 
 #define DEFAULT_SPAWNER(s)\
 	DEFAULT_ENTITY(s)\
-	s->current_scale = MIN(1.0f, memory->delta_time);\
-	s->selectable = true;\
-	s->type = ENTITY_UNIT;\
-	s->unit_type = UNIT_SPAWNER;\
-	s->health = 2;\
-	s->shooting_cooldown = 5.0f;\
-	s->shooting_cd_time_left = s->shooting_cooldown;\
-	s->mesh_uid = memory->meshes.test_orientation_uid;\
-	s->tex_uid = memory->textures.white_tex_uid;\
+	(s)->current_scale = MIN(1.0f, memory->delta_time);\
+	(s)->selectable = true;\
+	(s)->type = ENTITY_UNIT;\
+	(s)->unit_type = UNIT_SPAWNER;\
+	(s)->health = 2;\
+	(s)->shooting_cooldown = 5.0f;\
+	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
+	(s)->mesh_uid = memory->meshes.test_orientation_uid;\
+	(s)->tex_uid = memory->textures.white_tex_uid;\
 
 #define DEFAULT_PROJECTILE(p)\
 	DEFAULT_ENTITY(p)\
@@ -228,6 +228,7 @@ struct Meshes
 
 	u32 ball_uid;
 	u32 icosphere_uid;
+	u32 cube_uid;
 
 	u32 test_orientation_uid;
 	u32 test_orientation2_uid;

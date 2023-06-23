@@ -66,6 +66,6 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 		texcolor.g * input.color.g,
 		texcolor.b * input.color.b,
 		texcolor.a * input.color.a);
-	result.xyz = (input.normal.y+input.normal.x+input.normal.z)/2 * result.xyz;
+	result.xyz = ((1.6*input.normal.y)+(1.4*input.normal.x)+input.normal.z)/2 * result.xyz;
 	return result;
 }

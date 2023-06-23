@@ -883,7 +883,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			
 			// WORLD PROJECTION
 			if(perspective_on)
-				projection_matrix = XMMatrixPerspectiveLH(memory.fov*memory.aspect_ratio/16, memory.fov/16, fov, 100.0f);
+				projection_matrix = XMMatrixPerspectiveLH(memory.fov*memory.aspect_ratio/32, memory.fov/32, fov, 100.0f);
 			else
 				projection_matrix = XMMatrixOrthographicLH(memory.fov*memory.aspect_ratio, memory.fov, fov, 100.0f);
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			

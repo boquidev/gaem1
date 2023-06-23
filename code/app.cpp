@@ -325,6 +325,37 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->object3d.scale = memory->entities[i].current_scale * request->object3d.scale;
 		}
 	}
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+	DEFAULT_OBJECT3D(&request->object3d);
+	request->object3d.mesh_uid = memory->meshes.cube_uid;
+	request->object3d.tex_uid = memory->textures.white_tex_uid;
+	request->object3d.scale = {1,1,28.1f};
+	request->object3d.pos = {-27.5f, 0, -14};
+	
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+	DEFAULT_OBJECT3D(&request->object3d);
+	request->object3d.mesh_uid = memory->meshes.cube_uid;
+	request->object3d.tex_uid = memory->textures.white_tex_uid;
+	request->object3d.scale = {1,1,28.1f};
+	request->object3d.pos = {26.5f, 0, -14};
+	
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+	DEFAULT_OBJECT3D(&request->object3d);
+	request->object3d.mesh_uid = memory->meshes.cube_uid;
+	request->object3d.tex_uid = memory->textures.white_tex_uid;
+	request->object3d.scale = {55,1,1};
+	request->object3d.pos = {-27.5f, 0, -15};
+
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+	DEFAULT_OBJECT3D(&request->object3d);
+	request->object3d.mesh_uid = memory->meshes.cube_uid;
+	request->object3d.tex_uid = memory->textures.white_tex_uid;
+	request->object3d.scale = {55,1,1};
+	request->object3d.pos = {-27.5f, 0, 14};
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_DEPTH_STENCIL;
@@ -385,7 +416,7 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
 	memory->camera_rotation.x = PI32/2;
-	memory->camera_pos.y = 16.0f;
+	memory->camera_pos.y = 32.0f;
 
 	Entity* player = &memory->entities[memory->player_uid];
 	DEFAULT_ENTITY(player);
@@ -589,4 +620,6 @@ void init(App_memory* memory, Init_data* init_data){
 	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_uid, string("data/ball.glb"));
 
 	push_mesh_from_file_request(memory, init_data,&memory->meshes.icosphere_uid, string("data/icosphere.glb"));
+
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.cube_uid, string("data/cube.glb"));
 }
