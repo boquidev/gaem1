@@ -65,7 +65,7 @@ void update(App_memory* memory){
 			entities[i].team_uid == entities[memory->player_uid].team_uid 
 		){
 			
-			entities[i].color = {1,1,1,1};
+			entities[i].color = {0.5f,0.5f,0.5f,1};
 
 			r32 intersected_t = 0;
 			if(line_vs_sphere(cursor_world_pos, z_direction, 
@@ -85,7 +85,7 @@ void update(App_memory* memory){
 		}
 	}
 	// HANDLING INPUT
-	entities[memory->highlighted_uid].color = {1,1,0,1};	
+	entities[memory->highlighted_uid].color = {1,1,1,1};	
 	if(input->L == 1)
 		memory->creating_unit = (memory->creating_unit+2)%3;
 	if(input->R == 1)
@@ -137,7 +137,7 @@ void update(App_memory* memory){
 		}
 
 		Entity* selected_entity = &entities[memory->selected_uid];
-		selected_entity->object3d.color = {0,1,0,1};
+		selected_entity->object3d.color = {0,0.7f,0,1};
 
 		if( memory->selected_uid != memory->player_uid ){
 			if( input->cursor_secondary > 0)
@@ -183,8 +183,10 @@ void update(App_memory* memory){
 			}
 		} else if ( entity->type == ENTITY_UNIT ) {
 			entity->shooting_cd_time_left -= memory->delta_time;
-			if(entity->team_uid != 0)
+			if(entity->team_uid != 0){
 				entity->target_pos = entities[memory->player_uid].pos;
+				entity->color = {0.7f,0,0,1};
+			}
 
 			if(entity->shooting_cd_time_left < 0){
 				entity->shooting_cd_time_left = entity->shooting_cooldown;

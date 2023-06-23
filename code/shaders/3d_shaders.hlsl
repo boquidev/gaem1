@@ -62,14 +62,16 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 	// float a = sin(input.color.x*500);
 	// float4 result = float4(1,1,1,1);
 	float4 result = float4(
-		texcolor.r * input.color.r, 
-		texcolor.g * input.color.g,
-		texcolor.b * input.color.b,
+		texcolor.r * (0.5+input.color.r)/1.5, 
+		texcolor.g * (0.5+input.color.g)/1.5,
+		texcolor.b * (0.5+input.color.b)/1.5,
 		texcolor.a * input.color.a);
+	
+	result.rgb =   ( (input.normal.x+input.normal.y+input.normal.z+3)/3 ) * result.rgb;
 		 
-	result.r = ((input.normal.y*1.5)+input.normal.z + input.normal.x)*0.6 * (0.5+result.r);
-	result.g = (((input.normal.y*1.5)+input.normal.z + (input.normal.x))*0.4) * (0.5+result.g);
-	result.b = (-input.normal.x/3);
+	// result.r = ((input.normal.y*1.5)+input.normal.z + input.normal.x)*0.6 * (4*result.r);
+	// result.g = ((input.normal.y*1.5)+input.normal.z + (input.normal.x))*0.4 * (4*result.g);
+	// result.b = ((-input.normal.x+abs(input.normal.x))/3) + (((input.normal.y+2)/4)+((input.normal.z+2)/4)+(input.normal.x+2)/4) *(result.b);
 
 	// result.r = (input.normal.z*input.normal.y*input.normal.y*2)+((input.normal.y)+input.normal.z + input.normal.x)*0.6 * (0.5+result.r);
 	// result.g = (input.normal.z*input.normal.y*input.normal.y*2)+(((input.normal.y)+input.normal.z + (input.normal.x))*0.4) * (0.5+result.g);
