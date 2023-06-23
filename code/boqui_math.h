@@ -1,4 +1,4 @@
-#define POW(a, b) math_pow(a, b)
+
 #define SQRT(a) math_sqrt(a)
 #define ABS(x) math_abs(x)
 #define SINF(a) sinf(a)
@@ -34,7 +34,7 @@ internal u32 math_min(u32 n1, u32 n2){return ((n1 < n2) ? n1 : n2);}
 internal r32 math_min(r32 n1, r32 n2){return ((n1 < n2) ? n1 : n2);}
 
 internal r32
-math_pow(r32 n, u32 e)
+r32_pow(r32 n, u32 e)
 {
     r32 p = 1;
     while(e>0)
@@ -46,7 +46,7 @@ math_pow(r32 n, u32 e)
 }
 
 internal u32
-math_pow(u32 base, u32 exponent)
+u32_pow(u32 base, u32 exponent)
 {
     ASSERT(exponent <= 64);
     u32 result = 1;
@@ -318,16 +318,16 @@ snap_to_grid(r32 value, r32 delta)
 }
 
 bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, r32* closest_t) {
-    r32 a = POW(line_v.x, 2) + POW(line_v.y, 2) + POW(line_v.z, 2);
+    r32 a = r32_pow(line_v.x, 2) + r32_pow(line_v.y, 2) + r32_pow(line_v.z, 2);
     r32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
                     line_v.y * (line_0.y - sphere_center.y) +
                     line_v.z * (line_0.z - sphere_center.z));
-    r32 c = POW(line_0.x - sphere_center.x, 2) +
-               POW(line_0.y - sphere_center.y, 2) +
-               POW(line_0.z - sphere_center.z, 2) -
-               POW(sphere_radius, 2);
+    r32 c = r32_pow(line_0.x - sphere_center.x, 2) +
+               r32_pow(line_0.y - sphere_center.y, 2) +
+               r32_pow(line_0.z - sphere_center.z, 2) -
+               r32_pow(sphere_radius, 2);
 
-    r32 discriminant = POW(b, 2) - 4 * a * c;
+    r32 discriminant = r32_pow(b, 2) - 4 * a * c;
 
     b32 result = false;
     if (0 <= discriminant)
@@ -345,16 +345,16 @@ bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, r
 }
 
 bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3* closest_point) {
-    r32 a = POW(line_v.x, 2) + POW(line_v.y, 2) + POW(line_v.z, 2);
+    r32 a = r32_pow(line_v.x, 2) + r32_pow(line_v.y, 2) + r32_pow(line_v.z, 2);
     r32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
                     line_v.y * (line_0.y - sphere_center.y) +
                     line_v.z * (line_0.z - sphere_center.z));
-    r32 c = POW(line_0.x - sphere_center.x, 2) +
-               POW(line_0.y - sphere_center.y, 2) +
-               POW(line_0.z - sphere_center.z, 2) -
-               POW(sphere_radius, 2);
+    r32 c = r32_pow(line_0.x - sphere_center.x, 2) +
+               r32_pow(line_0.y - sphere_center.y, 2) +
+               r32_pow(line_0.z - sphere_center.z, 2) -
+               r32_pow(sphere_radius, 2);
 
-    r32 discriminant = POW(b, 2) - 4 * a * c;
+    r32 discriminant = r32_pow(b, 2) - 4 * a * c;
 
     b32 result = false;
     if (0 <= discriminant)
