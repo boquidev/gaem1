@@ -660,6 +660,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					Depth_stencil* current_ds = ds_node;
 					NEXT_ELEM(ds_node);
 					current_ds->view->Release();
+					current_ds->view = 0;
 				}
 				dx->render_target_view = 0;
 			}
