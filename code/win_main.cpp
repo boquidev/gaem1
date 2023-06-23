@@ -46,36 +46,82 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_CLOSE:
 			global_running = false;
 		break;
-		case WM_SIZE:{// happens when the window is resized or moved
-			if(wParam)
-				DefWindowProc(window, message, wParam, lParam);
+		case WM_SIZING:{
+			RECT* result_rect = (RECT*)lParam;
+			Int2 new_size = {result_rect->right - result_rect->left, result_rect->bottom - result_rect->top};
 
-			s32 new_width = LOWORD(lParam);
-			s32 new_height = HIWORD(lParam);
-			if(global_client_size.x != new_width)
-				new_height = (s32)(0.5f+(9*new_width/16));
-			if(global_client_size.y != new_height)
-				new_width = (s32)(0.5f+(16*new_height/9));
+			RECT winrect = {0,0,global_client_size.x, global_client_size.y};
+			AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);
+			Int2 win_size = {winrect.right-winrect.left, winrect.bottom-winrect.top};
+			GetWindowRect(window, &winrect);
+			Int2 winclient_diff = win_size - global_client_size;
 			
-			RECT new_win_size = {0,0,new_width,new_height};
+			s32 new_height = MAX(90,new_size.y - winclient_diff.y);
+			s32 new_width = MAX(160,new_size.x - winclient_diff.x);
 
-			bool success = AdjustWindowRectEx(&new_win_size, WS_OVERLAPPEDWINDOW,0,0);
-			s32 new_window_width = new_win_size.right - new_win_size.left;
-			s32 new_window_height = new_win_size.bottom - new_win_size.top;
-			success = SetWindowPos(window, 0, 0, 0, new_window_width, new_window_height,SWP_NOMOVE);
-			error = GetLastError();
-			ASSERT(success);
+
+			s32 new_bottom = 0;
+			switch (wParam){
+				case WMSZ_TOP:
+					result_rect->top = MIN(result_rect->top,winrect.bottom - (winclient_diff.y+new_height));
+				case WMSZ_BOTTOMRIGHT:
+				case WMSZ_BOTTOM:
+					new_width = (s32)(0.5f+(16*new_height/9));
+					new_bottom =  result_rect->top + (new_height+winclient_diff.y);
+				break;
+				
+				case WMSZ_LEFT:
+				case WMSZ_TOPLEFT:
+				case WMSZ_BOTTOMLEFT:
+					result_rect->left = MIN(result_rect->left,winrect.right - (winclient_diff.x+new_width));
+				case WMSZ_RIGHT:
+					new_height = (s32)(0.5f+(9*new_width/16));
+					new_bottom =  result_rect->top + (new_height+winclient_diff.y);
+				break;
+				case WMSZ_TOPRIGHT:
+					
+					new_bottom =  winrect.bottom;
+					new_height = (s32)(0.5f+(9*new_width/16));
+					result_rect->top = winrect.bottom - (winclient_diff.y+new_height);
+				break;
+				default:
+					new_height = MAX(new_height,(s32)(0.5f+(9*new_width/16)));
+					new_width = MAX(new_width, (s32)(0.5f+(16*new_height/9)));
+					new_bottom =  result_rect->top + (new_height+winclient_diff.y);
+				break;
+			}
+			result_rect->right = result_rect->left + (new_width+winclient_diff.x);
+			result_rect->bottom = new_bottom;
+			ASSERT(true);
 		}break;
 		// case WM_WINDOWPOSCHANGING:{
-		// 	// WINDOWPOS* new_win = (WINDOWPOS*)msg.lParam;
-		// 	// new_win->cx = 1000;
-		// 	// // if(global_client_size.x != new_win->cx)
-		// 	// // 	new_win->cy = (s32)(0.5f+(9*new_win->cx/16));
-		// 	// // if(global_client_size.y != new_win->cy)
-		// 	// // 	new_win->cx = (s32)(0.5f+(16*new_win->cy/9));
-			
-		// 	// RECT new_win_size = {0,0,new_win->cx,new_win->cy};
-		// }break;//TODO: could i get rid of these?
+		// 	WINDOWPOS* new_win = (WINDOWPOS*)lParam;
+		// 	if(new_win->flags & SWP_NOSIZE){
+		// 		result = DefWindowProc(window, message, wParam, lParam);
+		// 	}else if(new_win->cx && new_win->cy){
+
+		// 		RECT winrect = {0,0 ,global_client_size.x, global_client_size.y};
+		// 		AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);
+		// 		Int2 win_size = {winrect.right-winrect.left, winrect.bottom-winrect.top};
+		// 		ASSERT(win_size.x < 2000);
+		// 		ASSERT(win_size.y < 2000);
+		// 		Int2 winclient_diff = win_size - global_client_size;
+		// 		ASSERT(winclient_diff.x == 16 && winclient_diff.y == 39);
+		// 		s32 new_width = MAX(0,new_win->cx-winclient_diff.x);
+		// 		s32 new_height = MAX(0,new_win->cy-winclient_diff.y);
+		// 		if(win_size.x != new_win->cx){
+		// 			new_height = (s32)(0.5f+(9*new_width/16));
+		// 		}
+		// 		if(win_size.y != new_win->cy){	
+		// 			new_width = (s32)(0.5f+(16*new_height/9));
+		// 		}
+		// 		ASSERT(ABS(new_win->cy-new_height) < 450);
+		// 		ASSERT(ABS(new_win->cx-new_width) < 450);
+		// 		new_win->cy = new_height + winclient_diff.y;
+		// 		new_win->cx = new_width + winclient_diff.x;
+		// 	}
+		// }break;
+		//TODO: could i get rid of these?
 		ASSERMSG(WM_MOUSEWHEEL)
 		ASSERMSG(WM_LBUTTONDBLCLK)
 		ASSERMSG(WM_LBUTTONDOWN)
@@ -98,16 +144,15 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_WINDOWPOSCHANGED:
 
 		// RESIZING WINDOW MESSAGES
-		case WM_MOVING: // just to monitor(use this instead of WM_SIZE)
-		case WM_SIZING:
 		case WM_GETMINMAXINFO:
 		case WM_ENTERSIZEMOVE:
 		case WM_EXITSIZEMOVE:
+		case WM_MOVING:
+		// break;
 
-		case WM_ERASEBKGND:
-		case WM_PAINT:
 
-
+		// case WM_ERASEBKGND:
+		// case WM_PAINT:
 		// case WM_NCLBUTTONDOWN:
 		// case WM_NCPAINT:
 		// case WM_NCACTIVATE:
@@ -1051,9 +1096,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	FOR_EACH(depth_stencils_list, i){
 		Depth_stencil* current_stencil = stencilnodes;
 		NEXT_ELEM(stencilnodes);
-
-		current_stencil->view->Release();
-		current_stencil->state->Release();
+		if(current_stencil->view)
+			current_stencil->view->Release();
+		if(current_stencil->state)
+			current_stencil->state->Release();
 	}
 
 	
