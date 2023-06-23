@@ -66,6 +66,35 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 		texcolor.g * input.color.g,
 		texcolor.b * input.color.b,
 		texcolor.a * input.color.a);
-	result.xyz = ((1.6*input.normal.y)+(1.4*input.normal.x)+input.normal.z)/2 * result.xyz;
+		 
+	result.r = ((input.normal.y*1.5)+input.normal.z + input.normal.x)*0.6 * (0.5+result.r);
+	result.g = (((input.normal.y*1.5)+input.normal.z + (input.normal.x))*0.4) * (0.5+result.g);
+	result.b = (-input.normal.x/3);
+
+	// result.r = (input.normal.z*input.normal.y*input.normal.y*2)+((input.normal.y)+input.normal.z + input.normal.x)*0.6 * (0.5+result.r);
+	// result.g = (input.normal.z*input.normal.y*input.normal.y*2)+(((input.normal.y)+input.normal.z + (input.normal.x))*0.4) * (0.5+result.g);
+	// result.b = (-input.normal.x/4);
+
+	// result.r = (input.normal.y+input.normal.z + input.normal.x*0.5) * (0.5+result.r);
+	// result.g = (input.normal.y+input.normal.z + input.normal.x*0.5) * (0.5+result.g);
+	// result.b = (-input.normal.x)+(input.normal.y+input.normal.z + input.normal.x*0.5) * (0.5+result.b);; 
+
+	// result.r = (input.normal.z*input.normal.y*input.normal.y)+((input.normal.y+input.normal.z)*2 + input.normal.x)*0.6 * (0.5+result.r);
+	// result.g = (input.normal.z*input.normal.y*input.normal.y)+(((input.normal.y+input.normal.z)*2 + (input.normal.x))*0.4) * (0.5+result.g);
+	// result.b = (-input.normal.x/2) + (input.normal.z*input.normal.z*input.normal.z*0.5+input.normal.y*input.normal.y*input.normal.y);
+
+	// result.r = (input.normal.z*input.normal.y*input.normal.y)+((input.normal.y*2)+input.normal.z + input.normal.x)*0.6 * (0.5+result.r);
+	// result.g = (input.normal.z*input.normal.y*input.normal.y)+(((input.normal.y*2)+input.normal.z + (input.normal.x))*0.4) * (0.5+result.g);
+	// result.b = (-input.normal.x/2) + (input.normal.z*input.normal.z*input.normal.z*0.5+input.normal.y*input.normal.y*input.normal.y);
+	
+	// result.r = (input.normal.z*input.normal.y*input.normal.y*2)+((input.normal.y)+input.normal.z + input.normal.x)*0.6 * (0.5+result.r);
+	// result.g = (input.normal.z*input.normal.y*input.normal.y*2)+(((input.normal.y)+input.normal.z + (input.normal.x))*0.4) * (0.5+result.g);
+	// result.b = (-input.normal.x/2) +(input.normal.z*input.normal.z*input.normal.y*input.normal.y*2);
+
+	// result.r = (input.normal.z*input.normal.y*input.normal.y)+((input.normal.y)+input.normal.z + input.normal.x)*0.6 * (0.5+result.r);
+	// result.g = (input.normal.z*input.normal.y*input.normal.y)+(((input.normal.y)+input.normal.z + (input.normal.x))*0.4) * (0.5+result.g);
+	// result.b = (-input.normal.x/2) +(input.normal.z*input.normal.z*input.normal.y*input.normal.y*2);
+	
+	
 	return result;
 }

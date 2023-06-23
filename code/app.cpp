@@ -14,6 +14,8 @@ void update(App_memory* memory){
 	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
 	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);	
 
+	memory->camera_pos = v3_rotate_y(v3_rotate_x({0,0,-32}, memory->camera_rotation.x), memory->camera_rotation.y);
+
 	V2 input_vector = {(r32)(holding_inputs->d_right - holding_inputs->d_left),(r32)(holding_inputs->d_up - holding_inputs->d_down)};
 	input_vector = normalize(input_vector);
 	{
@@ -47,7 +49,7 @@ void update(App_memory* memory){
 
 	// RAYCAST WITH ALL ENTITIES
 	memory->highlighted_uid = 0;
-	V3 cursor_world_pos = v3_rotate_y(
+	V3 cursor_world_pos = memory->camera_pos + v3_rotate_y(
 		v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
 	);
 	V3 z_direction = v3_rotate_y(
@@ -415,7 +417,7 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
-	memory->camera_rotation.x = PI32/2;
+	memory->camera_rotation.x = PI32/4;
 	memory->camera_pos.y = 32.0f;
 
 	Entity* player = &memory->entities[memory->player_uid];
