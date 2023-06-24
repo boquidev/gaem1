@@ -233,7 +233,7 @@ void update(App_memory* memory){
 
 				}
 			}
-		}{// DYNAMICS / COLLISIONS
+		}{// DYNAMICS
 			entity->pos.y = 0;//TODO: clamping height position
 			if(i == memory->player_uid){
 				V3 move_v = (entity->target_move_pos - entity->pos);
@@ -242,19 +242,11 @@ void update(App_memory* memory){
 				if(entity->velocity.x || entity->velocity.z)
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
 					
-				UNTIL(j, MAX_ENTITIES){
-					if(i!=j)
-						test_collision(&entities[i], &entities[j], memory->delta_time);
-				}
 			}else if(entity->type != ENTITY_PROJECTILE){
 				//TODO: make it dependent on the entity's speed so that not all entities move at the same speed
 				V3 move_v = (entity->target_move_pos - entity->pos);
 				V3 accel = 10*(move_v - (0.4f*entity->velocity));
 				entity->velocity = entity->velocity +( memory->delta_time * accel );
-				UNTIL(j, MAX_ENTITIES){
-					if(i!=j)
-						test_collision(&entities[i], &entities[j], memory->delta_time);
-				}
 
 				//TODO: when unit is moving and shooting, shoots seem to come from the body
 				// and that's because it should spawn in the tip of the cannon instead of the center
@@ -275,7 +267,6 @@ void update(App_memory* memory){
 				// 	entity->rotation.y -= TAU32;
 				// entity->rotation.y += 10*(target_rotation - entity->rotation.y) * memory->delta_time;
 			}
-		}{// PROJECTILES
 			if(entity->lifetime){
 				entity->lifetime -= memory->delta_time;
 				if(entity->lifetime < 0){
@@ -284,8 +275,8 @@ void update(App_memory* memory){
 				}
 			}
 			if(entity->type == ENTITY_PROJECTILE){
-				UNTIL(i2, MAX_ENTITIES){
-					Entity* entity2 = &entities[i2];
+				UNTIL(j, MAX_ENTITIES){
+					Entity* entity2 = &entities[j];
 					if(entity2->visible && 
 						entity->team_uid != entity2->team_uid
 					){
@@ -304,7 +295,12 @@ void update(App_memory* memory){
 						}
 					}
 				}
-			}
+			}else{
+				UNTIL(j, MAX_ENTITIES){
+					if(i!=j && entities[j].visible && entities[j].type != ENTITY_PROJECTILE )
+						test_collision(&entities[i], &entities[j], memory->delta_time);
+				}
+			}	
 		}
 		entity->pos = entity->pos + (memory->delta_time * entity->velocity);
 	}
@@ -331,35 +327,35 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	}
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	DEFAULT_OBJECT3D(&request->object3d);
 	request->object3d.mesh_uid = memory->meshes.cube_uid;
 	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {1,1,28.1f};
-	request->object3d.pos = {-27.5f, 0, -14};
+	request->object3d.scale = {1,1,45};
+	request->object3d.pos = {-29, 0, -23};
+	request->object3d.color = {0.3f,0.3f,0.3f,1};
 	
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	DEFAULT_OBJECT3D(&request->object3d);
 	request->object3d.mesh_uid = memory->meshes.cube_uid;
 	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {1,1,28.1f};
-	request->object3d.pos = {26.5f, 0, -14};
+	request->object3d.scale = {1,1,45};
+	request->object3d.pos = {28, 0, -23};
+	request->object3d.color = {0.3f,0.3f,0.3f,1};
 	
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	DEFAULT_OBJECT3D(&request->object3d);
 	request->object3d.mesh_uid = memory->meshes.cube_uid;
 	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {55,1,1};
-	request->object3d.pos = {-27.5f, 0, -15};
+	request->object3d.scale = {56,1,1};
+	request->object3d.pos = {-28, 0, -23};
+	request->object3d.color = {0.3f,0.3f,0.3f,1};
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	DEFAULT_OBJECT3D(&request->object3d);
 	request->object3d.mesh_uid = memory->meshes.cube_uid;
 	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {55,1,1};
-	request->object3d.pos = {-27.5f, 0, 14};
+	request->object3d.scale = {56,1,1};
+	request->object3d.pos = {-28, 0, 21};
+	request->object3d.color = {0.3f,0.3f,0.3f,1};
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_DEPTH_STENCIL;

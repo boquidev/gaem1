@@ -377,6 +377,23 @@ bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3
     }
     return result;
 }
+
+/*  returns a vector that represents the distance between 
+    the closest point of the box to the center of the sphere
+    Check if the magnitude is less than or equal to the sphere radius */
+internal V3
+sphere_vs_box(V3 sc, r32 sr, V3 bmin, V3 bmax){
+    // Calculate the closest point on the box to the sphere
+    V3 closest_point;
+    closest_point.x = MAX(bmin.x, MIN(sc.x, bmax.x));
+    closest_point.y = MAX(bmin.y, MIN(sc.y, bmax.y));
+    closest_point.z = MAX(bmin.z, MIN(sc.z, bmax.z));
+
+    // Calculate the distance between the closest point and the sphere center
+    V3 distance = sc-closest_point;
+    return distance;
+}
+
 // return value = overlap, if overlap < 0 then they don't overlap
 internal r32 
 sphere_vs_sphere(V3 c1,r32 r1, V3 c2, r32 r2){
