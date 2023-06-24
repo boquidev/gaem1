@@ -98,12 +98,15 @@ void update(App_memory* memory){
 
 	// RAYCAST WITH ALL ENTITIES
 	memory->highlighted_uid = 0;
-	V3 cursor_world_pos = memory->camera_pos + v3_rotate_y(
+	V3 cursor_screen_to_world_pos = memory->camera_pos + v3_rotate_y(
 		v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
 	);
+
 	V3 z_direction = v3_rotate_y(
 		v3_rotate_x({0,0,1}, memory->camera_rotation.x),memory->camera_rotation.y
 	);
+
+	V3 cursor_world_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
 
 	r32 closest_t = {0};
 	b32 first_intersection = false;

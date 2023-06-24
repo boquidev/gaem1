@@ -317,6 +317,14 @@ snap_to_grid(r32 value, r32 delta)
     return value - difference;
 }
 
+internal V3
+line_intersect_y0(V3 line_0, V3 line_d){
+    r32 t = (-line_0.y / line_d.y);
+    r32 x = line_0.x + (t*line_d.x);
+    r32 z = line_0.z + (t*line_d.z);
+    return {x,0,z};
+}
+
 bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, r32* closest_t) {
     r32 a = r32_pow(line_v.x, 2) + r32_pow(line_v.y, 2) + r32_pow(line_v.z, 2);
     r32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
