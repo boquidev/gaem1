@@ -234,12 +234,12 @@ void update(App_memory* memory){
 				entity->active = true;
 			}
 		} else if ( entity->type == ENTITY_UNIT ) {
-			entity->shooting_cd_time_left -= memory->delta_time;
 			if(entity->team_uid != 0){
 				entity->target_pos = entities[memory->player_uid].pos;
 				entity->color = {0.7f,0,0,1};
 			}
 
+			entity->shooting_cd_time_left -= memory->delta_time;
 			if(entity->shooting_cd_time_left < 0){
 				entity->shooting_cd_time_left = entity->shooting_cooldown;
 			
@@ -253,7 +253,7 @@ void update(App_memory* memory){
 					new_bullet->health = 1; 
 					new_bullet->speed = 50;
 
-					Entity* parent = &entities[i];
+					Entity* parent = entity;
 					new_bullet->team_uid = parent->team_uid;
 					new_bullet->pos = parent->pos;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
@@ -329,10 +329,17 @@ void update(App_memory* memory){
 			// COLLISIONS
 			if(entity->type == ENTITY_PROJECTILE){
 				UNTIL(j, MAX_ENTITIES){
+					if(!entities[j].visible) continue;
 					Entity* entity2 = &entities[j];
-					if(entity2->visible && 
-						entity->team_uid != entity2->team_uid
-					){
+					if(entity2->type == ENTITY_OBSTACLE){
+						V3 distance = sphere_vs_box(entity->pos, entity->current_scale, entity2->pos, entity2->pos+entity2->scale);
+						r32 distance_value = v3_magnitude(distance);
+						if(distance_value < entity->current_scale){
+							*entity = {0};
+							memory->entity_generations[i]++;
+							break;
+						}
+					} else if (entity->team_uid != entity2->team_uid){
 						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 						if(intersect > 0){
 							entity2->health -= 1;
