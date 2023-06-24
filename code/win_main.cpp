@@ -173,7 +173,9 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 int WINAPI 
 wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cmd_show)
 {
-	Int2 win_size = {1000, 1000};
+	RECT winrect = {0,0,1600,900};
+	AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);
+	Int2 win_size = {winrect.right-winrect.left, winrect.bottom-winrect.top};
 
 	// WINDOW CREATION
 	WNDCLASSA window_class = {0};
@@ -724,6 +726,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					(r32)(mousep.x - client_center_pos.x)/global_client_size.x, 
 					-(r32)(mousep.y - client_center_pos.y)/global_client_size.y};
 				
+		}else{
+			holding_inputs = {0};
 		}
 		// HANDLING MESSAGES
 		MSG msg;
