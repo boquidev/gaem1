@@ -40,6 +40,55 @@ void update(App_memory* memory){
 		Entity* boss = &entities[BOSS_INDEX];
 		boss->mesh_uid = memory->meshes.ogre_mesh_uid;
 		boss->tex_uid = memory->textures.ogre_tex_uid;
+
+		Entity* wall = 0;
+		wall = &entities[5];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->tex_uid = memory->textures.white_tex_uid;
+		wall->scale = {1,1,45};
+		wall->pos = {-29, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
+		
+		wall = &entities[6];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->tex_uid = memory->textures.white_tex_uid;
+		wall->scale = {1,1,45};
+		wall->pos = {28, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
+		
+		wall = &entities[7];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->tex_uid = memory->textures.white_tex_uid;
+		wall->scale = {56,1,1};
+		wall->pos = {-28, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
+
+		wall = &entities[8];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->tex_uid = memory->textures.white_tex_uid;
+		wall->scale = {56,1,1};
+		wall->pos = {-28, 0, 21};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
 	}
 
 	//TODO: make this into a function screen to world
@@ -69,7 +118,7 @@ void update(App_memory* memory){
 
 			r32 intersected_t = 0;
 			if(line_vs_sphere(cursor_world_pos, z_direction, 
-				entities[i].object3d.pos, entities[i].scale.x, 
+				entities[i].pos, entities[i].scale.x, 
 				&intersected_t)
 			){
 				if(!first_intersection){
@@ -137,7 +186,7 @@ void update(App_memory* memory){
 		}
 
 		Entity* selected_entity = &entities[memory->selected_uid];
-		selected_entity->object3d.color = {0,0.7f,0,1};
+		selected_entity->color = {0,0.7f,0,1};
 
 		if( memory->selected_uid != memory->player_uid ){
 			if( input->cursor_secondary > 0)
@@ -174,10 +223,13 @@ void update(App_memory* memory){
 		// SHOOTING
 		Entity* entity = &entities[i]; 
 		if(!entity->visible) continue;
+		if(entity->type == ENTITY_OBSTACLE) 
+			continue;
 
 		if( !entity->active){
-			entity->current_scale += memory->delta_time;
-			if(entity->current_scale > 1.0f){
+			if(entity->current_scale < 1.0f){
+				entity->current_scale += memory->delta_time;
+			}else{
 				entity->current_scale = 1.0f;
 				entity->active = true;
 			}
@@ -203,14 +255,14 @@ void update(App_memory* memory){
 
 					Entity* parent = &entities[i];
 					new_bullet->team_uid = parent->team_uid;
-					new_bullet->pos = parent->object3d.pos;
+					new_bullet->pos = parent->pos;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
 					new_bullet->target_pos = parent->looking_at;
 
-					V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->object3d.pos);
+					V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->pos);
 					new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
 
-				} else if( entity->type == UNIT_SPAWNER){
+				} else if( entity->unit_type == UNIT_SPAWNER){
 					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 					V3 target_distance = entity->target_pos - entity->pos;
 					r32 target_distance_magnitude = v3_magnitude(target_distance);
@@ -260,7 +312,7 @@ void update(App_memory* memory){
 				// V3 target_direction = entity->target_pos - entity->pos;
 				// r32 target_rotation = v2_angle({target_direction.x, target_direction.z})+ PI32/2;
 
-				// r32 angle_difference = target_rotation - entity->object3d.rotation.y;
+				// r32 angle_difference = target_rotation - entity->rotation.y;
 				// if(angle_difference > TAU32/2)
 				// 	entity->rotation.y += TAU32;
 				// else if(angle_difference < -TAU32/2)
@@ -274,6 +326,7 @@ void update(App_memory* memory){
 					memory->entity_generations[i]++;
 				}
 			}
+			// COLLISIONS
 			if(entity->type == ENTITY_PROJECTILE){
 				UNTIL(j, MAX_ENTITIES){
 					Entity* entity2 = &entities[j];
@@ -297,8 +350,31 @@ void update(App_memory* memory){
 				}
 			}else{
 				UNTIL(j, MAX_ENTITIES){
-					if(i!=j && entities[j].visible && entities[j].type != ENTITY_PROJECTILE )
-						test_collision(&entities[i], &entities[j], memory->delta_time);
+					if( i!=j && entities[j].visible ){
+						if(entities[j].type == ENTITY_UNIT){
+							V3 pos_difference = entities[j].pos-entities[i].pos;
+							r32 collision_magnitude = v3_magnitude(pos_difference);
+							//sphere vs sphere simplified
+							r32 overlapping = (entities[i].current_scale+entities[j].current_scale) - collision_magnitude;
+							if(overlapping > 0){
+								V3 collision_direction = v3_normalize(pos_difference);
+								if(!collision_magnitude)
+									collision_direction = {1.0f,0,0};
+								overlapping =  MIN(MIN(entities[i].current_scale, entities[j].current_scale),overlapping);
+								entities[i].velocity = entities[i].velocity - (((overlapping/delta_time)/2) * collision_direction);
+								entities[j].velocity = entities[j].velocity + (((overlapping/delta_time)/2) * collision_direction);
+							}
+						}
+						else if(entities[j].type == ENTITY_OBSTACLE){
+							r32 sphere_radius = entities[i].current_scale;
+							V3 distance = sphere_vs_box(entities[i].pos, sphere_radius, entities[j].pos, entities[j].pos+entities[j].scale);
+							r32 distance_value = v3_magnitude(distance);
+							// checking if distance is less than the sphere radius
+							if(distance_value < sphere_radius){
+								entities[i].pos = entities[i].pos + ((sphere_radius-distance_value)/delta_time)*v3_normalize(distance);
+							}
+						}
+					}
 				}
 			}	
 		}
@@ -325,37 +401,6 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->object3d.scale = memory->entities[i].current_scale * request->object3d.scale;
 		}
 	}
-	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	request->object3d.mesh_uid = memory->meshes.cube_uid;
-	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {1,1,45};
-	request->object3d.pos = {-29, 0, -23};
-	request->object3d.color = {0.3f,0.3f,0.3f,1};
-	
-	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	request->object3d.mesh_uid = memory->meshes.cube_uid;
-	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {1,1,45};
-	request->object3d.pos = {28, 0, -23};
-	request->object3d.color = {0.3f,0.3f,0.3f,1};
-	
-	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	request->object3d.mesh_uid = memory->meshes.cube_uid;
-	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {56,1,1};
-	request->object3d.pos = {-28, 0, -23};
-	request->object3d.color = {0.3f,0.3f,0.3f,1};
-
-	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-	request->object3d.mesh_uid = memory->meshes.cube_uid;
-	request->object3d.tex_uid = memory->textures.white_tex_uid;
-	request->object3d.scale = {56,1,1};
-	request->object3d.pos = {-28, 0, 21};
-	request->object3d.color = {0.3f,0.3f,0.3f,1};
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_DEPTH_STENCIL;
@@ -428,7 +473,7 @@ void init(App_memory* memory, Init_data* init_data){
 
 	player->team_uid = 0;
 	player->speed = 10.0f;
-	player->type = ENTITY_QUEEN;
+	player->type = ENTITY_UNIT;
 	
 	Entity* boss = &memory->entities[BOSS_INDEX];
 	DEFAULT_SPAWNER(boss);
@@ -437,6 +482,8 @@ void init(App_memory* memory, Init_data* init_data){
 	boss->target_move_pos = boss->pos;
 	boss->team_uid = 1;
 	boss->current_scale = 1.0f;
+	boss->type = ENTITY_UNIT;
+	boss->unit_type = UNIT_SPAWNER;
 
 
 	{

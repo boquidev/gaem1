@@ -60,12 +60,13 @@ struct Renderer_request{
 #define MAX_ENTITIES 5000
 enum ENTITY_TYPE{
 	ENTITY_FORGOR_TO_ASSIGN_TYPE,
-	ENTITY_QUEEN,
 	ENTITY_UNIT,
-	ENTITY_PROJECTILE
+	ENTITY_PROJECTILE,
+	ENTITY_OBSTACLE,
 };
 enum UNIT_TYPE{
 	UNIT_NOT_A_UNIT,
+	ENTITY_QUEEN,
 	UNIT_TURRET,
 	UNIT_SPAWNER
 };
@@ -93,6 +94,7 @@ struct Entity{
 
 	// u32 parent_uid;
 	u32 team_uid;
+	//TODO: this is becoming troublesome
 	r32 current_scale;
 
 	union{
@@ -142,21 +144,21 @@ struct Entity{
 					new_bullet->color = {0.6f,0.6f,0.6f,1};\
 					new_bullet->scale = {0.4f,0.4f,0.4f};\
 
-internal void
-test_collision(Entity* e1, Entity* e2, r32 delta_time){
-	V3 pos_difference = e2->pos-e1->pos;
-	r32 collision_magnitude = v3_magnitude(pos_difference);
-	//sphere vs sphere simplified
-	r32 overlapping = (e1->current_scale+e2->current_scale) - collision_magnitude;
-	if(overlapping > 0){
-		V3 collision_direction = v3_normalize(pos_difference);
-		if(!collision_magnitude)
-			collision_direction = {1.0f,0,0};
-		overlapping =  MIN(MIN(e1->current_scale, e2->current_scale),overlapping);
-		e1->velocity = e1->velocity - (((overlapping/delta_time)/2) * collision_direction);
-		e2->velocity = e2->velocity + (((overlapping/delta_time)/2) * collision_direction);
-	}
-}
+// internal void
+// test_collision(Entity* e1, Entity* e2, r32 delta_time){
+// 	V3 pos_difference = e2->pos-e1->pos;
+// 	r32 collision_magnitude = v3_magnitude(pos_difference);
+// 	//sphere vs sphere simplified
+// 	r32 overlapping = (e1->current_scale+e2->current_scale) - collision_magnitude;
+// 	if(overlapping > 0){
+// 		V3 collision_direction = v3_normalize(pos_difference);
+// 		if(!collision_magnitude)
+// 			collision_direction = {1.0f,0,0};
+// 		overlapping =  MIN(MIN(e1->current_scale, e2->current_scale),overlapping);
+// 		e1->velocity = e1->velocity - (((overlapping/delta_time)/2) * collision_direction);
+// 		e2->velocity = e2->velocity + (((overlapping/delta_time)/2) * collision_direction);
+// 	}
+// }
 
 internal u32
 next_inactive_entity(Entity entities[], u32* last_inactive_i){
