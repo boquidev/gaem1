@@ -413,8 +413,10 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	}
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_SET_DEPTH_STENCIL;
+	request->type_flags = REQUEST_FLAG_SET_DEPTH_STENCIL|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS;
 	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
+	request->vshader_uid = memory->vshaders.ui_vshader_uid;
+	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 
 	UNTIL(i, MAX_ENTITIES){
 		if(memory->entities[i].visible && memory->entities[i].type != ENTITY_PROJECTILE){
@@ -427,10 +429,6 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		}
 	}
 
-	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS;
-	request->vshader_uid = memory->vshaders.ui_vshader_uid;
-	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 
 	printo_screen(memory, screen_size, render_list,
 		string("here i will show the fps (probably): 69 fps"), {-1,1}, {1,1,1,1});
@@ -444,19 +442,19 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 		Renderer_request* requests [3];
 		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
-		requests[0]->type_flags = REQUEST_FLAG_RENDER_TO_SCREEN;
+		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[0]->object3d = template_object;
 		requests[0]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('0');
 		requests[0]->object3d.pos = {-0.2f, -0.8f, 0};
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
-		requests[1]->type_flags = REQUEST_FLAG_RENDER_TO_SCREEN;
+		requests[1]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[1]->object3d = template_object;
 		requests[1]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('1');
 		requests[1]->object3d.pos = {0, -0.8f, 0};
 		
 		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
-		requests[2]->type_flags = REQUEST_FLAG_RENDER_TO_SCREEN;
+		requests[2]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[2]->object3d = template_object;
 		requests[2]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('2');
 		requests[2]->object3d.pos = {0.2f, -0.8f, 0};
@@ -486,7 +484,7 @@ void init(App_memory* memory, Init_data* init_data){
 	player->current_scale = 1.0f;
 
 	player->team_uid = 0;
-	player->speed = 10.0f;
+	player->speed = 5.0f;
 	player->type = ENTITY_UNIT;
 	
 	Entity* boss = &memory->entities[BOSS_INDEX];

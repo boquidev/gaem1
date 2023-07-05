@@ -16,6 +16,9 @@ cbuffer object_color_buffer : register(b3)
 {
 	float4 object_color;
 };
+cbuffer object_texrect_buffer : register(b4){
+	float4 object_texrect;
+}
 
 cbuffer Constants
 {
@@ -44,7 +47,8 @@ PSINPUT vs( VSINPUT input )
 	// vertex_world_pos.y += sin(vertex_world_pos.x*100)/100;
 	float4 pos_from_camera = mul( world_view, vertex_world_pos);
 	result.pixel_pos = mul( world_projection, pos_from_camera );
-	result.texcoord = input.texcoord;
+	result.texcoord.x = object_texrect.x + (input.texcoord.x * object_texrect.z);
+	result.texcoord.y = object_texrect.y + (input.texcoord.y * object_texrect.w);
 	result.color = object_color;	
 	result.normal = normalize( mul( (float3x3)object_transform , input.normal) );
 	return result;

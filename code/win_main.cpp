@@ -901,7 +901,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 				ASSERT(request->type_flags); //assert at least one flag is set
 
-				if((request->type_flags & REQUEST_FLAG_RENDER_OBJECT) || (request->type_flags & REQUEST_FLAG_RENDER_TO_WORLD)){
+				if((request->type_flags & REQUEST_FLAG_RENDER_OBJECT)){
 					Object3d* object = &request->object3d;
 					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
 					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
@@ -928,7 +928,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
 				
-				}else if((request->type_flags & REQUEST_FLAG_RENDER_TO_SCREEN)){
+				}else if((request->type_flags & REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN)){
 					//TODO: yeah not ready yet to do instancing
 					Object3d* object = &request->object3d;
 					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
@@ -950,6 +950,50 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 						XMMatrixRotationY(object->rotation.y) *
 						XMMatrixRotationZ(object->rotation.z) *
 						XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z); 
+
+					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
+					Dx11_texture* texture; LIST_GET(textures_list, object->tex_uid.uid, texture);
+
+					if(object->tex_uid.is_atlas){
+						// TODO: make sure this rect is normalized
+						Rect texrect = texture->texrects[object->tex_uid.rect_uid];
+						dx11_modify_resource(dx, object_texrect_buffer.buffer, &texrect, sizeof(Rect));
+					}else{
+						dx11_modify_resource(dx, object_texrect_buffer.buffer, &default_texrect, sizeof(Rect));
+					}
+					
+					dx11_bind_texture_view(dx, &texture->texview);
+					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
+
+					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
+				
+				}else if ((request->type_flags & REQUEST_FLAG_RENDER_IMAGE_TO_WORLD)){
+					//TODO: yeah not ready yet to do instancing
+					Object3d* object = &request->object3d;
+					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
+					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
+					
+					Packed_tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
+
+					r32 half_pixel_offset = 0.25f;
+					r32 xoffset = object->scale.x*(tex_info.xoffset+half_pixel_offset)/16;
+					r32 yoffset = object->scale.y*(2*(tex_info.yoffset)+half_pixel_offset)/9;
+					
+					object->scale.x *= ((2.0f*tex_info.w) / 16);
+					object->scale.y *= (2.0f*tex_info.h) / 9;
+
+					request->object3d.pos.x += xoffset; 
+					request->object3d.pos.y -= yoffset;
+
+					XMMATRIX object_transform_matrix = (
+						(
+							XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
+						XMMatrixRotationX(object->rotation.x) *
+						XMMatrixRotationY(object->rotation.y) *
+						XMMatrixRotationZ(object->rotation.z) *
+							XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z)
+						) * view_matrix * projection_matrix
+					);
 
 					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
 					Dx11_texture* texture; LIST_GET(textures_list, object->tex_uid.uid, texture);
