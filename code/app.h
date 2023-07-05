@@ -35,13 +35,14 @@ struct  Object3d{
 
 enum RENDERER_REQUEST_TYPE_FLAGS{
 	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
-	REQUEST_FLAG_RENDER_IMAGE			= 1 << 1,
-	REQUEST_FLAG_SET_VS 					= 1 << 2,
-	REQUEST_FLAG_SET_PS					= 1 << 3,
-	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 4,
-	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 5,
+	REQUEST_FLAG_RENDER_TO_SCREEN		= 1 << 1,
+	REQUEST_FLAG_RENDER_TO_WORLD		= 1 << 2,
+	REQUEST_FLAG_SET_VS 					= 1 << 3,
+	REQUEST_FLAG_SET_PS					= 1 << 4,
+	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 5,
+	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 6,
 	//TODO: instancing request type
-	//TODO: set texture or mesh request type
+	//TODO: set texture or mesh request type for instancing
 };
 
 struct Renderer_request{
@@ -313,27 +314,56 @@ struct App_memory
 };
 
 internal void
+printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_list),String s, V3 pos, Color color){
+	r32 line_height = 18;
+	Renderer_request* request = 0;
+	UNTIL(c, s.length){
+		char current_char = s.text[c];
+		char char_index = CHAR_TO_INDEX(current_char);
+
+		if(current_char == ' ')
+			pos.x += 16.0f/screen_size.x;
+		else{
+			PUSH_BACK(render_list, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_TO_WORLD;
+
+			Object3d* object = &request->object3d;
+			object->mesh_uid = memory->meshes.plane_mesh_uid;
+			object->tex_uid = memory->textures.font_atlas_uid;
+			object->scale = {1,1,1};
+			object->pos = pos;
+			object->rotation = {0,0,0};
+			object->color = color;
+			
+			request->object3d.tex_uid.rect_uid = char_index;
+			request->object3d.pos.y -= (2.0f*line_height)/screen_size.y;
+			pos.x += 16.0f/screen_size.x;
+		}
+	}
+}
+
+internal void
 printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_list),String text, V2 pos, Color color){
 	r32 line_height = 18;
 	Renderer_request* request = 0;
 	r32 xpos = pos.x;
 	UNTIL(c, text.length){
 		char current_char = text.text[c];
-		char char_index = current_char - FIRST_CHAR;
+		char char_index = CHAR_TO_INDEX(current_char);
 
 		if(current_char == ' ')
 			xpos += 16.0f/screen_size.x;
 		else{			
 			PUSH_BACK(render_list, memory->temp_arena, request);
-			request->type_flags = REQUEST_FLAG_RENDER_IMAGE;
-			request->object3d = {
-				memory->meshes.plane_mesh_uid,
-				memory->textures.font_atlas_uid,
-				{1,1,1},
-				{xpos,pos.y,0},
-				{0,0,0},
-				color
-			};
+			request->type_flags = REQUEST_FLAG_RENDER_TO_SCREEN;
+			Object3d* object = &request->object3d;
+			object->mesh_uid = memory->meshes.plane_mesh_uid;
+			object->tex_uid = memory->textures.font_atlas_uid;
+			object->scale = {1,1,1};
+			object->pos = {xpos,pos.y,0};
+			object->rotation = {0,0,0};
+			object->color = color;
+
 			request->object3d.tex_uid.rect_uid = char_index;
 			request->object3d.pos.y -= (2.0f*line_height)/screen_size.y;
 			xpos += 16.0f / screen_size.x;

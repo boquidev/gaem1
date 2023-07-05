@@ -413,23 +413,27 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	}
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_DEPTH_STENCIL;
-	request->vshader_uid = memory->vshaders.ui_vshader_uid;
-	request->pshader_uid = memory->pshaders.ui_pshader_uid;
+	request->type_flags = REQUEST_FLAG_SET_DEPTH_STENCIL;
 	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
 
-	printo_screen(memory, screen_size, render_list,
-		string("here i will show the fps (probably): 69 fps"), {-1,1}, {1,1,1,1});
 	UNTIL(i, MAX_ENTITIES){
 		if(memory->entities[i].visible && memory->entities[i].type != ENTITY_PROJECTILE){
 			String health_string = number_to_string(memory->entities[i].health, memory->temp_arena);
-			printo_screen(memory, screen_size, render_list,
+			printo_world(memory, screen_size, render_list,
 				health_string, 
-				{2*memory->entities[i].pos.x/(memory->fov*memory->aspect_ratio), 2*memory->entities[i].pos.z/memory->fov},
+				memory->entities[i].pos,
 				{0,1,0,1}
 			);
 		}
 	}
+
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS;
+	request->vshader_uid = memory->vshaders.ui_vshader_uid;
+	request->pshader_uid = memory->pshaders.ui_pshader_uid;
+
+	printo_screen(memory, screen_size, render_list,
+		string("here i will show the fps (probably): 69 fps"), {-1,1}, {1,1,1,1});
 
 	{
 		Object3d template_object = {0};
@@ -440,21 +444,21 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 		Renderer_request* requests [3];
 		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
-		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		requests[0]->type_flags = REQUEST_FLAG_RENDER_TO_SCREEN;
 		requests[0]->object3d = template_object;
-		requests[0]->object3d.tex_uid.rect_uid = '0'-FIRST_CHAR;
+		requests[0]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('0');
 		requests[0]->object3d.pos = {-0.2f, -0.8f, 0};
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
-		requests[1]->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		requests[1]->type_flags = REQUEST_FLAG_RENDER_TO_SCREEN;
 		requests[1]->object3d = template_object;
-		requests[1]->object3d.tex_uid.rect_uid = '1'-FIRST_CHAR;
+		requests[1]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('1');
 		requests[1]->object3d.pos = {0, -0.8f, 0};
 		
 		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
-		requests[2]->type_flags = REQUEST_FLAG_RENDER_IMAGE;
+		requests[2]->type_flags = REQUEST_FLAG_RENDER_TO_SCREEN;
 		requests[2]->object3d = template_object;
-		requests[2]->object3d.tex_uid.rect_uid = '2'-FIRST_CHAR;
+		requests[2]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('2');
 		requests[2]->object3d.pos = {0.2f, -0.8f, 0};
 
 		Renderer_request* selected = requests[memory->creating_unit];

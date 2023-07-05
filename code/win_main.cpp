@@ -358,7 +358,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		Packed_tex_info* charinfo = memory.font_charinfo; //TODO: do i need this on the app layer? 
 		Color32* charbitmaps [CHARS_COUNT];
 		stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
-		UNTIL(c, LAST_CHAR-FIRST_CHAR){
+		UNTIL(c, CHARS_COUNT){
 			u32 codepoint = c+FIRST_CHAR;
 			u8* monobitmap = stbtt_GetCodepointBitmap(
 				&font, 0, stbtt_ScaleForPixelHeight(&font, lines_height), codepoint, 
@@ -901,7 +901,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 				ASSERT(request->type_flags); //assert at least one flag is set
 
-				if(request->type_flags & REQUEST_FLAG_RENDER_OBJECT){
+				if((request->type_flags & REQUEST_FLAG_RENDER_OBJECT) || (request->type_flags & REQUEST_FLAG_RENDER_TO_WORLD)){
 					Object3d* object = &request->object3d;
 					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
 					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
@@ -928,7 +928,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
 				
-				}if(request->type_flags & REQUEST_FLAG_RENDER_IMAGE){//TODO: yeah not ready yet to do instancing
+				}else if((request->type_flags & REQUEST_FLAG_RENDER_TO_SCREEN)){
+					//TODO: yeah not ready yet to do instancing
 					Object3d* object = &request->object3d;
 					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
 					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
@@ -965,21 +966,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
-					
-				}if(request->type_flags & REQUEST_FLAG_SET_VS){
-					Vertex_shader* vertex_shader; LIST_GET(vertex_shaders_list, request->vshader_uid, vertex_shader);
-					dx11_bind_vs(dx, vertex_shader->shader);
-					dx11_bind_input_layout(dx, vertex_shader->input_layout);
-				}if(request->type_flags & REQUEST_FLAG_SET_PS){
-					Dx11_pixel_shader** pixel_shader; LIST_GET(pixel_shaders_list, request->pshader_uid, pixel_shader);
-					dx11_bind_ps(dx, *pixel_shader);
-				}if(request->type_flags & REQUEST_FLAG_SET_BLEND_STATE){
-					Dx11_blend_state** blend_state; LIST_GET(blend_states_list, request->blend_state_uid, blend_state);
-					dx11_bind_blend_state(dx, *blend_state);
-				}if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
-					Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);
-					dx11_bind_depth_stencil_state(dx, depth_stencil->state);
-					dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencil->view);
+				
+				}else{
+					if(request->type_flags & REQUEST_FLAG_SET_VS){
+						Vertex_shader* vertex_shader; LIST_GET(vertex_shaders_list, request->vshader_uid, vertex_shader);
+						dx11_bind_vs(dx, vertex_shader->shader);
+						dx11_bind_input_layout(dx, vertex_shader->input_layout);
+					}if(request->type_flags & REQUEST_FLAG_SET_PS){
+						Dx11_pixel_shader** pixel_shader; LIST_GET(pixel_shaders_list, request->pshader_uid, pixel_shader);
+						dx11_bind_ps(dx, *pixel_shader);
+					}if(request->type_flags & REQUEST_FLAG_SET_BLEND_STATE){
+						Dx11_blend_state** blend_state; LIST_GET(blend_states_list, request->blend_state_uid, blend_state);
+						dx11_bind_blend_state(dx, *blend_state);
+					}if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
+						Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);
+						dx11_bind_depth_stencil_state(dx, depth_stencil->state);
+						dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencil->view);
+					}
 				}
 			}
 			// PRESENT RENDERING
