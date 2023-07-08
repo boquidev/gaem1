@@ -277,9 +277,13 @@ void update(App_memory* memory){
 
 		} else if (entity->type == ENTITY_SHIELD){
 			Entity* parent = &entities[entity->parent_uid];
-			entity->target_move_pos = parent->looking_at;
-			entity->pos = parent->looking_at;
-			entity->target_pos = entity->pos + (parent->looking_at - parent->pos);
+			if(parent->active){
+				entity->target_move_pos = parent->looking_at;
+				entity->pos = parent->looking_at;
+				entity->target_pos = entity->pos + (parent->looking_at - parent->pos);
+			}else{
+				*entity = {0};
+			}
 
 		}else if ( entity->type == ENTITY_UNIT ) {
 			if(entity->team_uid != 0){
