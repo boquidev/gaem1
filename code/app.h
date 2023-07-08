@@ -33,31 +33,6 @@ struct  Object3d{
 	(objectp)->scale = {1,1,1};\
 	(objectp)->color = {1,1,1,1};
 
-enum RENDERER_REQUEST_TYPE_FLAGS{
-	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
-	REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN		= 1 << 1,
-	REQUEST_FLAG_RENDER_IMAGE_TO_WORLD		= 1 << 2,
-	REQUEST_FLAG_SET_VS 					= 1 << 3,
-	REQUEST_FLAG_SET_PS					= 1 << 4,
-	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 5,
-	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 6,
-	//TODO: instancing request type
-	//TODO: set texture or mesh request type for instancing
-};
-
-struct Renderer_request{
-	u32 type_flags;
-	union{
-		Object3d object3d;
-		struct{
-			u32 vshader_uid;
-			u32 pshader_uid;
-			u32 blend_state_uid;
-			u32 depth_stencil_uid;	
-		};
-	};
-};
-
 #define MAX_ENTITIES 5000
 enum ENTITY_TYPE{
 	ENTITY_FORGOR_TO_ASSIGN_TYPE,
@@ -136,14 +111,14 @@ struct Entity{
 
 #define DEFAULT_PROJECTILE(p)\
 	DEFAULT_ENTITY(p)\
-					new_bullet->lifetime = 5.0f;\
-					new_bullet->active = true;\
-					new_bullet->current_scale = 1.0f;\
-					new_bullet->type = ENTITY_PROJECTILE;\
-					new_bullet->mesh_uid = memory->meshes.ball_uid;\
-					new_bullet->tex_uid = memory->textures.white_tex_uid;\
-					new_bullet->color = {0.6f,0.6f,0.6f,1};\
-					new_bullet->scale = {0.4f,0.4f,0.4f};\
+					(p)->lifetime = 5.0f;\
+					(p)->active = true;\
+					(p)->current_scale = 1.0f;\
+					(p)->type = ENTITY_PROJECTILE;\
+					(p)->mesh_uid = memory->meshes.ball_uid;\
+					(p)->tex_uid = memory->textures.white_tex_uid;\
+					(p)->color = {0.6f,0.6f,0.6f,1};\
+					(p)->scale = {0.4f,0.4f,0.4f};\
 
 // internal void
 // test_collision(Entity* e1, Entity* e2, r32 delta_time){
@@ -311,6 +286,30 @@ struct App_memory
 	u32 last_inactive_entity;
 	Entity* entities;
 	u32* entity_generations;
+};
+enum RENDERER_REQUEST_TYPE_FLAGS{
+	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
+	REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN		= 1 << 1,
+	REQUEST_FLAG_RENDER_IMAGE_TO_WORLD		= 1 << 2,
+	REQUEST_FLAG_SET_VS 					= 1 << 3,
+	REQUEST_FLAG_SET_PS					= 1 << 4,
+	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 5,
+	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 6,
+	//TODO: instancing request type
+	//TODO: set texture or mesh request type for instancing
+};
+
+struct Renderer_request{
+	u32 type_flags;
+	union{
+		Object3d object3d;
+		struct{
+			u32 vshader_uid;
+			u32 pshader_uid;
+			u32 blend_state_uid;
+			u32 depth_stencil_uid;	
+		};
+	};
 };
 
 internal void

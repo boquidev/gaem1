@@ -419,7 +419,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 
 	UNTIL(i, MAX_ENTITIES){
-		if(memory->entities[i].visible && memory->entities[i].type != ENTITY_PROJECTILE){
+		if(memory->entities[i].visible && memory->entities[i].type != ENTITY_PROJECTILE && memory->entities[i].type != ENTITY_OBSTACLE){
 			String health_string = number_to_string(memory->entities[i].health, memory->temp_arena);
 			printo_world(memory, screen_size, render_list,
 				health_string, 
@@ -432,6 +432,10 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	printo_screen(memory, screen_size, render_list,
 		string("here i will show the fps (probably): 69 fps"), {-1,1}, {1,1,1,1});
+	
+	String resources_string = number_to_string(memory->teams_resources[memory->entities[memory->player_uid].team_uid], memory->temp_arena);
+	printo_screen(memory, screen_size, render_list,
+		concat_strings(string("resources: "), resources_string, memory->temp_arena), {-1,.9f}, {1,1,0,1});
 
 	{
 		Object3d template_object = {0};
