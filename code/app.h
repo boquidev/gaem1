@@ -38,14 +38,17 @@ enum ENTITY_TYPE{
 	ENTITY_FORGOR_TO_ASSIGN_TYPE,
 	ENTITY_UNIT,
 	ENTITY_PROJECTILE,
+	ENTITY_SHIELD,
 	ENTITY_OBSTACLE,
 };
 enum UNIT_TYPE{
 	UNIT_NOT_A_UNIT,
 	ENTITY_QUEEN,
-	UNIT_TURRET,
-	UNIT_SPAWNER
+	UNIT_SHOOTER,
+	UNIT_SPAWNER,
+	UNIT_TANK,
 };
+
 struct Entity{
 	b32 visible;
 	b32 active;
@@ -68,7 +71,7 @@ struct Entity{
 
 	r32 speed;
 
-	// u32 parent_uid;
+	u32 parent_uid;
 	u32 team_uid;
 	//TODO: this is becoming troublesome
 	r32 current_scale;
@@ -85,17 +88,43 @@ struct Entity{
 	(entityp)->visible = true;\
 	DEFAULT_OBJECT3D(entityp)
 
-#define DEFAULT_TURRET(t) \
+#define DEFAULT_SHOOTER(t) \
 	DEFAULT_ENTITY(t)\
 	(t)->current_scale = MIN(1.0f, memory->delta_time);\
 	(t)->selectable = true;\
 	(t)->type = ENTITY_UNIT;\
-	(t)->unit_type = UNIT_TURRET;\
+	(t)->unit_type = UNIT_SHOOTER;\
 	(t)->health = 2;\
 	(t)->shooting_cooldown = 0.9f;\
 	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
-	(t)->mesh_uid = memory->meshes.icosphere_uid;\
+	(t)->mesh_uid = memory->meshes.icosphere_mesh_uid;\
 	(t)->tex_uid = memory->textures.white_tex_uid;\
+
+#define DEFAULT_TANK(t) \
+	DEFAULT_ENTITY(t)\
+	(t)->current_scale = MIN(1.0f, memory->delta_time);\
+	(t)->selectable = true;\
+	(t)->type = ENTITY_UNIT;\
+	(t)->unit_type = UNIT_TANK;\
+	(t)->health = 10;\
+	(t)->shooting_cooldown = 2.0f;\
+	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
+	(t)->mesh_uid = memory->meshes.centered_cube_mesh_uid;\
+	(t)->tex_uid = memory->textures.white_tex_uid;\
+	
+#define DEFAULT_SHIELD(s)\
+	DEFAULT_ENTITY(s)\
+	(s)->scale = {2,2,2};\
+	(s)->color = {1,1,1,0.5f};\
+	(s)->current_scale = MIN(1.0f, memory->delta_time);\
+	(s)->selectable = false;\
+	(s)->type = ENTITY_SHIELD;\
+	(s)->health = 20;\
+	(s)->shooting_cooldown = 0.0f;\
+	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
+	(s)->mesh_uid = memory->meshes.shield_mesh_uid;\
+	(s)->tex_uid = memory->textures.white_tex_uid;\
+
 
 #define DEFAULT_SPAWNER(s)\
 	DEFAULT_ENTITY(s)\
@@ -115,7 +144,7 @@ struct Entity{
 					(p)->active = true;\
 					(p)->current_scale = 1.0f;\
 					(p)->type = ENTITY_PROJECTILE;\
-					(p)->mesh_uid = memory->meshes.ball_uid;\
+					(p)->mesh_uid = memory->meshes.ball_mesh_uid;\
 					(p)->tex_uid = memory->textures.white_tex_uid;\
 					(p)->color = {0.6f,0.6f,0.6f,1};\
 					(p)->scale = {0.4f,0.4f,0.4f};\
@@ -174,11 +203,11 @@ struct User_input
 			s32 cursor_primary;
 			s32 cursor_secondary;
 
+			s32 reset;
+
 			s32 cancel;
 			s32 move;
 
-			// s32 forward;
-			// s32 backward;
 			s32 d_up;
 			s32 d_down;
 			s32 d_left;
@@ -200,11 +229,13 @@ struct Meshes
 	u32 ogre_mesh_uid;
 	u32 female_mesh_uid;
 	u32 turret_mesh_uid;
+	u32 centered_cube_mesh_uid;
 	u32 plane_mesh_uid;
+	u32 shield_mesh_uid;
 
-	u32 ball_uid;
-	u32 icosphere_uid;
-	u32 cube_uid;
+	u32 ball_mesh_uid;
+	u32 icosphere_mesh_uid;
+	u32 cube_mesh_uid;
 
 	u32 test_orientation_uid;
 	u32 test_orientation2_uid;

@@ -6,6 +6,10 @@ void update(App_memory* memory){
 	User_input* holding_inputs = memory->holding_inputs;
 	Entity* entities = memory->entities;
 
+	//TODO: this
+	// if(input->reset)
+	// 	memory->initialized = false;
+
 	r32 delta_time = 1;
 	r32 camera_speed = 1.0f;
 	r32 sensitivity = 2.0f;
@@ -33,7 +37,7 @@ void update(App_memory* memory){
 		Entity* player = &entities[memory->player_uid];
 		// player->pos.x += input_vector.x *  player->speed * delta_time;
 		// player->pos.z += input_vector.y * player->speed * delta_time;
-		player->mesh_uid = memory->meshes.ball_uid;
+		player->mesh_uid = memory->meshes.ball_mesh_uid;
 		player->tex_uid = memory->textures.white_tex_uid;
 		player->target_move_pos = v3_addition(player->pos, {input_vector.x*player->speed, 0, input_vector.y*player->speed});
 
@@ -47,7 +51,7 @@ void update(App_memory* memory){
 		wall->active = true;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
 		wall->tex_uid = memory->textures.white_tex_uid;
 		wall->scale = {1,1,45};
 		wall->pos = {-29, 0, -23};
@@ -59,7 +63,7 @@ void update(App_memory* memory){
 		wall->active = true;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
 		wall->tex_uid = memory->textures.white_tex_uid;
 		wall->scale = {1,1,45};
 		wall->pos = {28, 0, -23};
@@ -71,7 +75,7 @@ void update(App_memory* memory){
 		wall->active = true;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
 		wall->tex_uid = memory->textures.white_tex_uid;
 		wall->scale = {56,1,1};
 		wall->pos = {-28, 0, -23};
@@ -83,7 +87,7 @@ void update(App_memory* memory){
 		wall->active = true;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_uid;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
 		wall->tex_uid = memory->textures.white_tex_uid;
 		wall->scale = {56,1,1};
 		wall->pos = {-28, 0, 21};
@@ -136,20 +140,21 @@ void update(App_memory* memory){
 			}
 		}
 	}
+#define AVAILABLE_UNITS 3
 	// HANDLING INPUT
 	entities[memory->highlighted_uid].color = {1,1,1,1};	
 	if(input->L == 1)
-		memory->creating_unit = (memory->creating_unit+2)%3;
+		memory->creating_unit = (memory->creating_unit+(AVAILABLE_UNITS))%(1+AVAILABLE_UNITS);
 	if(input->R == 1)
-		memory->creating_unit = ((memory->creating_unit+1) % 3);
+		memory->creating_unit = ((memory->creating_unit+1) % (1+AVAILABLE_UNITS));
 	if(memory->creating_unit == 1) { // SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
-			// CREATING UNIT
+			// CREATING SHOOTER
 			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				DEFAULT_TURRET(new_unit);
+				DEFAULT_SHOOTER(new_unit);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
@@ -161,12 +166,29 @@ void update(App_memory* memory){
 		}
 	} else if ( memory->creating_unit == 2){
 		if(input->cursor_primary == -1){
-			// CREATING UNIT
+			// CREATING SPAWNER
 			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				DEFAULT_SPAWNER(new_unit);
+
+				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
+				new_unit->target_move_pos = new_unit->pos;
+
+				new_unit->team_uid = entities[memory->player_uid].team_uid;
+				// new_unit->rotation.y = 0;
+				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+			}
+		}
+	} else if ( memory->creating_unit == 3){
+		if(input->cursor_primary == -1){
+			// CREATING TANK
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
+				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+				Entity* new_unit = &entities[new_entity_index];
+				DEFAULT_TANK(new_unit);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
@@ -235,8 +257,31 @@ void update(App_memory* memory){
 			}else{
 				entity->current_scale = 1.0f;
 				entity->active = true;
+				if(entity->unit_type == UNIT_TANK){
+					//TODO: create shield
+					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
+					Entity* new_shield= &entities[new_entity_index];
+					DEFAULT_SHIELD(new_shield);
+					Entity* parent = entity;
+					new_shield->parent_uid = i;
+					new_shield->team_uid = parent->team_uid;
+					new_shield->pos = parent->looking_at;
+					new_shield->target_move_pos = parent->looking_at;
+					// TODO: go in the direction that parent is looking (the parent's rotation);
+					new_shield->target_pos = new_shield->pos + (parent->looking_at - parent->pos);
+
+					V3 target_direction = v3_difference(new_shield->target_pos, new_shield->pos);
+					new_shield->velocity =  new_shield->speed * v3_normalize(target_direction);
+				}
 			}
-		} else if ( entity->type == ENTITY_UNIT ) {
+
+		} else if (entity->type == ENTITY_SHIELD){
+			Entity* parent = &entities[entity->parent_uid];
+			entity->target_move_pos = parent->looking_at;
+			entity->pos = parent->looking_at;
+			entity->target_pos = entity->pos + (parent->looking_at - parent->pos);
+
+		}else if ( entity->type == ENTITY_UNIT ) {
 			if(entity->team_uid != 0){
 				entity->target_pos = entities[memory->player_uid].pos;
 				entity->color = {0.7f,0,0,1};
@@ -247,7 +292,7 @@ void update(App_memory* memory){
 				entity->shooting_cd_time_left = entity->shooting_cooldown;
 			
 
-				if(entity->unit_type == UNIT_TURRET){
+				if(entity->unit_type == UNIT_SHOOTER || entity->unit_type == UNIT_TANK){
 					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 					Entity* new_bullet = &entities[new_entity_index];
 					DEFAULT_PROJECTILE(new_bullet);
@@ -257,6 +302,7 @@ void update(App_memory* memory){
 					new_bullet->speed = 50;
 
 					Entity* parent = entity;
+					new_bullet->parent_uid = i;
 					new_bullet->team_uid = parent->team_uid;
 					new_bullet->pos = parent->pos;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
@@ -277,7 +323,7 @@ void update(App_memory* memory){
 						spawn_pos = entity->target_pos;
 
 					Entity* new_unit = &entities[new_entity_index];
-					DEFAULT_TURRET(new_unit);
+					DEFAULT_SHOOTER(new_unit);
 
 					new_unit->pos = spawn_pos;
 					new_unit->target_move_pos = new_unit->pos;
@@ -358,14 +404,14 @@ void update(App_memory* memory){
 						}
 					}
 				}
-			}else{
+			}else if (entity->type == ENTITY_UNIT){
 				UNTIL(j, MAX_ENTITIES){
 					if( i!=j && entities[j].visible ){
 						if(entities[j].type == ENTITY_UNIT){
 							V3 pos_difference = entities[j].pos-entities[i].pos;
 							r32 collision_magnitude = v3_magnitude(pos_difference);
 							//sphere vs sphere simplified
-							r32 overlapping = (entities[i].current_scale+entities[j].current_scale) - collision_magnitude;
+							r32 overlapping = ((entities[i].scale.x * entities[i].current_scale)+(entities[j].scale.x * entities[j].current_scale)) - collision_magnitude;
 							if(overlapping > 0){
 								V3 collision_direction = v3_normalize(pos_difference);
 								if(!collision_magnitude)
@@ -444,7 +490,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		template_object.scale = {5,5,5};
 		template_object.color = {1,1,1,1};
 
-		Renderer_request* requests [3];
+		Renderer_request* requests [4];
 		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
 		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[0]->object3d = template_object;
@@ -462,6 +508,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		requests[2]->object3d = template_object;
 		requests[2]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('2');
 		requests[2]->object3d.pos = {0.2f, -0.8f, 0};
+
+		PUSH_BACK(render_list, memory->temp_arena, requests[3]);
+		requests[3]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
+		requests[3]->object3d = template_object;
+		requests[3]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('3');
+		requests[3]->object3d.pos = {0.4f, -0.8f, 0};
 
 		Renderer_request* selected = requests[memory->creating_unit];
 		selected->object3d.scale = 1.2f*template_object.scale;
@@ -680,9 +732,13 @@ void init(App_memory* memory, Init_data* init_data){
 
 	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/new_test_orientation.glb"));
 	
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_uid, string("data/ball.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_mesh_uid, string("data/ball.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.icosphere_uid, string("data/icosphere.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.icosphere_mesh_uid, string("data/icosphere.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.cube_uid, string("data/cube.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.cube_mesh_uid, string("data/cube.glb"));
+
+	push_mesh_from_file_request(memory, init_data, &memory->meshes.centered_cube_mesh_uid, string("data/centered_cube.glb"));
+
+	push_mesh_from_file_request(memory, init_data, &memory->meshes.shield_mesh_uid, string("data/shield.glb"));
 }

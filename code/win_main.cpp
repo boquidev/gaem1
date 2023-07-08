@@ -187,7 +187,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	RegisterClassA(&window_class);
 
-	DWORD exstyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+	DWORD exstyle = WS_MAXIMIZE | WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 	
 	global_main_window = CreateWindowExA(
 		0,
