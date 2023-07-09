@@ -182,6 +182,18 @@ next_inactive_entity(Entity entities[], u32* last_inactive_i){
 	return i; 
 }
 
+// this is cuz transparent objects should not be rendered before other objects cuz they would 
+// just not show them like if they were opaque
+internal u32
+last_inactive_entity(Entity entities[]){
+	u32 i = MAX_ENTITIES-1;
+	for(; i >= 0; i--){
+		if(!entities[i].visible) break;
+	}
+	ASSERT(i>=0);
+	return i;
+}
+
 struct Entity_handle
 {
 	u32 index;

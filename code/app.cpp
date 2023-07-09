@@ -217,7 +217,7 @@ void update(App_memory* memory){
 				selected_entity->target_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 			else if( input->cursor_primary > 0)
 				memory->selected_uid = memory->player_uid;
-			else if( input->move > 0)
+			if( input->move > 0)
 				selected_entity->target_move_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 		}
 	}	
@@ -258,7 +258,7 @@ void update(App_memory* memory){
 				entity->active = true;
 				if(entity->unit_type == UNIT_TANK){
 					//TODO: create shield
-					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
+					u32 new_entity_index = last_inactive_entity(entities);
 					Entity* new_shield= &entities[new_entity_index];
 					DEFAULT_SHIELD(new_shield);
 					Entity* parent = entity;
@@ -345,7 +345,6 @@ void update(App_memory* memory){
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
 					
 			}else if(entity->type != ENTITY_PROJECTILE){
-				//TODO: make it dependent on the entity's speed so that not all entities move at the same speed
 
 				V3 move_distance = (entity->target_move_pos - entity->pos);
 				// V3 accel = entity->speed*(move_v - (0.4f*entity->velocity));
