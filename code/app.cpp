@@ -39,7 +39,6 @@ void update(App_memory* memory){
 		// player->pos.z += input_vector.y * player->speed * delta_time;
 		player->mesh_uid = memory->meshes.ball_mesh_uid;
 		player->tex_uid = memory->textures.white_tex_uid;
-		player->target_move_pos = v3_addition(player->pos, {input_vector.x*player->speed, 0, input_vector.y*player->speed});
 
 		Entity* boss = &entities[BOSS_INDEX];
 		boss->mesh_uid = memory->meshes.ogre_mesh_uid;
@@ -195,7 +194,7 @@ void update(App_memory* memory){
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
-				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 1.0f});
 			}
 		}
 	} else {  // NO SELECTED UNIT TO CREATE
@@ -269,18 +268,15 @@ void update(App_memory* memory){
 					new_shield->target_move_pos = parent->looking_at;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
 					new_shield->target_pos = new_shield->pos + (parent->looking_at - parent->pos);
-
-					V3 target_direction = v3_difference(new_shield->target_pos, new_shield->pos);
-					new_shield->velocity =  new_shield->speed * v3_normalize(target_direction);
 				}
 			}
 
 		} else if (entity->type == ENTITY_SHIELD){
 			Entity* parent = &entities[entity->parent_uid];
 			if(parent->active){
-				entity->target_move_pos = parent->looking_at;
-				entity->pos = parent->looking_at;
-				entity->target_pos = entity->pos + (parent->looking_at - parent->pos);
+				entity->target_move_pos = (0.1f*parent->velocity)+parent->pos + v3_normalize((parent->target_pos)- parent->pos);
+				entity->target_pos = entity->pos + (entity->pos - parent->pos);
+				entity->looking_at = entity->target_pos;
 			}else{
 				*entity = {0};
 			}
@@ -341,6 +337,7 @@ void update(App_memory* memory){
 		}{// DYNAMICS
 			entity->pos.y = 0;//TODO: clamping height position
 			if(i == memory->player_uid){
+				entity->target_move_pos = v3_addition(entity->pos, {input_vector.x*entity->speed, 0, input_vector.y*entity->speed});
 				V3 move_v = (entity->target_move_pos - entity->pos);
 				V3 accel = 10*(move_v - entity->velocity);
 				entity->velocity = entity->velocity + (memory->delta_time * accel);
@@ -349,15 +346,30 @@ void update(App_memory* memory){
 					
 			}else if(entity->type != ENTITY_PROJECTILE){
 				//TODO: make it dependent on the entity's speed so that not all entities move at the same speed
-				V3 move_v = (entity->target_move_pos - entity->pos);
-				V3 accel = 10*(move_v - (0.4f*entity->velocity));
-				entity->velocity = entity->velocity +( memory->delta_time * accel );
+
+				V3 move_distance = (entity->target_move_pos - entity->pos);
+				// V3 accel = entity->speed*(move_v - (0.4f*entity->velocity));
+
+				// r32 temp_4log10_speed = 0.025f;
+				// r32 temp_4log10_speed = 0.1f;
+				// V3 accel = ((entity->speed)*move_distance) - ((entity->speed*temp_4log10_speed)*entity->velocity);
+				// r32 vel_magnitude = v3_magnitude(entity->velocity);
+				// r32 new_magnitude = ((1-(vel_magnitude/500)));
+				r32 new_magnitude = 0.95f;
+				// r32 new_magnitude = 1.0f;
+				// V3 v_n = {
+				// 	entity->velocity.x*(1-(entity->velocity.x/10000)),
+				// 	entity->velocity.y*(1-(entity->velocity.y/10000)),
+				// 	entity->velocity.z*(1-(entity->velocity.y/10000))
+				// };
+				V3 accel = entity->speed*( move_distance - (0.005f*entity->velocity) );
+				entity->velocity = new_magnitude*entity->velocity +(memory->delta_time*( accel ));
 
 				//TODO: when unit is moving and shooting, shoots seem to come from the body
 				// and that's because it should spawn in the tip of the cannon instead of the center
 				//LERPING TARGET POS
 				entity->looking_at = entity->looking_at + (10*memory->delta_time * (entity->target_pos - entity->looking_at));
-				V3 target_direction = entity->looking_at - entity->pos; 
+				V3 target_direction = entity->looking_at - entity->pos;
 				r32 target_rotation = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
 				entity->rotation.y = target_rotation;
 

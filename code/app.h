@@ -94,6 +94,7 @@ struct Entity{
 	(t)->selectable = true;\
 	(t)->type = ENTITY_UNIT;\
 	(t)->unit_type = UNIT_SHOOTER;\
+	(t)->speed = 40.0f;\
 	(t)->health = 2;\
 	(t)->shooting_cooldown = 0.9f;\
 	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
@@ -102,6 +103,7 @@ struct Entity{
 
 #define DEFAULT_TANK(t) \
 	DEFAULT_ENTITY(t)\
+	(t)->speed = 40.0f;\
 	(t)->current_scale = MIN(1.0f, memory->delta_time);\
 	(t)->selectable = true;\
 	(t)->type = ENTITY_UNIT;\
@@ -116,6 +118,7 @@ struct Entity{
 	DEFAULT_ENTITY(s)\
 	(s)->scale = {2,2,2};\
 	(s)->color = {1,1,1,0.5f};\
+	(s)->speed = 100.0f;\
 	(s)->current_scale = MIN(1.0f, memory->delta_time);\
 	(s)->selectable = false;\
 	(s)->type = ENTITY_SHIELD;\
@@ -132,6 +135,7 @@ struct Entity{
 	(s)->selectable = true;\
 	(s)->type = ENTITY_UNIT;\
 	(s)->unit_type = UNIT_SPAWNER;\
+	(s)->speed = 40.0f;\
 	(s)->health = 2;\
 	(s)->shooting_cooldown = 5.0f;\
 	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
@@ -140,14 +144,14 @@ struct Entity{
 
 #define DEFAULT_PROJECTILE(p)\
 	DEFAULT_ENTITY(p)\
-					(p)->lifetime = 5.0f;\
-					(p)->active = true;\
-					(p)->current_scale = 1.0f;\
-					(p)->type = ENTITY_PROJECTILE;\
-					(p)->mesh_uid = memory->meshes.ball_mesh_uid;\
-					(p)->tex_uid = memory->textures.white_tex_uid;\
-					(p)->color = {0.6f,0.6f,0.6f,1};\
-					(p)->scale = {0.4f,0.4f,0.4f};\
+	(p)->lifetime = 5.0f;\
+	(p)->active = true;\
+	(p)->current_scale = 1.0f;\
+	(p)->type = ENTITY_PROJECTILE;\
+	(p)->mesh_uid = memory->meshes.ball_mesh_uid;\
+	(p)->tex_uid = memory->textures.white_tex_uid;\
+	(p)->color = {0.6f,0.6f,0.6f,1};\
+	(p)->scale = {0.4f,0.4f,0.4f};\
 
 // internal void
 // test_collision(Entity* e1, Entity* e2, r32 delta_time){

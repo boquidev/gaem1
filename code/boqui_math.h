@@ -172,6 +172,10 @@ internal V3
 operator *(r32 e, V3 v){
     return {e * v.x, e * v.y, e*v.z};
 }
+internal V3
+operator /(V3 v, r32 x){
+    return {v.x / x, v.y / x, v.z /x};
+}
 
 internal r32 v3_magnitude(r32 x, r32 y, r32 z){return SQRT(x*x + y*y + z*z);}
 internal r32 v3_magnitude(V3 v){return v3_magnitude(v.x, v.y, v.z);}
