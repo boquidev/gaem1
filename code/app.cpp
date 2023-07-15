@@ -303,7 +303,7 @@ void update(App_memory* memory){
 
 				
 						V3 target_direction = v3_normalize(entity->target_pos - entity->pos);
-						u32 shoots_count = 16;
+						u32 shoots_count = 24;
 						UNTIL(shot, shoots_count){
 							u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 							Entity* new_bullet = &entities[new_entity_index];
@@ -430,6 +430,8 @@ void update(App_memory* memory){
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
 					
 			}else if(entity->type != ENTITY_PROJECTILE){
+				entity->pos.x = CLAMP(-27, entity->pos.x, 27);
+				entity->pos.z = CLAMP(-21, entity->pos.z, 21);
 
 				V3 move_distance = (entity->target_move_pos - entity->pos);
 				// V3 accel = entity->speed*(move_v - (0.4f*entity->velocity));
@@ -665,7 +667,7 @@ void init(App_memory* memory, Init_data* init_data){
 	boss->current_scale = 1.0f;
 	boss->type = ENTITY_BOSS;
 
-	memory->unit_creation_costs[UNIT_SHOOTER] = 20;
+	memory->unit_creation_costs[UNIT_SHOOTER] = 20; // 20
 	memory->unit_creation_costs[UNIT_TANK] = 15;
 	memory->unit_creation_costs[UNIT_SPAWNER] = 40;
 
