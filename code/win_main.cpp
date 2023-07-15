@@ -770,26 +770,74 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					ASSERT(is_down == 0 || is_down == 1);
 					if(is_down != was_down)
 					{
-						if(vkcode == 'A')
-							holding_inputs.d_left = is_down;
-						else if(vkcode == 'D')
-							holding_inputs.d_right = is_down;
-						else if(vkcode == 'W')
-							holding_inputs.d_up = is_down;
-						else if(vkcode == 'S')
-							holding_inputs.d_down = is_down;
-						else if(vkcode == VK_SPACE)
-							holding_inputs.move = is_down;
-						// else if(vkcode == VK_SHIFT)
-						// 	holding_inputs.backward = is_down;
-						else if(vkcode == 'F')
-							holding_inputs.cancel = is_down;
-						// else if(vkcode == 'X')
-						// 	holding_inputs.shoot = is_down;
-						else if(vkcode == 'Q')
-							holding_inputs.L = is_down;
-						else if(vkcode == 'E')
-							holding_inputs.R = is_down;
+						switch(vkcode){
+							case 'A':
+								holding_inputs.d_left = is_down;
+							break;
+							case 'D':
+								holding_inputs.d_right = is_down;
+							break; 
+							case 'W':
+								holding_inputs.d_up = is_down;
+							break;
+							case 'S':
+								holding_inputs.d_down = is_down;
+							break;
+							case VK_SPACE:
+								holding_inputs.move = is_down;
+								break;
+							case 'F':
+								holding_inputs.cancel = is_down;
+								break;
+							case 'Q':
+								holding_inputs.L = is_down;
+								break;
+							case 'E':
+								holding_inputs.R = is_down;
+							break;
+							case '1':
+								holding_inputs.k1 = is_down;
+							break;
+							case '2':
+								holding_inputs.k2 = is_down;
+							break;
+							case '3':
+								holding_inputs.k3 = is_down;
+							break;
+							case '4':
+								holding_inputs.k4 = is_down;
+							break;
+							case '5':
+								holding_inputs.k5 = is_down;
+							break;
+							case '6':
+								holding_inputs.k6 = is_down;
+							break;
+							default:
+							break;
+
+						}
+						// if(vkcode == 'A')
+						// 	holding_inputs.d_left = is_down;
+						// else if(vkcode == 'D')
+						// 	holding_inputs.d_right = is_down;
+						// else if(vkcode == 'W')
+						// 	holding_inputs.d_up = is_down;
+						// else if(vkcode == 'S')
+						// 	holding_inputs.d_down = is_down;
+						// else if(vkcode == VK_SPACE)
+						// 	holding_inputs.move = is_down;
+						// // else if(vkcode == VK_SHIFT)
+						// // 	holding_inputs.backward = is_down;
+						// else if(vkcode == 'F')
+						// 	holding_inputs.cancel = is_down;
+						// // else if(vkcode == 'X')
+						// // 	holding_inputs.shoot = is_down;
+						// else if(vkcode == 'Q')
+						// 	holding_inputs.L = is_down;
+						// else if(vkcode == 'E')
+						// 	holding_inputs.R = is_down;
+						// else if(vk)
 						
 						
 						if(is_down)
@@ -814,6 +862,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							// else if(msg.wParam == 'F')
 							else if(vkcode == 'M')
 								memory.lock_mouse = !memory.lock_mouse;
+							else if(vkcode == 'T')
+								memory.delta_time = 0;
+							else if(vkcode == 'G')
+								memory.delta_time = 1.0f/memory.update_hz;
 #if DEBUGMODE
 							else if(vkcode == VK_F5)
 								global_running = false;
@@ -1060,7 +1112,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}
 
 			// memory.delta_time = frame_seconds_elapsed;
-			memory.delta_time = 1.0f/monitor_refresh_hz;
 			u32 frame_ms_elapsed = (u32)(frame_seconds_elapsed*1000);
 			memory.time_ms += frame_ms_elapsed;
 			

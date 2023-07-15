@@ -29,10 +29,6 @@ struct  Object3d{
 	OBJECT3D_STRUCTURE
 };
 
-#define DEFAULT_OBJECT3D(objectp) \
-	(objectp)->scale = {1,1,1};\
-	(objectp)->color = {1,1,1,1};
-
 #define MAX_ENTITIES 5000
 enum ENTITY_TYPE{
 	ENTITY_FORGOR_TO_ASSIGN_TYPE,
@@ -58,6 +54,7 @@ struct Entity{
 
 	r32 lifetime;
 
+	s32 max_health;
 	s32 health;
 
 	V3 target_move_pos;
@@ -83,6 +80,11 @@ struct Entity{
 		};
 	};
 };
+//TODO: make this into simple functions
+
+#define DEFAULT_OBJECT3D(objectp) \
+	(objectp)->scale = {1,1,1};\
+	(objectp)->color = {1,1,1,1};
 
 #define DEFAULT_ENTITY(entityp) \
 	(entityp)->visible = true;\
@@ -95,7 +97,8 @@ struct Entity{
 	(t)->type = ENTITY_UNIT;\
 	(t)->unit_type = UNIT_SHOOTER;\
 	(t)->speed = 100.0f;\
-	(t)->health = 2;\
+	(t)->max_health = 2;\
+	(t)->health = (t)->max_health;\
 	(t)->shooting_cooldown = 0.9f;\
 	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
 	(t)->mesh_uid = memory->meshes.shooter_mesh_uid;\
@@ -108,7 +111,8 @@ struct Entity{
 	(t)->selectable = true;\
 	(t)->type = ENTITY_UNIT;\
 	(t)->unit_type = UNIT_TANK;\
-	(t)->health = 10;\
+	(t)->max_health = 10;\
+	(t)->health = (t)->max_health;\
 	(t)->shooting_cooldown = 2.0f;\
 	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
 	(t)->mesh_uid = memory->meshes.centered_cube_mesh_uid;\
@@ -122,7 +126,8 @@ struct Entity{
 	(s)->current_scale = MIN(1.0f, memory->delta_time);\
 	(s)->selectable = false;\
 	(s)->type = ENTITY_SHIELD;\
-	(s)->health = 20;\
+	(s)->max_health = 20;\
+	(s)->health = (s)->max_health;\
 	(s)->shooting_cooldown = 0.0f;\
 	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
 	(s)->mesh_uid = memory->meshes.shield_mesh_uid;\
@@ -136,7 +141,7 @@ struct Entity{
 	(s)->type = ENTITY_UNIT;\
 	(s)->unit_type = UNIT_SPAWNER;\
 	(s)->speed = 10.0f;\
-	(s)->health = 2;\
+	(s)->max_health = 2;\
 	(s)->shooting_cooldown = 5.0f;\
 	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
 	(s)->mesh_uid = memory->meshes.test_orientation_uid;\
@@ -231,8 +236,16 @@ struct User_input
 
 			s32 L;
 			s32 R;
+
+			// this is probably temporal
+			s32 k1;
+			s32 k2;
+			s32 k3;
+			s32 k4;
+			s32 k5;
+			s32 k6;
 		};
-		s32 buttons[20];//TODO: narrow this number to the number of posible buttons
+		s32 buttons[30];//TODO: narrow this number to the number of posible buttons
 	};
 };
 
@@ -322,14 +335,16 @@ struct App_memory
 	r32 update_hz;
 	r32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
+
+	b32 is_paused;
 	
-	r32 spawn_timer;
+	r32 spawn_timer; //TODO: this is not being used anymore
 
 	u32 player_uid;
 
 	s32 teams_resources[2];
 	
-	u32 creating_unit;
+	u32 creating_unit; // this is an index of the unit being created
 
 	u32 last_inactive_entity;
 	Entity* entities;

@@ -141,10 +141,26 @@ void update(App_memory* memory){
 #define AVAILABLE_UNITS 3
 	// HANDLING INPUT
 	entities[memory->highlighted_uid].color = {1,1,1,1};	
-	if(input->L == 1)
-		memory->creating_unit = (memory->creating_unit+(AVAILABLE_UNITS))%(1+AVAILABLE_UNITS);
-	if(input->R == 1)
-		memory->creating_unit = ((memory->creating_unit+1) % (1+AVAILABLE_UNITS));
+	if(input->cancel == 1) memory->is_paused = !memory->is_paused;
+	if(memory->is_paused) if (input->R != 1) return;
+
+	// if(input->L == 1)
+	// 	memory->creating_unit = (memory->creating_unit+(AVAILABLE_UNITS))%(1+AVAILABLE_UNITS);
+	// if(input->R == 1)
+	// 	memory->creating_unit = ((memory->creating_unit+1) % (1+AVAILABLE_UNITS));
+	if(input->L)
+		memory->creating_unit = 0;
+	else if(input->k1 == 1)
+		memory->creating_unit = 1;
+	else if(input->k2 == 1)
+		memory->creating_unit = 2;
+	else if(input->k3 == 1)
+		memory->creating_unit = 3;
+	// else if(input->k4 == 1)
+	// 	memory->creating_unit = 4;
+	// else if(input->k5 == 1)
+	// 	memory->creating_unit = 5;
+	
 	if(memory->creating_unit == 1) { // SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
 			// CREATING SHOOTER
@@ -435,6 +451,7 @@ void update(App_memory* memory){
 								if(!collision_magnitude)
 									collision_direction = {1.0f,0,0};
 								overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
+								//TODO: maybe get rid of all divisions of delta time
 								entity->velocity = entity->velocity - (((overlapping/memory->delta_time)) * collision_direction);
 								entity2->velocity = (entity2->velocity + (((overlapping/memory->delta_time)) * collision_direction));
 							}
