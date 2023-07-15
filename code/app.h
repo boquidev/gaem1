@@ -539,9 +539,9 @@ default_shooter(Entity* out, App_memory* memory){
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SHOOTER;
 	out->speed = 40.0f;
-	out->max_health = 2;
+	out->max_health = 3;
 	out->health = out->max_health;
-	out->shooting_cooldown = 0.9f;
+	out->shooting_cooldown = 2.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.shooter_mesh_uid;
 	out->tex_uid = memory->textures.white_tex_uid;
@@ -554,9 +554,9 @@ default_tank(Entity* out, App_memory* memory){
 	out->selectable = true;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_TANK;
-	out->max_health = 10;
+	out->max_health = 4;
 	out->health = out->max_health;
-	out->shooting_cooldown = 2.0f;
+	out->shooting_cooldown = 5.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.centered_cube_mesh_uid;
 	out->tex_uid = memory->textures.white_tex_uid;
@@ -571,7 +571,7 @@ default_shield(Entity* out, App_memory* memory){
 	out->current_scale = MIN(1.0f, memory->delta_time);
 	out->selectable = false;
 	out->type = ENTITY_SHIELD;
-	out->max_health = 20;
+	out->max_health = 8;
 	out->health = out->max_health;
 	out->shooting_cooldown = 0.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
@@ -588,7 +588,7 @@ default_spawner(Entity* out, App_memory* memory){
 	out->unit_type = UNIT_SPAWNER;
 	out->speed = 10.0f;
 	out->max_health = 2;
-	out->shooting_cooldown = 5.0f;
+	out->shooting_cooldown = 7.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.test_orientation2_uid;
 	out->tex_uid = memory->textures.white_tex_uid;

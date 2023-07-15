@@ -1,5 +1,6 @@
 #include "app.h"
 
+#define MAX_SPAWN_DISTANCE 5.0f
 #define BOSS_INDEX 1
 void update(App_memory* memory){
 	User_input* input = memory->input;
@@ -139,7 +140,6 @@ void update(App_memory* memory){
 			}
 		}
 	}
-#define AVAILABLE_UNITS 3
 	// HANDLING INPUT
 	entities[memory->highlighted_uid].color = {1,1,1,1};	
 	if(input->cancel == 1) memory->is_paused = !memory->is_paused;
@@ -293,67 +293,76 @@ void update(App_memory* memory){
 			entity->shooting_cd_time_left -= delta_time;
 			if(entity->shooting_cd_time_left < 0){
 				if(entity->health > 75){
-				// SHOOTING
-					if(entity->state == 0 || entity->state == 6){
-						entity->state = 1;
-						entity->shooting_cd_time_left += 3.0f;
-						entity->target_move_pos = {20, 0, 10};
-					} else if ( entity->state == 1 || entity->state == 4){
-						entity->state++;
-						entity->shooting_cd_time_left += 1.0f;
-				
-						V3 target_direction = v3_normalize(entity->target_pos - entity->pos);
-						u32 shoots_count = 24;
-						UNTIL(shot, shoots_count){
-							u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
-							Entity* new_bullet = &entities[new_entity_index];
-							default_projectile(new_bullet, memory);
-							//TODO: for now this is just so it doesn't disappear
-							// actually it could be a feature :)
-							new_bullet->health = 1; 
-							new_bullet->speed = 50;
+					switch(entity->state){
+						case 0:
+						case 6:{
+							entity->state = 1;
+							entity->shooting_cd_time_left += 3.0f;
+							entity->target_move_pos = {20, 0, 10};
+						}break; 
+						case 1:
+						case 4:{
+							entity->state++;
+							entity->shooting_cd_time_left += 1.0f;
+					
+							V3 target_direction = v3_normalize(entity->target_pos - entity->pos);
+							u32 shoots_count = 24;
+							UNTIL(shot, shoots_count){
+								u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
+								Entity* new_bullet = &entities[new_entity_index];
+								default_projectile(new_bullet, memory);
+								//TODO: for now this is just so it doesn't disappear
+								// actually it could be a feature :)
+								new_bullet->health = 1; 
+								new_bullet->speed = 50;
 
-							Entity* parent = entity;
-							new_bullet->parent_uid = i;
-							new_bullet->team_uid = parent->team_uid;
-							new_bullet->pos = parent->pos;
-							// TODO: go in the direction that parent is looking (the parent's rotation);
-							new_bullet->target_pos = parent->looking_at;
+								Entity* parent = entity;
+								new_bullet->parent_uid = i;
+								new_bullet->team_uid = parent->team_uid;
+								new_bullet->pos = parent->pos;
+								// TODO: go in the direction that parent is looking (the parent's rotation);
+								new_bullet->target_pos = parent->looking_at;
 
-							new_bullet->velocity =  new_bullet->speed * target_direction;
+								new_bullet->velocity =  new_bullet->speed * target_direction;
 
-							target_direction = v3_rotate_y(target_direction, TAU32/shoots_count);
-						}
+								target_direction = v3_rotate_y(target_direction, TAU32/shoots_count);
+							}
 
-					} else if (entity->state == 2 || entity->state == 5){
-						entity->state++;
-						entity->shooting_cd_time_left += 1.0f;
-						// spawn entity
-						u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-						V3 target_distance = entity->target_pos - entity->pos;
-						r32 target_distance_magnitude = v3_magnitude(target_distance);
-	#define MAX_SPAWN_DISTANCE 5.0f
-						V3 spawn_pos;
-						if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
-							spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
-						else
-							spawn_pos = entity->target_pos;
+						}break; 
+						case 2:
+						case 5:{
+							entity->state++;
+							entity->shooting_cd_time_left += 2.0f;
+							// spawn entity
+							u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+							V3 target_distance = entity->target_pos - entity->pos;
+							r32 target_distance_magnitude = v3_magnitude(target_distance);
+							V3 spawn_pos;
+							if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
+								spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
+							else
+								spawn_pos = entity->target_pos;
 
-						Entity* new_unit = &entities[new_entity_index];
-						default_shooter(new_unit, memory);
+							Entity* new_unit = &entities[new_entity_index];
+							default_shooter(new_unit, memory);
 
-						new_unit->pos = spawn_pos;
-						new_unit->target_move_pos = new_unit->pos;
+							new_unit->pos = spawn_pos;
+							new_unit->target_move_pos = new_unit->pos;
 
-						new_unit->team_uid = entity->team_uid;
-						// new_unit->rotation.y = 0;
-						new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+							new_unit->team_uid = entity->team_uid;
+							// new_unit->rotation.y = 0;
+							new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 
-					} else if (entity->state == 3){
-						entity->state++;
-						entity->shooting_cd_time_left += 3.0f;
-						entity->target_move_pos = {-20, 0, 10};
-					} else { ASSERT(false);}
+						}break;
+						case 3:{
+							entity->state++;
+							entity->shooting_cd_time_left += 4.0f;
+							entity->target_move_pos = {-20, 0, 10};
+						}break;
+						default:
+							ASSERT(false);
+						break;
+					}
 
 				} else if (entity->health > 40){
 					if(entity->state < 10) entity->state = 10; 
@@ -409,10 +418,10 @@ void update(App_memory* memory){
 						case 21:
 						case 22:{
 							entity->state++;
-							entity->shooting_cd_time_left += 1;
+							entity->shooting_cd_time_left += 0.5f;
 
-							V3 target_direction = v3_normalize(entity->target_pos - entity->pos);
-							u32 shoots_count = 15;
+							V3 target_direction = v3_normalize(entity->looking_at - entity->pos);
+							u32 shoots_count = 48;
 							UNTIL(shot, shoots_count){
 								u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 								Entity* new_bullet = &entities[new_entity_index];
@@ -477,8 +486,31 @@ void update(App_memory* memory){
 			if(entity->shooting_cd_time_left < 0){
 				entity->shooting_cd_time_left = entity->shooting_cooldown;
 			
+				if( entity->unit_type == UNIT_SHOOTER ){
+					V3 target_direction = v3_rotate_y(v3_normalize( entity->looking_at - entity->pos ), -TAU32/20);
+					UNTIL(iterator, 3){
+						u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
+						Entity* new_bullet = &entities[new_entity_index];
+						default_projectile(new_bullet, memory);
+						//TODO: for now this is just so it doesn't disappear
+						// actually it could be a feature :)
+						new_bullet->health = 1; 
+						new_bullet->speed = 50;
 
-				if(entity->unit_type == UNIT_SHOOTER || entity->unit_type == UNIT_TANK){
+						Entity* parent = entity;
+						new_bullet->parent_uid = i;
+						new_bullet->team_uid = parent->team_uid;
+						new_bullet->pos = parent->pos;
+						// TODO: go in the direction that parent is looking (the parent's rotation);
+						new_bullet->target_pos = parent->looking_at;
+
+						new_bullet->velocity =  new_bullet->speed * target_direction;
+						target_direction = v3_rotate_y(target_direction, TAU32/20);
+					}
+
+				}else if( entity->unit_type == UNIT_TANK ){
+					
+					V3 target_direction = v3_normalize( entity->looking_at - entity->pos );
 					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 					Entity* new_bullet = &entities[new_entity_index];
 					default_projectile(new_bullet, memory);
@@ -494,8 +526,7 @@ void update(App_memory* memory){
 					// TODO: go in the direction that parent is looking (the parent's rotation);
 					new_bullet->target_pos = parent->looking_at;
 
-					V3 target_direction = v3_difference(new_bullet->target_pos, new_bullet->pos);
-					new_bullet->velocity =  new_bullet->speed * v3_normalize(target_direction);
+					new_bullet->velocity =  new_bullet->speed * target_direction;
 
 				} else if( entity->unit_type == UNIT_SPAWNER){
 					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
@@ -598,7 +629,7 @@ void update(App_memory* memory){
 						if(intersect > 0){
 							entity2->health -= 1;
 							if(entity2->type == ENTITY_SHIELD)
-								memory->teams_resources[entity2->team_uid]++;
+								memory->teams_resources[entity2->team_uid] += 2;
 							if(entity2->health <= 0){
 								if(entity2->type == ENTITY_UNIT){
 									s32 reward_value = memory->unit_creation_costs[entity2->unit_type]/2;
@@ -764,7 +795,8 @@ void init(App_memory* memory, Init_data* init_data){
 
 	Entity* player = &memory->entities[memory->player_uid];
 	default_entity(player);
-	player->health = 10;
+	player->max_health = 10;
+	player->health = player->max_health;
 	player->team_uid = 0;
 	memory->teams_resources[player->team_uid] = 30;
 	player->active = true;
@@ -780,7 +812,8 @@ void init(App_memory* memory, Init_data* init_data){
 	boss->shooting_cooldown = 2.0f;
 	boss->shooting_cd_time_left = boss->shooting_cooldown;
 
-	boss->health = 100;
+	boss->max_health = 100;
+	boss->health = boss->max_health;
 	boss->pos = {0, 0, 15};
 	boss->target_move_pos = boss->pos;
 	boss->team_uid = 1;
