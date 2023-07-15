@@ -498,9 +498,14 @@ void update(App_memory* memory){
 						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 						if(intersect > 0){
 							entity2->health -= 1;
+							if(entity2->type == ENTITY_SHIELD)
+								memory->teams_resources[entity2->team_uid]++;
 							if(entity2->health <= 0){
-								if(entity2->type != ENTITY_PROJECTILE)
-									memory->teams_resources[entity->team_uid] += 1;
+								if(entity2->type == ENTITY_UNIT){
+									s32 reward_value = memory->unit_creation_costs[entity2->unit_type]/2;
+									memory->teams_resources[entity->team_uid] += reward_value;
+									memory->teams_resources[entity2->team_uid] += reward_value;
+								}
 								*entity2 = {0};
 							}
 							*entity = {0}; 
