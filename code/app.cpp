@@ -10,7 +10,6 @@ void update(App_memory* memory){
 	// if(input->reset)
 	// 	memory->initialized = false;
 
-	r32 delta_time = 1;
 	r32 camera_speed = 1.0f;
 	r32 sensitivity = 2.0f;
 
@@ -94,10 +93,10 @@ void update(App_memory* memory){
 		wall->rotation = {0,0,0};
 	}
 
-	//TODO: make this into a function screen to world
 	V3 cursor_pos = {
 		memory->aspect_ratio*memory->fov*input->cursor_pos.x,
-		memory->fov*input->cursor_pos.y, 0};
+		memory->fov*input->cursor_pos.y, 0
+	};
 
 	// RAYCAST WITH ALL ENTITIES
 	memory->highlighted_uid = 0;
@@ -354,15 +353,18 @@ void update(App_memory* memory){
 				// V3 accel = ((entity->speed)*move_distance) - ((entity->speed*temp_4log10_speed)*entity->velocity);
 				// r32 vel_magnitude = v3_magnitude(entity->velocity);
 				// r32 new_magnitude = ((1-(vel_magnitude/500)));
-				r32 new_magnitude = 0.95f;
-				// r32 new_magnitude = 1.0f;
 				// V3 v_n = {
 				// 	entity->velocity.x*(1-(entity->velocity.x/10000)),
 				// 	entity->velocity.y*(1-(entity->velocity.y/10000)),
-				// 	entity->velocity.z*(1-(entity->velocity.y/10000))
+				// 	entity->velocity.z*(1-(entity->velocity.z/10000))
 				// };
-				V3 accel = entity->speed*( move_distance - (0.005f*entity->velocity) );
-				entity->velocity = new_magnitude*entity->velocity +(memory->delta_time*( accel ));
+				// TODO: get an ecuation that solves acceleration depending on the distance left to the target
+				V3 accel = entity->speed*( move_distance - (0.1f*entity->velocity) ) - (10*(entity->velocity));
+				entity->velocity = entity->velocity +(memory->delta_time*( accel ));
+				// V3 accel = entity->speed*memory->delta_time*(move_distance);
+				// entity->velocity = entity->velocity +(memory->delta_time*( accel ));
+				// V3 accel = ((move_distance)-entity->velocity);
+				// entity->velocity = entity->velocity + (10*memory->delta_time*( accel ));
 
 				//TODO: when unit is moving and shooting, shoots seem to come from the body
 				// and that's because it should spawn in the tip of the cannon instead of the center
@@ -422,27 +424,30 @@ void update(App_memory* memory){
 			}else if (entity->type == ENTITY_UNIT){
 				UNTIL(j, MAX_ENTITIES){
 					if( i!=j && entities[j].visible ){
-						if(entities[j].type == ENTITY_UNIT){
-							V3 pos_difference = entities[j].pos-entities[i].pos;
+						Entity* entity2 = &entities[j];
+						if(entity2->type == ENTITY_UNIT){
+							V3 pos_difference = entity2->pos-entity->pos;
 							r32 collision_magnitude = v3_magnitude(pos_difference);
 							//sphere vs sphere simplified
-							r32 overlapping = ((entities[i].scale.x * entities[i].current_scale)+(entities[j].scale.x * entities[j].current_scale)) - collision_magnitude;
+							r32 overlapping = ((entity->scale.x * entity->current_scale)+(entity2->scale.x * entity2->current_scale)) - collision_magnitude;
 							if(overlapping > 0){
 								V3 collision_direction = v3_normalize(pos_difference);
 								if(!collision_magnitude)
 									collision_direction = {1.0f,0,0};
-								overlapping =  MIN(MIN(entities[i].current_scale, entities[j].current_scale),overlapping);
-								entities[i].velocity = entities[i].velocity - (((overlapping/delta_time)/2) * collision_direction);
-								entities[j].velocity = entities[j].velocity + (((overlapping/delta_time)/2) * collision_direction);
+								overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
+								entity->velocity = entity->velocity - (((overlapping/memory->delta_time)) * collision_direction);
+								entity2->velocity = (entity2->velocity + (((overlapping/memory->delta_time)) * collision_direction));
 							}
 						}
-						else if(entities[j].type == ENTITY_OBSTACLE){
-							r32 sphere_radius = entities[i].current_scale;
-							V3 distance = sphere_vs_box(entities[i].pos, sphere_radius, entities[j].pos, entities[j].pos+entities[j].scale);
+						else if(entity2->type == ENTITY_OBSTACLE){
+							r32 sphere_radius = entity->current_scale;
+							V3 distance = sphere_vs_box(entity->pos, sphere_radius, entity2->pos, entity2->pos+entity2->scale);
 							r32 distance_value = v3_magnitude(distance);
 							// checking if distance is less than the sphere radius
 							if(distance_value < sphere_radius){
-								entities[i].pos = entities[i].pos + ((sphere_radius-distance_value)/delta_time)*v3_normalize(distance);
+								// entity->pos = entity->pos + ((sphere_radius-distance_value)/memory->delta_time)*v3_normalize(distance);
+								r32 vel_magnitude = v3_magnitude(entity->velocity);
+								entity->velocity = entity->velocity + (vel_magnitude * v3_normalize_with_magnitude(distance,distance_value));
 							}
 						}
 					}
@@ -756,4 +761,6 @@ void init(App_memory* memory, Init_data* init_data){
 	push_mesh_from_file_request(memory, init_data, &memory->meshes.centered_cube_mesh_uid, string("data/centered_cube.glb"));
 
 	push_mesh_from_file_request(memory, init_data, &memory->meshes.shield_mesh_uid, string("data/shield.glb"));
+
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.shooter_mesh_uid, string("data/shooter.glb"));
 }

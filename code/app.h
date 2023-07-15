@@ -94,11 +94,11 @@ struct Entity{
 	(t)->selectable = true;\
 	(t)->type = ENTITY_UNIT;\
 	(t)->unit_type = UNIT_SHOOTER;\
-	(t)->speed = 40.0f;\
+	(t)->speed = 100.0f;\
 	(t)->health = 2;\
 	(t)->shooting_cooldown = 0.9f;\
 	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
-	(t)->mesh_uid = memory->meshes.icosphere_mesh_uid;\
+	(t)->mesh_uid = memory->meshes.shooter_mesh_uid;\
 	(t)->tex_uid = memory->textures.white_tex_uid;\
 
 #define DEFAULT_TANK(t) \
@@ -135,7 +135,7 @@ struct Entity{
 	(s)->selectable = true;\
 	(s)->type = ENTITY_UNIT;\
 	(s)->unit_type = UNIT_SPAWNER;\
-	(s)->speed = 40.0f;\
+	(s)->speed = 10.0f;\
 	(s)->health = 2;\
 	(s)->shooting_cooldown = 5.0f;\
 	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
@@ -248,6 +248,7 @@ struct Meshes
 	u32 centered_cube_mesh_uid;
 	u32 plane_mesh_uid;
 	u32 shield_mesh_uid;
+	u32 shooter_mesh_uid;
 
 	u32 ball_mesh_uid;
 	u32 icosphere_mesh_uid;

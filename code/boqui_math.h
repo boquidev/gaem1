@@ -177,13 +177,22 @@ operator /(V3 v, r32 x){
     return {v.x / x, v.y / x, v.z /x};
 }
 
-internal r32 v3_magnitude(r32 x, r32 y, r32 z){return SQRT(x*x + y*y + z*z);}
-internal r32 v3_magnitude(V3 v){return v3_magnitude(v.x, v.y, v.z);}
+internal r32 
+v3_magnitude(r32 x, r32 y, r32 z){return SQRT(x*x + y*y + z*z);}
+internal r32 
+v3_magnitude(V3 v){return v3_magnitude(v.x, v.y, v.z);}
+
 internal V3 
+v3_normalize_with_magnitude(r32 x, r32 y, r32 z, r32 magnitude){
+    if(magnitude) return {x/magnitude, y/magnitude, z/magnitude};
+    else return {0,0,0};
+}
+internal V3
+v3_normalize_with_magnitude(V3 v, r32 magnitude){return v3_normalize_with_magnitude(v.x,v.y,v.z,magnitude);}
+internal V3
 v3_normalize(r32 x, r32 y, r32 z){
     r32 vlength = v3_magnitude(x,y,z);
-    if(vlength) return {x/vlength, y/vlength, z/vlength};
-    else return {0,0,0};
+    return v3_normalize_with_magnitude(x,y,z,vlength);
 }
 internal V3 v3_normalize(V3 v){return v3_normalize(v.x, v.y, v.z);}
 
@@ -456,4 +465,3 @@ v3_rotate_z(V3 vector, r32 angle)
 
     return result;
 }
-

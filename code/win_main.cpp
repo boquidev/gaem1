@@ -606,7 +606,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	s64 performance_counter_frequency = pcf_result.QuadPart;
 
 	//TODO: maybe in the future use GetDeviceCaps() to get the monitor hz
-	int monitor_refresh_hz = 200;
+	int monitor_refresh_hz = 60;
+	memory.delta_time = 1.0f/monitor_refresh_hz;
 	
 	memory.update_hz = (r32)monitor_refresh_hz;
 	r32 target_seconds_per_frame = 1.0f / memory.update_hz;
