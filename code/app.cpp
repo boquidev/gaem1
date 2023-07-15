@@ -168,7 +168,7 @@ void update(App_memory* memory){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				DEFAULT_SHOOTER(new_unit);
+				default_shooter(new_unit, memory);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
@@ -185,7 +185,7 @@ void update(App_memory* memory){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				DEFAULT_SPAWNER(new_unit);
+				default_spawner(new_unit, memory);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
@@ -202,7 +202,7 @@ void update(App_memory* memory){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
-				DEFAULT_TANK(new_unit);
+				default_tank(new_unit, memory);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 				new_unit->target_move_pos = new_unit->pos;
@@ -275,7 +275,7 @@ void update(App_memory* memory){
 					//TODO: create shield
 					u32 new_entity_index = last_inactive_entity(entities);
 					Entity* new_shield= &entities[new_entity_index];
-					DEFAULT_SHIELD(new_shield);
+					default_shield(new_shield, memory);
 					Entity* parent = entity;
 					new_shield->parent_uid = i;
 					new_shield->team_uid = parent->team_uid;
@@ -310,7 +310,7 @@ void update(App_memory* memory){
 				if(entity->unit_type == UNIT_SHOOTER || entity->unit_type == UNIT_TANK){
 					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 					Entity* new_bullet = &entities[new_entity_index];
-					DEFAULT_PROJECTILE(new_bullet);
+					default_projectile(new_bullet, memory);
 					//TODO: for now this is just so it doesn't disappear
 					// actually it could be a feature :)
 					new_bullet->health = 1; 
@@ -338,7 +338,7 @@ void update(App_memory* memory){
 						spawn_pos = entity->target_pos;
 
 					Entity* new_unit = &entities[new_entity_index];
-					DEFAULT_SHOOTER(new_unit);
+					default_shooter(new_unit, memory);
 
 					new_unit->pos = spawn_pos;
 					new_unit->target_move_pos = new_unit->pos;
@@ -569,7 +569,7 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->camera_pos.y = 32.0f;
 
 	Entity* player = &memory->entities[memory->player_uid];
-	DEFAULT_ENTITY(player);
+	default_entity(player);
 	player->health = 10;
 	player->team_uid = 0;
 	memory->teams_resources[player->team_uid] = 10;
@@ -581,7 +581,7 @@ void init(App_memory* memory, Init_data* init_data){
 	player->type = ENTITY_UNIT;
 	
 	Entity* boss = &memory->entities[BOSS_INDEX];
-	DEFAULT_SPAWNER(boss);
+	default_spawner(boss, memory);
 	boss->health = 100;
 	boss->pos = {0, 0, 15};
 	boss->target_move_pos = boss->pos;

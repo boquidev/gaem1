@@ -80,83 +80,6 @@ struct Entity{
 		};
 	};
 };
-//TODO: make this into simple functions
-
-#define DEFAULT_OBJECT3D(objectp) \
-	(objectp)->scale = {1,1,1};\
-	(objectp)->color = {1,1,1,1};
-
-#define DEFAULT_ENTITY(entityp) \
-	(entityp)->visible = true;\
-	DEFAULT_OBJECT3D(entityp)
-
-#define DEFAULT_SHOOTER(t) \
-	DEFAULT_ENTITY(t)\
-	(t)->current_scale = MIN(1.0f, memory->delta_time);\
-	(t)->selectable = true;\
-	(t)->type = ENTITY_UNIT;\
-	(t)->unit_type = UNIT_SHOOTER;\
-	(t)->speed = 100.0f;\
-	(t)->max_health = 2;\
-	(t)->health = (t)->max_health;\
-	(t)->shooting_cooldown = 0.9f;\
-	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
-	(t)->mesh_uid = memory->meshes.shooter_mesh_uid;\
-	(t)->tex_uid = memory->textures.white_tex_uid;\
-
-#define DEFAULT_TANK(t) \
-	DEFAULT_ENTITY(t)\
-	(t)->speed = 40.0f;\
-	(t)->current_scale = MIN(1.0f, memory->delta_time);\
-	(t)->selectable = true;\
-	(t)->type = ENTITY_UNIT;\
-	(t)->unit_type = UNIT_TANK;\
-	(t)->max_health = 10;\
-	(t)->health = (t)->max_health;\
-	(t)->shooting_cooldown = 2.0f;\
-	(t)->shooting_cd_time_left = (t)->shooting_cooldown;\
-	(t)->mesh_uid = memory->meshes.centered_cube_mesh_uid;\
-	(t)->tex_uid = memory->textures.white_tex_uid;\
-	
-#define DEFAULT_SHIELD(s)\
-	DEFAULT_ENTITY(s)\
-	(s)->scale = {2,2,2};\
-	(s)->color = {1,1,1,0.5f};\
-	(s)->speed = 100.0f;\
-	(s)->current_scale = MIN(1.0f, memory->delta_time);\
-	(s)->selectable = false;\
-	(s)->type = ENTITY_SHIELD;\
-	(s)->max_health = 20;\
-	(s)->health = (s)->max_health;\
-	(s)->shooting_cooldown = 0.0f;\
-	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
-	(s)->mesh_uid = memory->meshes.shield_mesh_uid;\
-	(s)->tex_uid = memory->textures.white_tex_uid;\
-
-
-#define DEFAULT_SPAWNER(s)\
-	DEFAULT_ENTITY(s)\
-	(s)->current_scale = MIN(1.0f, memory->delta_time);\
-	(s)->selectable = true;\
-	(s)->type = ENTITY_UNIT;\
-	(s)->unit_type = UNIT_SPAWNER;\
-	(s)->speed = 10.0f;\
-	(s)->max_health = 2;\
-	(s)->shooting_cooldown = 5.0f;\
-	(s)->shooting_cd_time_left = (s)->shooting_cooldown;\
-	(s)->mesh_uid = memory->meshes.test_orientation_uid;\
-	(s)->tex_uid = memory->textures.white_tex_uid;\
-
-#define DEFAULT_PROJECTILE(p)\
-	DEFAULT_ENTITY(p)\
-	(p)->lifetime = 5.0f;\
-	(p)->active = true;\
-	(p)->current_scale = 1.0f;\
-	(p)->type = ENTITY_PROJECTILE;\
-	(p)->mesh_uid = memory->meshes.ball_mesh_uid;\
-	(p)->tex_uid = memory->textures.white_tex_uid;\
-	(p)->color = {0.6f,0.6f,0.6f,1};\
-	(p)->scale = {0.4f,0.4f,0.4f};\
 
 // internal void
 // test_collision(Entity* e1, Entity* e2, r32 delta_time){
@@ -592,32 +515,90 @@ push_create_depth_stencil_request(App_memory* memory, Init_data* init_data, u32*
 	request->enable_depth = enable_depth;
 }
 
-// internal void
-// draw(LIST(Render_request, render_list), Memory_arena* arena, 
-// 	Object3d* object3d
-// // 	u32 mesh_uid,
-// // 	u32 texture_uid,
-// // 	u32 vshader_uid,
-// // 	u32 pshader_uid,
-// // 	u32 blend_state_uid,
-// // 	u32 depth_stencil_uid,
-// // 	V3 scale,
-// // 	V3 pos,
-// // 	V3 rotation,
-// // 	Color color
-// ){
-// 	Object3d* render_object = LIST_PUSH_BACK_STRUCT(render_list, Object3d, arena);
-// 	*render_object = *object3d;
-// 	// *render_object = {
-// 	// 	mesh_uid,
-// 	// 	texture_uid,
-// 	// 	vshader_uid,
-// 	// 	pshader_uid,
-// 	// 	blend_state_uid,
-// 	// 	depth_stencil_uid,
-// 	// 	scale,
-// 	// 	pos,
-// 	// 	rotation,
-// 	// 	color
-// 	// };
-// }
+internal void 
+default_object3d(Entity* out){
+	out->scale = {1,1,1};
+	out->color = {1,1,1,1};
+}
+
+internal void
+default_entity(Entity* out){
+	out->visible = true;
+	default_object3d(out);
+}
+
+internal void
+default_shooter(Entity* out, App_memory* memory){
+	default_entity(out);
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->selectable = true;
+	out->type = ENTITY_UNIT;
+	out->unit_type = UNIT_SHOOTER;
+	out->speed = 100.0f;
+	out->max_health = 2;
+	out->health = out->max_health;
+	out->shooting_cooldown = 0.9f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.shooter_mesh_uid;
+	out->tex_uid = memory->textures.white_tex_uid;
+}
+internal void
+default_tank(Entity* out, App_memory* memory){
+	default_entity(out);
+	out->speed = 40.0f;
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->selectable = true;
+	out->type = ENTITY_UNIT;
+	out->unit_type = UNIT_TANK;
+	out->max_health = 10;
+	out->health = out->max_health;
+	out->shooting_cooldown = 2.0f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.centered_cube_mesh_uid;
+	out->tex_uid = memory->textures.white_tex_uid;
+}
+	
+internal void
+default_shield(Entity* out, App_memory* memory){
+	default_entity(out);
+	out->scale = {2,2,2};
+	out->color = {1,1,1,0.5f};
+	out->speed = 100.0f;
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->selectable = false;
+	out->type = ENTITY_SHIELD;
+	out->max_health = 20;
+	out->health = out->max_health;
+	out->shooting_cooldown = 0.0f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.shield_mesh_uid;
+	out->tex_uid = memory->textures.white_tex_uid;
+}
+
+internal void
+default_spawner(Entity* out, App_memory* memory){
+	default_entity(out);
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->selectable = true;
+	out->type = ENTITY_UNIT;
+	out->unit_type = UNIT_SPAWNER;
+	out->speed = 10.0f;
+	out->max_health = 2;
+	out->shooting_cooldown = 5.0f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.test_orientation_uid;
+	out->tex_uid = memory->textures.white_tex_uid;
+}
+
+internal void
+default_projectile(Entity* out, App_memory* memory){
+	default_entity(out);
+	out->lifetime = 5.0f;
+	out->active = true;
+	out->current_scale = 1.0f;
+	out->type = ENTITY_PROJECTILE;
+	out->mesh_uid = memory->meshes.ball_mesh_uid;
+	out->tex_uid = memory->textures.white_tex_uid;
+	out->color = {0.6f,0.6f,0.6f,1};
+	out->scale = {0.4f,0.4f,0.4f};
+}
