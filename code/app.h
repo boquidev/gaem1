@@ -590,7 +590,7 @@ default_spawner(Entity* out, App_memory* memory){
 	out->max_health = 2;
 	out->shooting_cooldown = 5.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.test_orientation_uid;
+	out->mesh_uid = memory->meshes.test_orientation2_uid;
 	out->tex_uid = memory->textures.white_tex_uid;
 }
 
