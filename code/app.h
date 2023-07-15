@@ -33,16 +33,19 @@ struct  Object3d{
 enum ENTITY_TYPE{
 	ENTITY_FORGOR_TO_ASSIGN_TYPE,
 	ENTITY_UNIT,
+	ENTITY_BOSS,
 	ENTITY_PROJECTILE,
-	ENTITY_SHIELD,
+	ENTITY_SHIELD, // this is a type of entity and not of unit because it doesn't have collision responses
 	ENTITY_OBSTACLE,
 };
 enum UNIT_TYPE{
 	UNIT_NOT_A_UNIT,
-	ENTITY_QUEEN,
 	UNIT_SHOOTER,
-	UNIT_SPAWNER,
 	UNIT_TANK,
+	UNIT_SPAWNER,
+
+
+	UNIT_COUNT
 };
 
 struct Entity{
@@ -51,6 +54,7 @@ struct Entity{
 	b32 selectable;
 	ENTITY_TYPE type;
 	UNIT_TYPE unit_type;
+	u32 state;
 
 	r32 lifetime;
 
@@ -70,8 +74,7 @@ struct Entity{
 
 	u32 parent_uid;
 	u32 team_uid;
-	//TODO: this is becoming troublesome
-	r32 current_scale;
+	r32 current_scale; //TODO: this is becoming troublesome
 
 	union{
 		Object3d object3d;
@@ -267,7 +270,8 @@ struct App_memory
 
 	s32 teams_resources[2];
 	
-	u32 creating_unit; // this is an index of the unit being created
+	UNIT_TYPE creating_unit; // this is an index of the unit being created
+	s32 unit_creation_costs[UNIT_COUNT];
 
 	u32 last_inactive_entity;
 	Entity* entities;
@@ -534,7 +538,7 @@ default_shooter(Entity* out, App_memory* memory){
 	out->selectable = true;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SHOOTER;
-	out->speed = 100.0f;
+	out->speed = 40.0f;
 	out->max_health = 2;
 	out->health = out->max_health;
 	out->shooting_cooldown = 0.9f;

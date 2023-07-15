@@ -1112,8 +1112,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}
 
 			// memory.delta_time = frame_seconds_elapsed;
+			// TODO: this is slower than delta time probably cuz it does not take into account sub ms times
+			// OR maybe delta time is the one that's off and is faster for some reason
 			u32 frame_ms_elapsed = (u32)(frame_seconds_elapsed*1000);
-			memory.time_ms += frame_ms_elapsed;
+			memory.time_ms += frame_ms_elapsed; 
 			
 			//PRINT TIME AND DELTA_TIME
 			// char text_buffer[256];

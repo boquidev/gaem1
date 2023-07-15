@@ -149,23 +149,23 @@ void update(App_memory* memory){
 	// if(input->R == 1)
 	// 	memory->creating_unit = ((memory->creating_unit+1) % (1+AVAILABLE_UNITS));
 	if(input->L)
-		memory->creating_unit = 0;
+		memory->creating_unit = (UNIT_TYPE)0;
 	else if(input->k1 == 1)
-		memory->creating_unit = 1;
+		memory->creating_unit = (UNIT_TYPE)1;
 	else if(input->k2 == 1)
-		memory->creating_unit = 2;
+		memory->creating_unit = (UNIT_TYPE)2;
 	else if(input->k3 == 1)
-		memory->creating_unit = 3;
+		memory->creating_unit = (UNIT_TYPE)3;
 	// else if(input->k4 == 1)
 	// 	memory->creating_unit = 4;
 	// else if(input->k5 == 1)
 	// 	memory->creating_unit = 5;
 	
-	if(memory->creating_unit == 1) { // SELECTED UNIT TO CREATE
+	if(memory->creating_unit == UNIT_SHOOTER) { // SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
 			// CREATING SHOOTER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[memory->creating_unit]){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[memory->creating_unit];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				default_shooter(new_unit, memory);
@@ -178,11 +178,11 @@ void update(App_memory* memory){
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
 		}
-	} else if ( memory->creating_unit == 2){
+	} else if ( memory->creating_unit == UNIT_SPAWNER){
 		if(input->cursor_primary == -1){
 			// CREATING SPAWNER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[memory->creating_unit]){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[memory->creating_unit];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				default_spawner(new_unit, memory);
@@ -195,11 +195,11 @@ void update(App_memory* memory){
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 			}
 		}
-	} else if ( memory->creating_unit == 3){
+	} else if ( memory->creating_unit == UNIT_TANK){
 		if(input->cursor_primary == -1){
 			// CREATING TANK
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] > 0){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= 1;
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[memory->creating_unit]){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[memory->creating_unit];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				default_tank(new_unit, memory);
@@ -259,7 +259,6 @@ void update(App_memory* memory){
 
 	// UPDATING ENTITIES
 	UNTIL(i, MAX_ENTITIES){
-		// SHOOTING
 		Entity* entity = &entities[i]; 
 		if(!entity->visible) continue;
 		if(entity->type == ENTITY_OBSTACLE) 
@@ -286,7 +285,79 @@ void update(App_memory* memory){
 				}
 			}
 
-		} else if (entity->type == ENTITY_SHIELD){
+		}else if(entity->type == ENTITY_BOSS){ // BEGINNING OF BOSS CODE 
+			entity->target_pos = entities[memory->player_uid].pos;
+			entity->color = {0.7f,0,0,1};
+
+			entity->shooting_cd_time_left -= memory->delta_time;
+			if(entity->shooting_cd_time_left < 0){
+				if(entity->health > 75){
+				// SHOOTING
+					if(entity->state == 0 || entity->state == 6){
+						entity->state = 1;
+						entity->shooting_cd_time_left += 3.0f;
+						entity->target_move_pos = {20, 0, 10};
+					} else if ( entity->state == 1 || entity->state == 4){
+						entity->state++;
+						entity->shooting_cd_time_left += 1.0f;
+
+				
+						V3 target_direction = v3_normalize(entity->target_pos - entity->pos);
+						u32 shoots_count = 16;
+						UNTIL(shot, shoots_count){
+							u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
+							Entity* new_bullet = &entities[new_entity_index];
+							default_projectile(new_bullet, memory);
+							//TODO: for now this is just so it doesn't disappear
+							// actually it could be a feature :)
+							new_bullet->health = 1; 
+							new_bullet->speed = 50;
+
+							Entity* parent = entity;
+							new_bullet->parent_uid = i;
+							new_bullet->team_uid = parent->team_uid;
+							new_bullet->pos = parent->pos;
+							// TODO: go in the direction that parent is looking (the parent's rotation);
+							new_bullet->target_pos = parent->looking_at;
+
+							new_bullet->velocity =  new_bullet->speed * target_direction;
+
+							target_direction = v3_rotate_y(target_direction, TAU32/shoots_count);
+						}
+
+					} else if (entity->state == 2 || entity->state == 5){
+						entity->state++;
+						entity->shooting_cd_time_left += 1.0f;
+						// spawn entity
+						u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+						V3 target_distance = entity->target_pos - entity->pos;
+						r32 target_distance_magnitude = v3_magnitude(target_distance);
+	#define MAX_SPAWN_DISTANCE 5.0f
+						V3 spawn_pos;
+						if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
+							spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
+						else
+							spawn_pos = entity->target_pos;
+
+						Entity* new_unit = &entities[new_entity_index];
+						default_shooter(new_unit, memory);
+
+						new_unit->pos = spawn_pos;
+						new_unit->target_move_pos = new_unit->pos;
+
+						new_unit->team_uid = entity->team_uid;
+						// new_unit->rotation.y = 0;
+						new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+
+					} else if (entity->state == 3){
+						entity->state++;
+						entity->shooting_cd_time_left += 3.0f;
+						entity->target_move_pos = {-20, 0, 10};
+					}
+				}
+			}
+		// END OF BOSS CODE
+		}else if (entity->type == ENTITY_SHIELD){
 			Entity* parent = &entities[entity->parent_uid];
 			if(parent->active){
 				entity->target_move_pos = (0.1f*parent->velocity)+parent->pos + v3_normalize((parent->target_pos)- parent->pos);
@@ -346,7 +417,6 @@ void update(App_memory* memory){
 					new_unit->team_uid = entity->team_uid;
 					// new_unit->rotation.y = 0;
 					new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
-
 				}
 			}
 		}{// DYNAMICS
@@ -409,6 +479,7 @@ void update(App_memory* memory){
 				}
 			}
 			// COLLISIONS
+				// PROJECTILE
 			if(entity->type == ENTITY_PROJECTILE){
 				UNTIL(j, MAX_ENTITIES){
 					if(!entities[j].visible) continue;
@@ -425,11 +496,10 @@ void update(App_memory* memory){
 						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 						if(intersect > 0){
 							entity2->health -= 1;
-							//TODO: this check should be done always for just the entities that use the health property
-							// but i don't know how will i know who destroyed that entity to give respective reward
 							if(entity2->health <= 0){
+								if(entity2->type != ENTITY_PROJECTILE)
+									memory->teams_resources[entity->team_uid] += 1;
 								*entity2 = {0};
-								memory->teams_resources[entity->team_uid] += 1;
 							}
 							*entity = {0}; 
 							memory->entity_generations[i]++;
@@ -437,6 +507,7 @@ void update(App_memory* memory){
 						}
 					}
 				}
+				// UNIT
 			}else if (entity->type == ENTITY_UNIT){
 				UNTIL(j, MAX_ENTITIES){
 					if( i!=j && entities[j].visible ){
@@ -452,8 +523,8 @@ void update(App_memory* memory){
 									collision_direction = {1.0f,0,0};
 								overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
 								//TODO: maybe get rid of all divisions of delta time
-								entity->velocity = entity->velocity - (((overlapping/memory->delta_time)) * collision_direction);
-								entity2->velocity = (entity2->velocity + (((overlapping/memory->delta_time)) * collision_direction));
+								entity->velocity = entity->velocity - (((overlapping/memory->delta_time)/2) * collision_direction);
+								entity2->velocity = (entity2->velocity + (((overlapping/memory->delta_time)/2) * collision_direction));
 							}
 						}
 						else if(entity2->type == ENTITY_OBSTACLE){
@@ -527,30 +598,35 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		template_object.scale = {5,5,5};
 		template_object.color = {1,1,1,1};
 
+		V3 current_pos = {-0.6f, -0.8f, 0};
 		Renderer_request* requests [4];
 		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
 		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[0]->object3d = template_object;
 		requests[0]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('0');
-		requests[0]->object3d.pos = {-0.2f, -0.8f, 0};
+		requests[0]->object3d.pos = current_pos;
+		current_pos.x += 0.2f;
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
 		requests[1]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[1]->object3d = template_object;
 		requests[1]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('1');
-		requests[1]->object3d.pos = {0, -0.8f, 0};
+		requests[1]->object3d.pos = current_pos;
+		current_pos.x += 0.2f;
 		
 		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
 		requests[2]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[2]->object3d = template_object;
 		requests[2]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('2');
-		requests[2]->object3d.pos = {0.2f, -0.8f, 0};
+		requests[2]->object3d.pos = current_pos;
+		current_pos.x += 0.2f;
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[3]);
 		requests[3]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[3]->object3d = template_object;
 		requests[3]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('3');
-		requests[3]->object3d.pos = {0.4f, -0.8f, 0};
+		requests[3]->object3d.pos = current_pos;
+		current_pos.x += 0.2f;
 
 		Renderer_request* selected = requests[memory->creating_unit];
 		selected->object3d.scale = 1.2f*template_object.scale;
@@ -572,7 +648,7 @@ void init(App_memory* memory, Init_data* init_data){
 	default_entity(player);
 	player->health = 10;
 	player->team_uid = 0;
-	memory->teams_resources[player->team_uid] = 10;
+	memory->teams_resources[player->team_uid] = 30;
 	player->active = true;
 	player->current_scale = 1.0f;
 
@@ -587,10 +663,15 @@ void init(App_memory* memory, Init_data* init_data){
 	boss->target_move_pos = boss->pos;
 	boss->team_uid = 1;
 	boss->current_scale = 1.0f;
-	boss->type = ENTITY_UNIT;
-	boss->unit_type = UNIT_SPAWNER;
+	boss->type = ENTITY_BOSS;
 
+	memory->unit_creation_costs[UNIT_SHOOTER] = 20;
+	memory->unit_creation_costs[UNIT_TANK] = 15;
+	memory->unit_creation_costs[UNIT_SPAWNER] = 40;
 
+	
+
+	// TODO: MOVE WHAT'S ABOVE TO THE UPDATE LOOP AND PUT AN IS_INITIALIZED CONDITION IN MEMORY
 	{
 		Vertex_shader_from_file_request vs_request = {0};
 		vs_request.p_uid = &memory->vshaders.default_vshader_uid;
