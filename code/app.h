@@ -229,6 +229,8 @@ struct Depth_stencils
 
 struct App_memory
 {
+	b32 is_initialized;
+	
 	Memory_arena* permanent_arena;
 	Memory_arena* temp_arena;
 

@@ -3,6 +3,55 @@
 #define MAX_SPAWN_DISTANCE 5.0f
 #define BOSS_INDEX 1
 void update(App_memory* memory){
+	if(!memory->is_initialized){
+		memory->is_initialized = true;
+		
+		//TODO: test this against setting each entity to {0}
+		set_mem(memory->entities, MAX_ENTITIES*sizeof(Entity), 0);
+		set_mem(memory->entity_generations, MAX_ENTITIES*sizeof(u32), 0);
+
+		memory->camera_rotation.x = PI32/4;
+		memory->camera_pos.y = 32.0f;
+
+
+		Entity* player = &memory->entities[memory->player_uid];
+		default_entity(player);
+		player->max_health = 10;
+		player->health = player->max_health;
+		player->team_uid = 0;
+		memory->teams_resources[player->team_uid] = 30;
+		player->active = true;
+		player->current_scale = 1.0f;
+
+		player->team_uid = 0;
+		player->speed = 5.0f;
+		player->type = ENTITY_UNIT;
+
+		player->mesh_uid = memory->meshes.test_orientation_uid;
+		player->tex_uid = memory->textures.white_tex_uid;
+		
+		Entity* boss = &memory->entities[BOSS_INDEX];
+		default_entity(boss);
+		boss->speed = 40.0f;
+		boss->shooting_cooldown = 2.0f;
+		boss->shooting_cd_time_left = boss->shooting_cooldown;
+
+		boss->max_health = 100;
+		boss->health = boss->max_health;
+		boss->pos = {0, 0, 15};
+		boss->target_move_pos = boss->pos;
+		boss->team_uid = 1;
+		boss->current_scale = 1.0f;
+		boss->type = ENTITY_BOSS;
+
+		boss->mesh_uid = memory->meshes.ogre_mesh_uid;
+		boss->tex_uid = memory->textures.ogre_tex_uid;
+
+		memory->unit_creation_costs[UNIT_SHOOTER] = 20; // 20
+		memory->unit_creation_costs[UNIT_TANK] = 15;
+		memory->unit_creation_costs[UNIT_SPAWNER] = 40;
+	}
+
 	User_input* input = memory->input;
 	User_input* holding_inputs = memory->holding_inputs;
 	Entity* entities = memory->entities;
@@ -35,15 +84,6 @@ void update(App_memory* memory){
 
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
-		Entity* player = &entities[memory->player_uid];
-		// player->pos.x += input_vector.x *  player->speed * delta_time;
-		// player->pos.z += input_vector.y * player->speed * delta_time;
-		player->mesh_uid = memory->meshes.test_orientation_uid;
-		player->tex_uid = memory->textures.white_tex_uid;
-
-		Entity* boss = &entities[BOSS_INDEX];
-		boss->mesh_uid = memory->meshes.ogre_mesh_uid;
-		boss->tex_uid = memory->textures.ogre_tex_uid;
 
 		Entity* wall = 0;
 		wall = &entities[5];
@@ -683,6 +723,8 @@ void update(App_memory* memory){
 	}
 }
 
+
+
 void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_size){
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
@@ -782,51 +824,15 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		selected->object3d.color = {0.5f,1,0.5f,1};
 	}
 
-
 	// draw(render_list, memory->temp_arena, &test_plane);
 }
 
-void init(App_memory* memory, Init_data* init_data){
+
+
+void init(App_memory* memory, Init_data* init_data){	
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
-	memory->camera_rotation.x = PI32/4;
-	memory->camera_pos.y = 32.0f;
-
-	Entity* player = &memory->entities[memory->player_uid];
-	default_entity(player);
-	player->max_health = 10;
-	player->health = player->max_health;
-	player->team_uid = 0;
-	memory->teams_resources[player->team_uid] = 30;
-	player->active = true;
-	player->current_scale = 1.0f;
-
-	player->team_uid = 0;
-	player->speed = 5.0f;
-	player->type = ENTITY_UNIT;
-	
-	Entity* boss = &memory->entities[BOSS_INDEX];
-	default_entity(boss);
-	boss->speed = 40.0f;
-	boss->shooting_cooldown = 2.0f;
-	boss->shooting_cd_time_left = boss->shooting_cooldown;
-
-	boss->max_health = 100;
-	boss->health = boss->max_health;
-	boss->pos = {0, 0, 15};
-	boss->target_move_pos = boss->pos;
-	boss->team_uid = 1;
-	boss->current_scale = 1.0f;
-	boss->type = ENTITY_BOSS;
-
-	memory->unit_creation_costs[UNIT_SHOOTER] = 20; // 20
-	memory->unit_creation_costs[UNIT_TANK] = 15;
-	memory->unit_creation_costs[UNIT_SPAWNER] = 40;
-
-	
-
-	// TODO: MOVE WHAT'S ABOVE TO THE UPDATE LOOP AND PUT AN IS_INITIALIZED CONDITION IN MEMORY
 	{
 		Vertex_shader_from_file_request vs_request = {0};
 		vs_request.p_uid = &memory->vshaders.default_vshader_uid;
