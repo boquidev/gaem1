@@ -13,6 +13,8 @@ void update(App_memory* memory){
 		memory->camera_rotation.x = PI32/4;
 		memory->camera_pos.y = 32.0f;
 
+		memory->last_inactive_entity = 0;
+
 
 		Entity* player = &memory->entities[memory->player_uid];
 		default_entity(player);
@@ -58,8 +60,8 @@ void update(App_memory* memory){
 	r32 delta_time = memory->delta_time;
 
 	//TODO: this
-	// if(input->reset)
-	// 	memory->initialized = false;
+	if(input->reset == 1)
+		memory->is_initialized = false;
 
 	r32 camera_speed = 1.0f;
 	r32 sensitivity = 2.0f;

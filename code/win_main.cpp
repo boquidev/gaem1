@@ -789,6 +789,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							case 'F':
 								holding_inputs.cancel = is_down;
 								break;
+							case 'T':
+								holding_inputs.reset = is_down;
+								break;
 							case 'Q':
 								holding_inputs.L = is_down;
 								break;
@@ -862,10 +865,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							// else if(msg.wParam == 'F')
 							else if(vkcode == 'M')
 								memory.lock_mouse = !memory.lock_mouse;
-							else if(vkcode == 'T')
-								memory.delta_time = 0;
-							else if(vkcode == 'G')
-								memory.delta_time = 1.0f/memory.update_hz;
 #if DEBUGMODE
 							else if(vkcode == VK_F5)
 								global_running = false;
