@@ -560,7 +560,7 @@ default_tank(Entity* out, App_memory* memory){
 	out->health = out->max_health;
 	out->shooting_cooldown = 5.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.centered_cube_mesh_uid;
+	out->mesh_uid = memory->meshes.icosphere_mesh_uid;
 	out->tex_uid = memory->textures.white_tex_uid;
 }
 	

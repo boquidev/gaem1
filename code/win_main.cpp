@@ -438,9 +438,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			Vertex_shader_from_file_request* request = vs_ff_request_node;
 			NEXT_ELEM(vs_ff_request_node);
 
+			// COMPILING VS
+				// File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
+			// CREATING VS
+			File_data compiled_vs = win_read_file(request->filename, temp_arena);
+
 			*request->p_uid = LIST_SIZE(vertex_shaders_list);
 			Vertex_shader* vs; PUSH_BACK(vertex_shaders_list, permanent_arena, vs);
-			File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
 			dx11_create_vs(dx, compiled_vs, &vs->shader);
 			
 			D3D11_INPUT_ELEMENT_DESC* ied = ARENA_PUSH_STRUCTS(temp_arena, D3D11_INPUT_ELEMENT_DESC, request->ie_count);
@@ -464,8 +468,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			NEXT_ELEM(ps_ff_request_node);
 
 			*request->p_uid = LIST_SIZE(pixel_shaders_list);
+			// COMPILING PS
+				// File_data compiled_ps = dx11_get_compiled_shader(request->filename, temp_arena, "ps", PS_PROFILE);
+			// CREATING PS
+			File_data compiled_ps = win_read_file(request->filename, temp_arena);
 
-			File_data compiled_ps = dx11_get_compiled_shader(request->filename, temp_arena, "ps", PS_PROFILE);
 			Dx11_pixel_shader** ps; PUSH_BACK(pixel_shaders_list, permanent_arena, ps);
 			dx11_create_ps(dx, compiled_ps, ps);
 		}

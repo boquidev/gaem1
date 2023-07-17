@@ -1,4 +1,0 @@
-
-- The Inconsolata font family is licensed under the SIL Open Font License
-  Copyright (c) 2011, Raph Levien (raph.levien@gmail.com), Copyright (c) 2012, Cyreal (cyreal.org)
-

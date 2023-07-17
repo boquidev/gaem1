@@ -307,6 +307,9 @@ void update(App_memory* memory){
 		if(entity->type == ENTITY_OBSTACLE) 
 			continue;
 
+		if(entity->team_uid != 0)
+			entity->color = {0.7f,0,0,1};
+			
 		if( !entity->active){
 			if(entity->current_scale < 1.0f){
 				entity->current_scale += delta_time;
@@ -520,8 +523,8 @@ void update(App_memory* memory){
 
 		}else if ( entity->type == ENTITY_UNIT ) {
 			if(entity->team_uid != 0){
-				entity->target_pos = entities[memory->player_uid].pos;
 				entity->color = {0.7f,0,0,1};
+				entity->target_pos = entities[memory->player_uid].pos;
 			}
 
 			entity->shooting_cd_time_left -= delta_time;
@@ -789,7 +792,10 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		template_object.mesh_uid = memory->meshes.plane_mesh_uid;
 		template_object.tex_uid = memory->textures.font_atlas_uid;
 		template_object.scale = {5,5,5};
-		template_object.color = {1,1,1,1};
+
+		r32 unselected_alpha = 0.4f;
+		Color unselected_color = { 1.0f, 1.0f, 1.0f, unselected_alpha};
+		Color insuficient_res_color = { 1.0f, 0.5f, 0.5f, unselected_alpha};
 
 		V3 current_pos = {-0.6f, -0.8f, 0};
 		Renderer_request* requests [4];
@@ -798,32 +804,60 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		requests[0]->object3d = template_object;
 		requests[0]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('0');
 		requests[0]->object3d.pos = current_pos;
+		requests[0]->object3d.color = unselected_color;
+
+
+		s32 resources_value = memory->teams_resources[0];
+
 		current_pos.x += 0.2f;
+		String cost_string;
+		cost_string = number_to_string(memory->unit_creation_costs[1], memory->temp_arena);
+		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
 		requests[1]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[1]->object3d = template_object;
 		requests[1]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('1');
 		requests[1]->object3d.pos = current_pos;
+		if(resources_value >= memory->unit_creation_costs[1])
+			requests[1]->object3d.color = unselected_color;
+		else
+			requests[1]->object3d.color = insuficient_res_color;
+			
+
 		current_pos.x += 0.2f;
-		
+		cost_string = number_to_string(memory->unit_creation_costs[2], memory->temp_arena);
+		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
+
 		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
 		requests[2]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[2]->object3d = template_object;
 		requests[2]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('2');
 		requests[2]->object3d.pos = current_pos;
+		if(resources_value >= memory->unit_creation_costs[2])
+			requests[2]->object3d.color = unselected_color;
+		else
+			requests[2]->object3d.color = insuficient_res_color;
+
 		current_pos.x += 0.2f;
+		cost_string = number_to_string(memory->unit_creation_costs[3], memory->temp_arena);
+		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[3]);
 		requests[3]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[3]->object3d = template_object;
 		requests[3]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('3');
 		requests[3]->object3d.pos = current_pos;
-		current_pos.x += 0.2f;
+		if(resources_value >= memory->unit_creation_costs[3])
+			requests[3]->object3d.color = unselected_color;
+		else
+			requests[3]->object3d.color = insuficient_res_color;
 
+
+		current_pos.x += 0.2f;
 		Renderer_request* selected = requests[memory->creating_unit];
-		selected->object3d.scale = 1.2f*template_object.scale;
-		selected->object3d.color = {0.5f,1,0.5f,1};
+		selected->object3d.scale = 1.3f*template_object.scale;
+		selected->object3d.color.a = 1.0f;
 	}
 
 	// draw(render_list, memory->temp_arena, &test_plane);
@@ -832,13 +866,14 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 
 void init(App_memory* memory, Init_data* init_data){	
+
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
 	{
 		Vertex_shader_from_file_request vs_request = {0};
 		vs_request.p_uid = &memory->vshaders.default_vshader_uid;
-		vs_request.filename = string("x:/source/code/shaders/3d_shaders.hlsl");
+		vs_request.filename = string("shaders/3d_vs.cso");
 		vs_request.ie_count = 3;
 		vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
 		
@@ -855,7 +890,7 @@ void init(App_memory* memory, Init_data* init_data){
 		push_vertex_shader_from_file_request(memory, init_data, vs_request);
 
 		push_pixel_shader_from_file_request(memory, init_data, 
-			&memory->pshaders.default_pshader_uid, vs_request.filename
+			&memory->pshaders.default_pshader_uid, string("shaders/3d_ps.cso")
 		);
 
 		push_create_blend_state_request(memory, init_data, 
@@ -870,7 +905,7 @@ void init(App_memory* memory, Init_data* init_data){
 	{
 		Vertex_shader_from_file_request vs_request = {0};
 		vs_request.p_uid = &memory->vshaders.ui_vshader_uid;
-		vs_request.filename = string("x:/source/code/shaders/ui_shaders.hlsl");
+		vs_request.filename = string("shaders/ui_vs.cso");
 		vs_request.ie_count = 2;
 		vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
 
@@ -884,7 +919,7 @@ void init(App_memory* memory, Init_data* init_data){
 		push_vertex_shader_from_file_request(memory, init_data, vs_request);
 
 		push_pixel_shader_from_file_request(
-			memory, init_data, &memory->pshaders.ui_pshader_uid, vs_request.filename
+			memory, init_data, &memory->pshaders.ui_pshader_uid, string("shaders/ui_ps.cso")
 		);
 
 		push_create_depth_stencil_request(memory, init_data,
@@ -921,7 +956,7 @@ void init(App_memory* memory, Init_data* init_data){
 	);
 
 */
-	push_load_font_request(memory, init_data, &memory->textures.font_atlas_uid, string("x:/source/fonts/Inconsolata-Regular.ttf"));
+	push_load_font_request(memory, init_data, &memory->textures.font_atlas_uid, string("data/fonts/Inconsolata-Regular.ttf"));
 
 	u32 default_tex_pixels[] = {
 		0x7f000000, 0xffff0000,
@@ -932,7 +967,7 @@ void init(App_memory* memory, Init_data* init_data){
 	u32 white_tex_pixels[] = {0xffffffff};
 	push_tex_from_surface_request(memory, init_data, &memory->textures.white_tex_uid, 1, 1, white_tex_pixels);
 
-	push_tex_from_file_request(memory, init_data, &memory->textures.ogre_tex_uid, string("data/ogre_color.png"));
+	push_tex_from_file_request(memory, init_data, &memory->textures.ogre_tex_uid, string("data/textures/test_texture.png"));
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},
@@ -1005,23 +1040,23 @@ void init(App_memory* memory, Init_data* init_data){
 	);
 	push_mesh_from_primitives_request(memory,init_data,&memory->meshes.test_orientation2_uid, test_orientation_primitives);
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.ogre_mesh_uid, string("data/ogre.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.ogre_mesh_uid, string("data/meshes/ogre.glb"));
 
-	push_mesh_from_file_request(memory, init_data, &memory->meshes.female_mesh_uid, string("data/female.glb"));
+	push_mesh_from_file_request(memory, init_data, &memory->meshes.female_mesh_uid, string("data/meshes/female.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.turret_mesh_uid, string("data/turret.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.turret_mesh_uid, string("data/meshes/turret.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/new_test_orientation.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/meshes/new_test_orientation.glb"));
 	
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_mesh_uid, string("data/ball.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_mesh_uid, string("data/meshes/ball.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.icosphere_mesh_uid, string("data/icosphere.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.icosphere_mesh_uid, string("data/meshes/icosphere.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.cube_mesh_uid, string("data/cube.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.cube_mesh_uid, string("data/meshes/cube.glb"));
 
-	push_mesh_from_file_request(memory, init_data, &memory->meshes.centered_cube_mesh_uid, string("data/centered_cube.glb"));
+	push_mesh_from_file_request(memory, init_data, &memory->meshes.centered_cube_mesh_uid, string("data/meshes/centered_cube.glb"));
 
-	push_mesh_from_file_request(memory, init_data, &memory->meshes.shield_mesh_uid, string("data/shield.glb"));
+	push_mesh_from_file_request(memory, init_data, &memory->meshes.shield_mesh_uid, string("data/meshes/shield.glb"));
 
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.shooter_mesh_uid, string("data/shooter.glb"));
+	push_mesh_from_file_request(memory, init_data,&memory->meshes.shooter_mesh_uid, string("data/meshes/shooter.glb"));
 }

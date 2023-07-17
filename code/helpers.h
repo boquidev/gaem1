@@ -138,12 +138,19 @@ struct Packed_tex_info{
 	s32 xoffset, yoffset;
 };
 
-struct Color
+union Color
 {
-	r32 r;
-	r32 g;
-	r32 b;
-	r32 a;
+	struct{
+		r32 r;
+		r32 g;
+		r32 b;
+		r32 a;
+	};
+	struct RGB_accessor{
+		r32 r;
+		r32 g;
+		r32 b;
+	} rgb;
 };
 
 struct Color32
