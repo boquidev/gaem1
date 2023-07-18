@@ -30,7 +30,7 @@ void update(App_memory* memory){
 		player->type = ENTITY_UNIT;
 
 		player->mesh_uid = memory->meshes.test_orientation_uid;
-		player->tex_uid = memory->textures.white_tex_uid;
+		player->texinfo_uid = memory->textures.white_tex_uid;
 		
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_entity(boss);
@@ -47,7 +47,7 @@ void update(App_memory* memory){
 		boss->type = ENTITY_BOSS;
 
 		boss->mesh_uid = memory->meshes.ogre_mesh_uid;
-		boss->tex_uid = memory->textures.ogre_tex_uid;
+		boss->texinfo_uid = memory->textures.ogre_tex_uid;
 
 		memory->unit_creation_costs[UNIT_SHOOTER] = 20; // 20
 		memory->unit_creation_costs[UNIT_TANK] = 15;
@@ -87,54 +87,54 @@ void update(App_memory* memory){
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
 
-		Entity* wall = 0;
-		wall = &entities[5];
-		wall->visible = true;
-		wall->active = true;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->tex_uid = memory->textures.white_tex_uid;
-		wall->scale = {1,1,45};
-		wall->pos = {-29, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
+		// Entity* wall = 0;
+		// wall = &entities[5];
+		// wall->visible = true;
+		// wall->active = true;
+		// wall->current_scale = 1.0f;
+		// wall->type = ENTITY_OBSTACLE;
+		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		// wall->texinfo_uid = memory->textures.white_tex_uid;
+		// wall->scale = {1,1,45};
+		// wall->pos = {-29, 0, -23};
+		// wall->color = {0.3f,0.3f,0.3f,1};
+		// wall->rotation = {0,0,0};
 		
-		wall = &entities[6];
-		wall->visible = true;
-		wall->active = true;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->tex_uid = memory->textures.white_tex_uid;
-		wall->scale = {1,1,45};
-		wall->pos = {28, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
+		// wall = &entities[6];
+		// wall->visible = true;
+		// wall->active = true;
+		// wall->current_scale = 1.0f;
+		// wall->type = ENTITY_OBSTACLE;
+		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		// wall->texinfo_uid = memory->textures.white_tex_uid;
+		// wall->scale = {1,1,45};
+		// wall->pos = {28, 0, -23};
+		// wall->color = {0.3f,0.3f,0.3f,1};
+		// wall->rotation = {0,0,0};
 		
-		wall = &entities[7];
-		wall->visible = true;
-		wall->active = true;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->tex_uid = memory->textures.white_tex_uid;
-		wall->scale = {56,1,1};
-		wall->pos = {-28, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
+		// wall = &entities[7];
+		// wall->visible = true;
+		// wall->active = true;
+		// wall->current_scale = 1.0f;
+		// wall->type = ENTITY_OBSTACLE;
+		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		// wall->texinfo_uid = memory->textures.white_tex_uid;
+		// wall->scale = {56,1,1};
+		// wall->pos = {-28, 0, -23};
+		// wall->color = {0.3f,0.3f,0.3f,1};
+		// wall->rotation = {0,0,0};
 
-		wall = &entities[8];
-		wall->visible = true;
-		wall->active = true;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->tex_uid = memory->textures.white_tex_uid;
-		wall->scale = {56,1,1};
-		wall->pos = {-28, 0, 21};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
+		// wall = &entities[8];
+		// wall->visible = true;
+		// wall->active = true;
+		// wall->current_scale = 1.0f;
+		// wall->type = ENTITY_OBSTACLE;
+		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		// wall->texinfo_uid = memory->textures.white_tex_uid;
+		// wall->scale = {56,1,1};
+		// wall->pos = {-28, 0, 21};
+		// wall->color = {0.3f,0.3f,0.3f,1};
+		// wall->rotation = {0,0,0};
 	}
 
 	V3 cursor_pos = {
@@ -288,7 +288,7 @@ void update(App_memory* memory){
 	// 	DEFAULT_ENTITY(enemy);
 	// 	enemy->current_scale = MIN(1.0f, delta_time);
 	// 	enemy->mesh_uid = memory->meshes.test_orientation_uid;
-	// 	enemy->tex_uid = memory->textures.white_tex_uid;
+	// 	enemy->texinfo_uid = memory->textures.white_tex_uid;
 	// 	enemy->shooting_cooldown = 1.1f;
 
 	// 	enemy->health = 5;
@@ -757,16 +757,16 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		request->object3d.scale = {1,1,1};
 		request->object3d.pos = selected_entity->looking_at;
 		request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
-		request->object3d.tex_uid = memory->textures.white_tex_uid;
+		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 		request->object3d.color = {1,0,0,0.1f};
 	}
-
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_SET_DEPTH_STENCIL|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS;
 	request->depth_stencil_uid = memory->depth_stencils.ui_depth_stencil_uid;
 	request->vshader_uid = memory->vshaders.ui_vshader_uid;
 	request->pshader_uid = memory->pshaders.ui_pshader_uid;
+	
 
 	UNTIL(i, MAX_ENTITIES){
 		if(memory->entities[i].visible && memory->entities[i].type != ENTITY_PROJECTILE && memory->entities[i].type != ENTITY_OBSTACLE){
@@ -788,21 +788,29 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		concat_strings(string("resources: "), resources_string, memory->temp_arena), {-1,.9f}, {1,1,0,1});
 
 	{
+		
+		Tex_info* texinfo;
+
 		Object3d template_object = {0};
 		template_object.mesh_uid = memory->meshes.plane_mesh_uid;
-		template_object.tex_uid = memory->textures.font_atlas_uid;
-		template_object.scale = {5,5,5};
+		r32 scale_tex = 5;
 
 		r32 unselected_alpha = 0.4f;
 		Color unselected_color = { 1.0f, 1.0f, 1.0f, unselected_alpha};
 		Color insuficient_res_color = { 1.0f, 0.5f, 0.5f, unselected_alpha};
 
-		V3 current_pos = {-0.6f, -0.8f, 0};
+		V3 current_pos = {-0.6f, -0.8f, 0.2f};
 		Renderer_request* requests [4];
 		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
 		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[0]->object3d = template_object;
-		requests[0]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('0');
+		requests[0]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('0')];
+
+		LIST_GET(memory->tex_infos, requests[0]->texinfo_uid, texinfo);
+		V2 normalized_scale;
+		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
+		requests[0]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
+
 		requests[0]->object3d.pos = current_pos;
 		requests[0]->object3d.color = unselected_color;
 
@@ -817,7 +825,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
 		requests[1]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[1]->object3d = template_object;
-		requests[1]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('1');
+		requests[1]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('1')];
+
+		LIST_GET(memory->tex_infos, requests[1]->texinfo_uid, texinfo);
+		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
+		requests[1]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
+
 		requests[1]->object3d.pos = current_pos;
 		if(resources_value >= memory->unit_creation_costs[1])
 			requests[1]->object3d.color = unselected_color;
@@ -832,7 +845,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
 		requests[2]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[2]->object3d = template_object;
-		requests[2]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('2');
+		requests[2]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('2')];
+		
+		LIST_GET(memory->tex_infos, requests[2]->texinfo_uid, texinfo);
+		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
+		requests[2]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
+
 		requests[2]->object3d.pos = current_pos;
 		if(resources_value >= memory->unit_creation_costs[2])
 			requests[2]->object3d.color = unselected_color;
@@ -846,7 +864,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		PUSH_BACK(render_list, memory->temp_arena, requests[3]);
 		requests[3]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[3]->object3d = template_object;
-		requests[3]->object3d.tex_uid.rect_uid = CHAR_TO_INDEX('3');
+		requests[3]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('3')];
+		
+		LIST_GET(memory->tex_infos, requests[3]->texinfo_uid, texinfo);
+		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
+		requests[3]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
+
 		requests[3]->object3d.pos = current_pos;
 		if(resources_value >= memory->unit_creation_costs[3])
 			requests[3]->object3d.color = unselected_color;
@@ -856,13 +879,20 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 		current_pos.x += 0.2f;
 		Renderer_request* selected = requests[memory->creating_unit];
-		selected->object3d.scale = 1.3f*template_object.scale;
+		selected->object3d.scale = 1.3f*selected->scale;
 		selected->object3d.color.a = 1.0f;
 	}
 
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
+	request->scale = {2, 0.1f,1};
+	request->color = {1,1,1,1};
+	request->texinfo_uid = memory->textures.gradient_tex_uid;
+	request->mesh_uid = memory->meshes.plane_mesh_uid;
+	request->pos = { -1, -0.9f, 0.01f};
+
 	// draw(render_list, memory->temp_arena, &test_plane);
 }
-
 
 
 void init(App_memory* memory, Init_data* init_data){	
@@ -968,6 +998,8 @@ void init(App_memory* memory, Init_data* init_data){
 	push_tex_from_surface_request(memory, init_data, &memory->textures.white_tex_uid, 1, 1, white_tex_pixels);
 
 	push_tex_from_file_request(memory, init_data, &memory->textures.ogre_tex_uid, string("data/textures/test_texture.png"));
+
+	push_tex_from_file_request(memory, init_data, &memory->textures.gradient_tex_uid, string("data/textures/gradient.png"));
 
 	Vertex3d triangle_vertices [3] = {
 		{{0, 1, 0},{0.5, 0.0}},

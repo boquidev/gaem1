@@ -307,17 +307,27 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	app.init(&memory, &init_data);
 	
 	// CREATING TEXTURES
-	LIST(Dx11_texture, textures_list) = {0};
-	// fuck this is too long
+	LIST(Dx11_texture_view*, textures_list) = {0};
+
 	Tex_from_surface_request* tex_from_surface_request_node = init_data.tex_from_surface_requests[0];
 	UNTIL(i, LIST_SIZE(init_data.tex_from_surface_requests))
 	{
 		Tex_from_surface_request* request = tex_from_surface_request_node;
 		NEXT_ELEM(tex_from_surface_request_node);
 
-		request->p_uid->uid = LIST_SIZE(textures_list);
-		Dx11_texture* texture; PUSH_BACK(textures_list, memory.permanent_arena, texture);
-		dx11_create_texture_view(dx, &request->surface, &texture->texview);
+		*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
+		Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
+		tex_info->w = request->surface.width;
+		tex_info->h = request->surface.height;
+
+		tex_info->texrect.xf = 0.0f;
+		tex_info->texrect.yf = 0.0f;
+		tex_info->texrect.wf = 1.0f;
+		tex_info->texrect.hf = 1.0f;
+		
+		tex_info->texview_uid = LIST_SIZE(textures_list);
+		Dx11_texture_view** texture_view; PUSH_BACK(textures_list, memory.permanent_arena, texture_view);
+		dx11_create_texture_view(dx, &request->surface, texture_view);
 	}
 
 	Tex_from_file_request* tex_from_file_request_node = init_data.tex_from_file_requests[0];
@@ -329,9 +339,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		Surface tex_surface = {0};
 		tex_surface.data = stbi_load(request->filename.text, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
 		ASSERT(tex_surface.data);
-		request->p_uid->uid = LIST_SIZE(textures_list);
-		Dx11_texture* texture; PUSH_BACK(textures_list, permanent_arena, texture);
-		dx11_create_texture_view(dx, &tex_surface, &texture->texview);
+		
+		*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
+		Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
+		tex_info->w = tex_surface.width;
+		tex_info->h = tex_surface.height;
+		tex_info->texrect.xf = 0.0f;
+		tex_info->texrect.yf = 0.0f;
+		tex_info->texrect.wf = 1.0f;
+		tex_info->texrect.hf = 1.0f;
+
+		tex_info->texview_uid = LIST_SIZE(textures_list);
+		Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
+		dx11_create_texture_view(dx, &tex_surface, texture_view);
 	}
 
 	//  LOADING FONT
@@ -348,24 +368,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		//TODO: learn how to do UNICODE
 
 		// GETTING BITMAPS AND INFO
-		request->p_uid->uid = LIST_SIZE(textures_list);
-		request->p_uid->is_atlas = true;
-		Dx11_texture* atlas_texture; PUSH_BACK(textures_list, permanent_arena, atlas_texture);
-		atlas_texture->is_atlas = true;
-		atlas_texture->texcount = CHARS_COUNT;
+		u32 atlas_texview_uid = LIST_SIZE(textures_list);
 
 		stbtt_fontinfo font;
-		Packed_tex_info* charinfo = memory.font_charinfo; //TODO: do i need this on the app layer? 
 		Color32* charbitmaps [CHARS_COUNT];
+		Tex_info temp_charinfos[CHARS_COUNT];
 		stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
 		UNTIL(c, CHARS_COUNT){
 			u32 codepoint = c+FIRST_CHAR;
+
+			temp_charinfos[c].texview_uid = atlas_texview_uid;
+
 			u8* monobitmap = stbtt_GetCodepointBitmap(
 				&font, 0, stbtt_ScaleForPixelHeight(&font, lines_height), codepoint, 
-				&charinfo[c].w, &charinfo[c].h, 
-				&charinfo[c].xoffset, &charinfo[c].yoffset
+				&temp_charinfos[c].w, &temp_charinfos[c].h, 
+				&temp_charinfos[c].xoffset, &temp_charinfos[c].yoffset
 			);
-			u32 bitmap_size = charinfo[c].w * charinfo[c].h;
+			u32 bitmap_size = temp_charinfos[c].w * temp_charinfos[c].h;
 			charbitmaps[c] = ARENA_PUSH_STRUCTS(temp_arena, Color32, bitmap_size);
 			Color32* bitmap =  charbitmaps[c];
 			UNTIL(p, bitmap_size){
@@ -387,8 +406,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		stbrp_rect* rects = ARENA_PUSH_STRUCTS(temp_arena, stbrp_rect, CHARS_COUNT);
 		UNTIL(i, CHARS_COUNT){
-			rects[i].w = charinfo[i].w;
-			rects[i].h = charinfo[i].h;
+			rects[i].w = temp_charinfos[i].w;
+			rects[i].h = temp_charinfos[i].h;
 		}
 		stbrp_pack_rects(&pack_context, rects, CHARS_COUNT);
 
@@ -397,21 +416,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		Int2 atlas_size = {atlas_side, atlas_side};
 
-		atlas_texture->texrects = ARENA_PUSH_STRUCTS(permanent_arena, Rect, atlas_texture->texcount);
-		atlas_texture->texoffsets = ARENA_PUSH_STRUCTS(permanent_arena, Int2, atlas_texture->texcount);
-
 		UNTIL(i, CHARS_COUNT){
 			ASSERT(rects[i].was_packed);
 			if(rects[i].was_packed){
-				atlas_texture->texrects[i].xf = (r32)rects[i].x / atlas_size.x;
-				atlas_texture->texrects[i].yf = (r32)rects[i].y / atlas_size.y;
-				atlas_texture->texrects[i].wf = (r32)charinfo[i].w / atlas_size.x;
-				atlas_texture->texrects[i].hf = (r32)charinfo[i].h / atlas_size.y;
-				atlas_texture->texoffsets[i].x = charinfo[i].xoffset;
-				atlas_texture->texoffsets[i].y = charinfo[i].yoffset;
+				temp_charinfos[i].texrect.xf = (r32)rects[i].x / atlas_size.x;
+				temp_charinfos[i].texrect.yf = (r32)rects[i].y / atlas_size.y;
+				temp_charinfos[i].texrect.wf = (r32)temp_charinfos[i].w / atlas_size.x;
+				temp_charinfos[i].texrect.hf = (r32)temp_charinfos[i].h / atlas_size.y;
+				
+				memory.font_tex_infos_uids[i] = LIST_SIZE(memory.tex_infos);
+				Tex_info* charinfo; PUSH_BACK(memory.tex_infos, permanent_arena, charinfo);
+				*charinfo = temp_charinfos[i]; 
 
-				// width and height had already been set before
-
+				// PASTING EACH CHAR INTO THE ATLAS PIXELS
 				u32 first_char_pixel = (rects[i].y*atlas_side) + rects[i].x;
 				Color32* charpixels = charbitmaps[i];
 				UNTIL(y, (u32)rects[i].h){
@@ -422,8 +439,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				}
 			}
 		}
+		*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
+		Tex_info* atlas_tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, atlas_tex_info);
+		atlas_tex_info->texview_uid = atlas_texview_uid;
+		atlas_tex_info->w = atlas_size.x;
+		atlas_tex_info->h = atlas_size.y;
+		atlas_tex_info->texrect.xf = 0.0f;
+		atlas_tex_info->texrect.yf = 0.0f;
+		atlas_tex_info->texrect.wf = 1.0f;
+		atlas_tex_info->texrect.hf = 1.0f;
+
+		Dx11_texture_view** atlas_texture; PUSH_BACK(textures_list, permanent_arena, atlas_texture);
 		Surface atlas_surface = {(u32)atlas_size.x, (u32)atlas_size.y, atlas_pixels};
-		dx11_create_texture_view(dx, &atlas_surface, &atlas_texture->texview);
+		dx11_create_texture_view(dx, &atlas_surface, atlas_texture);
 	}
 
 	// SHADERS
@@ -955,6 +983,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			//TODO: make a GENERAL RENDER REQUEST QUEUE 
 			Renderer_request* request_node = render_list[0];
 			FOR_EACH(render_list, i){
+				if(i == LIST_SIZE(render_list)-1)
+					ASSERT(true);
 				Renderer_request* request = request_node;
 				NEXT_ELEM(request_node);
 
@@ -972,17 +1002,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 						XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z); 
 
 					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
-					Dx11_texture* texture; LIST_GET(textures_list, object->tex_uid.uid, texture);
+					Tex_info* texinfo; LIST_GET(memory.tex_infos, object->texinfo_uid, texinfo);
+					Dx11_texture_view** texture_view; LIST_GET(textures_list, texinfo->texview_uid, texture_view);
 
-					if(object->tex_uid.is_atlas){
-						// TODO: make sure this rect is normalized
-						Rect texrect = texture->texrects[object->tex_uid.rect_uid];
-						dx11_modify_resource(dx, object_texrect_buffer.buffer, &texrect, sizeof(Rect));
-					}else{
-						dx11_modify_resource(dx, object_texrect_buffer.buffer, &default_texrect, sizeof(Rect));
-					}
+					dx11_modify_resource(dx, object_texrect_buffer.buffer, &texinfo->texrect, sizeof(Rect));
 					
-					dx11_bind_texture_view(dx, &texture->texview);
+					dx11_bind_texture_view(dx, texture_view);
 					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
@@ -991,37 +1016,33 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					//TODO: yeah not ready yet to do instancing
 					Object3d* object = &request->object3d;
 					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
-					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
-					
-					Packed_tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
-					object->scale.x *= ((2.0f*tex_info.w) / global_client_size.x);
-					object->scale.y *= (2.0f*tex_info.h) / global_client_size.y;
-					
+					ASSERT(object->scale.x && object->scale.y && object->scale.z); // FORGOR TO SET THE SCALE
+			
+					// Packed_tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
+					// object->scale.x *= ((2.0f*tex_info.w) / global_client_size.x);
+					// object->scale.y *= (2.0f*tex_info.h) / global_client_size.y;
+
 					r32 half_pixel_offset = 0.25f;
-					r32 xoffset = (tex_info.xoffset+half_pixel_offset)/global_client_size.x;
-					r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/global_client_size.y;
-					request->object3d.pos.x += xoffset; 
-					request->object3d.pos.y -= yoffset;
+					// r32 xoffset = (tex_info.xoffset+half_pixel_offset)/global_client_size.x;
+					// r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/global_client_size.y;
+					request->object3d.pos.x += half_pixel_offset/global_client_size.x;
+					request->object3d.pos.y -= half_pixel_offset/global_client_size.y;		
 
 					XMMATRIX object_transform_matrix = 
-						XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
+						XMMatrixScaling(object->scale.x, object->scale.y, object->scale.z)*
 						XMMatrixRotationX(object->rotation.x) *
 						XMMatrixRotationY(object->rotation.y) *
 						XMMatrixRotationZ(object->rotation.z) *
 						XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z); 
 
 					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
-					Dx11_texture* texture; LIST_GET(textures_list, object->tex_uid.uid, texture);
+					Tex_info* texinfo; LIST_GET(memory.tex_infos, object->texinfo_uid, texinfo);
+					Dx11_texture_view** texture_view; LIST_GET(textures_list, texinfo->texview_uid, texture_view);
 
-					if(object->tex_uid.is_atlas){
-						// TODO: make sure this rect is normalized
-						Rect texrect = texture->texrects[object->tex_uid.rect_uid];
-						dx11_modify_resource(dx, object_texrect_buffer.buffer, &texrect, sizeof(Rect));
-					}else{
-						dx11_modify_resource(dx, object_texrect_buffer.buffer, &default_texrect, sizeof(Rect));
-					}
+					dx11_modify_resource(dx, object_texrect_buffer.buffer, &texinfo->texrect, sizeof(Rect));
 					
-					dx11_bind_texture_view(dx, &texture->texview);
+					dx11_bind_texture_view(dx, texture_view);
+
 					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
@@ -1030,42 +1051,37 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					//TODO: yeah not ready yet to do instancing
 					Object3d* object = &request->object3d;
 					ASSERT(object->color.a); // FORGOR TO SET THE COLOR
-					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
+					ASSERT(object->scale.x && object->scale.y && object->scale.z); // FORGOR TO SET THE SCALE
 					
-					Packed_tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
+					// Tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
 
-					r32 half_pixel_offset = 0.25f;
-					r32 xoffset = object->scale.x*(tex_info.xoffset+half_pixel_offset)/16;
-					r32 yoffset = object->scale.y*(2*(tex_info.yoffset)+half_pixel_offset)/9;
+					// r32 half_pixel_offset = 0.25f;
+					// r32 xoffset = object->scale.x*(tex_info.xoffset+half_pixel_offset)/16;
+					// r32 yoffset = object->scale.y*(2*(tex_info.yoffset)+half_pixel_offset)/9;
 					
-					object->scale.x *= ((2.0f*tex_info.w) / 16);
-					object->scale.y *= (2.0f*tex_info.h) / 9;
+					// object->scale.x *= ((2.0f*tex_info.w) / 16);
+					// object->scale.y *= (2.0f*tex_info.h) / 9;
 
-					request->object3d.pos.x += xoffset; 
-					request->object3d.pos.y -= yoffset;
+					// request->object3d.pos.x += xoffset; 
+					// request->object3d.pos.y -= yoffset;
 
 					XMMATRIX object_transform_matrix = (
 						(
 							XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
-						XMMatrixRotationX(object->rotation.x) *
-						XMMatrixRotationY(object->rotation.y) *
-						XMMatrixRotationZ(object->rotation.z) *
+							XMMatrixRotationX(object->rotation.x) *
+							XMMatrixRotationY(object->rotation.y) *
+							XMMatrixRotationZ(object->rotation.z) *
 							XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z)
 						) * view_matrix * projection_matrix
 					);
 
 					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
-					Dx11_texture* texture; LIST_GET(textures_list, object->tex_uid.uid, texture);
+					Tex_info* texinfo; LIST_GET(memory.tex_infos, object->texinfo_uid, texinfo);
+					Dx11_texture_view** texture_view; LIST_GET(textures_list, texinfo->texview_uid, texture_view);
 
-					if(object->tex_uid.is_atlas){
-						// TODO: make sure this rect is normalized
-						Rect texrect = texture->texrects[object->tex_uid.rect_uid];
-						dx11_modify_resource(dx, object_texrect_buffer.buffer, &texrect, sizeof(Rect));
-					}else{
-						dx11_modify_resource(dx, object_texrect_buffer.buffer, &default_texrect, sizeof(Rect));
-					}
+					dx11_modify_resource(dx, object_texrect_buffer.buffer, &texinfo->texrect, sizeof(Rect));
 					
-					dx11_bind_texture_view(dx, &texture->texview);
+					dx11_bind_texture_view(dx, texture_view);
 					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
@@ -1171,12 +1187,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		current_mesh->vertex_buffer->Release();
 		current_mesh->index_buffer->Release();
 	}
-	Dx11_texture* texture_node = textures_list[0];
+	Dx11_texture_view** texture_node = textures_list[0];
 	FOR_EACH(textures_list, i)
 	{
-		Dx11_texture* current_tex = texture_node;
+		Dx11_texture_view** current_tex = texture_node;
 		NEXT_ELEM(texture_node);
-		(current_tex->texview)->Release();
+		(*current_tex)->Release();
 	}
 
 	Vertex_shader* vsnodes = vertex_shaders_list[0];

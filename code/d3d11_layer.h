@@ -130,18 +130,6 @@ struct Depth_stencil
 	Dx11_depth_stencil_view* view;
 };
 
-struct Dx11_texture{
-	Dx11_texture_view* texview;
-	b32 is_atlas;
-	struct { //TODO: maybe not leave this as an anonymous struct
-		u32 texcount;
-		// this are normalized coordinates 0.0->1.0 with 1.0 being the atlas width/height;
-		Rect* texrects; 
-		// the offsets are in pixels;
-		Int2* texoffsets;
-	};
-};
-
 
 internal Dx_mesh
 dx11_init_mesh(D3D* dx, void* vertices, u32 v_count, int v_size, u16* indices, u32 i_count, D3D11_PRIMITIVE_TOPOLOGY topology)

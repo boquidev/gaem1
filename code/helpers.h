@@ -133,9 +133,13 @@ find_bigger_exponent_of_2(u32 target_value){
 // TEMPORARILY ORPHAN 
 
 // THIS APPLIES TO ANY TEXTURE NOT JUST FONTS
-struct Packed_tex_info{
+struct Tex_info{
+	u32 texview_uid;
 	s32 w, h;
 	s32 xoffset, yoffset;
+	// this are normalized coordinates 0.0->1.0 with 1.0 being the atlas width/height;
+	Rect texrect; 
+	// the offsets are in pixels;
 };
 
 union Color

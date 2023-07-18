@@ -10,15 +10,14 @@
 
 // scale must be 1,1,1 by default
 
-struct Tex_uid{
-	u32 uid;
-	b32 is_atlas;
-	u32 rect_uid;
-};
+// struct Tex_uid{
+// 	u32 tex_info_uid;
+// 	// b32 is_atlas;
+// };
 
 #define OBJECT3D_STRUCTURE \
 	u32 mesh_uid;\
-	Tex_uid tex_uid;\
+	u32 texinfo_uid;\
 	\
 	V3 scale;\
 	V3 pos;\
@@ -199,10 +198,11 @@ struct Meshes
 
 struct Textures
 {
-	Tex_uid default_tex_uid;
-	Tex_uid white_tex_uid;
-	Tex_uid ogre_tex_uid;
-	Tex_uid font_atlas_uid;
+	u32 default_tex_uid;
+	u32 white_tex_uid;
+	u32 ogre_tex_uid;
+	u32 font_atlas_uid;
+	u32 gradient_tex_uid;
 };
 
 struct VShaders
@@ -237,7 +237,8 @@ struct App_memory
 	Meshes meshes;
 	Textures textures;
 
-	Packed_tex_info font_charinfo[CHARS_COUNT];
+	LIST(Tex_info, tex_infos);
+	u32 font_tex_infos_uids[CHARS_COUNT];
 
 	VShaders vshaders;
 	PShaders pshaders;
@@ -296,6 +297,9 @@ struct Renderer_request{
 	union{
 		Object3d object3d;
 		struct{
+			OBJECT3D_STRUCTURE
+		};
+		struct{
 			u32 vshader_uid;
 			u32 pshader_uid;
 			u32 blend_state_uid;
@@ -303,6 +307,15 @@ struct Renderer_request{
 		};
 	};
 };
+
+internal V2
+normalize_texture_size(Int2 client_size, Int2 tex_size){
+	V2 result = {
+		((2.0f*tex_size.x) / client_size.x),
+		(2.0f*tex_size.y) / client_size.y
+	};
+	return result;
+}
 
 internal void
 printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_list),String s, V3 pos, Color color){
@@ -320,13 +333,16 @@ printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_
 
 			Object3d* object = &request->object3d;
 			object->mesh_uid = memory->meshes.plane_mesh_uid;
-			object->tex_uid = memory->textures.font_atlas_uid;
-			object->scale = {.25f,.25f,1};
+			object->texinfo_uid = memory->textures.font_atlas_uid;
+			Tex_info* tex_info; LIST_GET(memory->tex_infos, object->texinfo_uid, tex_info);
+			V2 normalized_scale = normalize_texture_size(screen_size, {tex_info->w, tex_info->h});
+			object->scale = {2*normalized_scale.x, 2*normalized_scale.y, 1};
+
 			object->pos = {xpos, pos.y, pos.z};
 			object->rotation = {PI32/4,0,0};
 			object->color = color;
 
-			request->object3d.tex_uid.rect_uid = char_index;
+			request->object3d.texinfo_uid = memory->font_tex_infos_uids[char_index];
 			request->object3d.pos.y -= object->scale.y*2.0f;
 			xpos += object->scale.x*16.0f/16;
 		}
@@ -349,14 +365,20 @@ printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_
 			request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 			Object3d* object = &request->object3d;
 			object->mesh_uid = memory->meshes.plane_mesh_uid;
-			object->tex_uid = memory->textures.font_atlas_uid;
-			object->scale = {1,1,1};
-			object->pos = {xpos,pos.y,0};
+			object->texinfo_uid = memory->font_tex_infos_uids[char_index];
+
+			Tex_info* tex_info; LIST_GET(memory->tex_infos, object->texinfo_uid, tex_info);
+
+			V2 normalized_scale = normalize_texture_size(screen_size, {tex_info->w, tex_info->h});
+			object->scale = {normalized_scale.x, normalized_scale.y, 1};
+			
+			object->pos.x = xpos+((r32)(tex_info->xoffset)/screen_size.x);
+			object->pos.y = pos.y-((2.0f*(line_height+tex_info->yoffset))/screen_size.y);
+
 			object->rotation = {0,0,0};
 			object->color = color;
 
-			request->object3d.tex_uid.rect_uid = char_index;
-			request->object3d.pos.y -= (2.0f*line_height)/screen_size.y;
+			request->object3d.texinfo_uid = memory->font_tex_infos_uids[char_index];
 			xpos += 16.0f / screen_size.x;
 		}
 	}
@@ -378,12 +400,12 @@ struct Mesh_from_primitives_request
 };
 
 struct Tex_from_surface_request{
-	Tex_uid* p_uid;
+	u32* p_texinfo_uid;
 	Surface surface; 
 };
 
 struct Tex_from_file_request{
-	Tex_uid* p_uid;
+	u32* p_texinfo_uid;
 	String filename;
 };
 
@@ -440,31 +462,31 @@ save_primitives(Memory_arena* arena, void* vertices, u32 v_size, u32 v_count, u1
 // AND I HAVE 4 FUNCTIONS THAT ARE VERY SIMILAR
 
 internal void
-push_tex_from_surface_request(App_memory* memory, Init_data* init_data,Tex_uid* index_handle, u32 width, u32 height, u32* pixels)
+push_tex_from_surface_request(App_memory* memory, Init_data* init_data,u32* index_handle, u32 width, u32 height, u32* pixels)
 {
 	Tex_from_surface_request* request; 
 	PUSH_BACK(init_data->tex_from_surface_requests,memory->temp_arena, request);
-	request->p_uid = index_handle;
+	request->p_texinfo_uid = index_handle;
 	request->surface = {width,height};
 	request->surface.data = arena_push_data(memory->temp_arena, pixels, width*height*sizeof(u32));
 }
 // returns the address reserved for the mesh's uid
 internal void
-push_tex_from_file_request(App_memory* memory, Init_data* init_data, Tex_uid* index_handle, String filename)
+push_tex_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
 {
 	// pushes the request in the initdata in the temp arena
 	Tex_from_file_request* request;
 	PUSH_BACK(init_data->tex_from_file_requests, memory->temp_arena, request);
-	request->p_uid = index_handle;
+	request->p_texinfo_uid = index_handle;
 	request->filename = filename;
 }
 
 internal void
-push_load_font_request(App_memory* memory, Init_data* init_data, Tex_uid* index_handle, String filename){
+push_load_font_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename){
 	// THIS IS EXACTLY THE SAME AS THE FUNCTION ABOVE EXCEPT FOR ONE THING FUCKK
 	Tex_from_file_request* request;
 	PUSH_BACK(init_data->load_font_requests, memory->temp_arena, request);
-	request->p_uid = index_handle;
+	request->p_texinfo_uid = index_handle;
 	request->filename = filename;
 }
 
@@ -546,7 +568,7 @@ default_shooter(Entity* out, App_memory* memory){
 	out->shooting_cooldown = 2.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.shooter_mesh_uid;
-	out->tex_uid = memory->textures.white_tex_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 internal void
 default_tank(Entity* out, App_memory* memory){
@@ -561,7 +583,7 @@ default_tank(Entity* out, App_memory* memory){
 	out->shooting_cooldown = 5.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.icosphere_mesh_uid;
-	out->tex_uid = memory->textures.white_tex_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 	
 internal void
@@ -578,7 +600,7 @@ default_shield(Entity* out, App_memory* memory){
 	out->shooting_cooldown = 0.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.shield_mesh_uid;
-	out->tex_uid = memory->textures.white_tex_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 
 internal void
@@ -593,7 +615,7 @@ default_spawner(Entity* out, App_memory* memory){
 	out->shooting_cooldown = 7.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.test_orientation2_uid;
-	out->tex_uid = memory->textures.white_tex_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 
 internal void
@@ -604,7 +626,7 @@ default_projectile(Entity* out, App_memory* memory){
 	out->current_scale = 1.0f;
 	out->type = ENTITY_PROJECTILE;
 	out->mesh_uid = memory->meshes.ball_mesh_uid;
-	out->tex_uid = memory->textures.white_tex_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
 	out->color = {0.6f,0.6f,0.6f,1};
 	out->scale = {0.4f,0.4f,0.4f};
 }
