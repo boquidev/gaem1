@@ -4,8 +4,10 @@ internal File_data
 win_read_file(String filename, Memory_arena* arena)
 {
 	File_data result = {0};
+	char temp_buffer [MAX_PATH]={0};
+	copy_mem(filename.text, temp_buffer, filename.length);
 
-	HANDLE file_handle = CreateFileA(filename.text, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+	HANDLE file_handle = CreateFileA(temp_buffer, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
 	if(file_handle == INVALID_HANDLE_VALUE)
 	{
 		DWORD error = GetLastError();

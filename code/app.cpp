@@ -29,7 +29,7 @@ void update(App_memory* memory){
 		player->speed = 5.0f;
 		player->type = ENTITY_UNIT;
 
-		player->mesh_uid = memory->meshes.test_orientation_uid;
+		player->mesh_uid = memory->meshes.player_mesh_uid;
 		player->texinfo_uid = memory->textures.white_tex_uid;
 		
 		Entity* boss = &memory->entities[BOSS_INDEX];
@@ -46,8 +46,8 @@ void update(App_memory* memory){
 		boss->current_scale = 1.0f;
 		boss->type = ENTITY_BOSS;
 
-		boss->mesh_uid = memory->meshes.ogre_mesh_uid;
-		boss->texinfo_uid = memory->textures.ogre_tex_uid;
+		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
+		boss->texinfo_uid = memory->textures.default_tex_uid;
 
 		memory->unit_creation_costs[UNIT_SHOOTER] = 20; // 20
 		memory->unit_creation_costs[UNIT_TANK] = 15;
@@ -87,54 +87,54 @@ void update(App_memory* memory){
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
 
-		// Entity* wall = 0;
-		// wall = &entities[5];
-		// wall->visible = true;
-		// wall->active = true;
-		// wall->current_scale = 1.0f;
-		// wall->type = ENTITY_OBSTACLE;
-		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		// wall->texinfo_uid = memory->textures.white_tex_uid;
-		// wall->scale = {1,1,45};
-		// wall->pos = {-29, 0, -23};
-		// wall->color = {0.3f,0.3f,0.3f,1};
-		// wall->rotation = {0,0,0};
+		Entity* wall = 0;
+		wall = &entities[5];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {1,1,45};
+		wall->pos = {-29, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
 		
-		// wall = &entities[6];
-		// wall->visible = true;
-		// wall->active = true;
-		// wall->current_scale = 1.0f;
-		// wall->type = ENTITY_OBSTACLE;
-		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		// wall->texinfo_uid = memory->textures.white_tex_uid;
-		// wall->scale = {1,1,45};
-		// wall->pos = {28, 0, -23};
-		// wall->color = {0.3f,0.3f,0.3f,1};
-		// wall->rotation = {0,0,0};
+		wall = &entities[6];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {1,1,45};
+		wall->pos = {28, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
 		
-		// wall = &entities[7];
-		// wall->visible = true;
-		// wall->active = true;
-		// wall->current_scale = 1.0f;
-		// wall->type = ENTITY_OBSTACLE;
-		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		// wall->texinfo_uid = memory->textures.white_tex_uid;
-		// wall->scale = {56,1,1};
-		// wall->pos = {-28, 0, -23};
-		// wall->color = {0.3f,0.3f,0.3f,1};
-		// wall->rotation = {0,0,0};
+		wall = &entities[7];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {56,1,1};
+		wall->pos = {-28, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
 
-		// wall = &entities[8];
-		// wall->visible = true;
-		// wall->active = true;
-		// wall->current_scale = 1.0f;
-		// wall->type = ENTITY_OBSTACLE;
-		// wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		// wall->texinfo_uid = memory->textures.white_tex_uid;
-		// wall->scale = {56,1,1};
-		// wall->pos = {-28, 0, 21};
-		// wall->color = {0.3f,0.3f,0.3f,1};
-		// wall->rotation = {0,0,0};
+		wall = &entities[8];
+		wall->visible = true;
+		wall->active = true;
+		wall->current_scale = 1.0f;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {56,1,1};
+		wall->pos = {-28, 0, 21};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
 	}
 
 	V3 cursor_pos = {
@@ -279,26 +279,6 @@ void update(App_memory* memory){
 				selected_entity->target_move_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 		}
 	}	
-	// memory->spawn_timer -= delta_time;
-	// if(memory->spawn_timer < 0){
-	// 	memory->spawn_timer += 5.0f;
-
-	// 	u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-	// 	Entity* enemy = &entities[new_entity_index];
-	// 	DEFAULT_ENTITY(enemy);
-	// 	enemy->current_scale = MIN(1.0f, delta_time);
-	// 	enemy->mesh_uid = memory->meshes.test_orientation_uid;
-	// 	enemy->texinfo_uid = memory->textures.white_tex_uid;
-	// 	enemy->shooting_cooldown = 1.1f;
-
-	// 	enemy->health = 5;
-	// 	enemy->target_pos = entities[memory->player_uid].pos;
-	// 	enemy->team_uid = 1; //TODO: put something that is not the player's team
-
-	// 	enemy->pos = {4,0,4};
-	// 	enemy->target_move_pos = enemy->pos;
-	// 	enemy->color = {1,0,0,1};
-	// }
 
 	// UPDATING ENTITIES
 	UNTIL(i, MAX_ENTITIES){
@@ -603,6 +583,8 @@ void update(App_memory* memory){
 				entity->velocity = entity->velocity + (delta_time * accel);
 				if(entity->velocity.x || entity->velocity.z)
 					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
+				entity->pos.x = CLAMP(-27, entity->pos.x, 27);
+				entity->pos.z = CLAMP(-21, entity->pos.z, 21);	
 					
 			}else if(entity->type != ENTITY_PROJECTILE){
 				entity->pos.x = CLAMP(-27, entity->pos.x, 27);
@@ -986,109 +968,26 @@ void init(App_memory* memory, Init_data* init_data){
 	);
 
 */
+	LIST(String, meshes_filenames) = {0};
+	parse_meshes_serialization_file(memory, init_data->meshes_serialization, meshes_filenames);
+	String* mesh_filename = meshes_filenames[0];
+	UNTIL(i, LIST_SIZE(meshes_filenames)){
+		String* current = mesh_filename;
+		NEXT_ELEM(mesh_filename);
+
+		push_mesh_from_file_request(memory, init_data, *current);
+	}
+
+	LIST(String, textures_filenames) = {0};
+	parse_textures_serialization_file(memory, init_data->textures_serialization, textures_filenames);
+	String* tex_filename = textures_filenames[0];
+	UNTIL(i, LIST_SIZE(textures_filenames)){
+		String* current = tex_filename;
+		NEXT_ELEM(tex_filename);
+
+		push_tex_from_file_request(memory, init_data, *current);
+	}
+
+	//TODO: make it possible to load more than one font
 	push_load_font_request(memory, init_data, &memory->textures.font_atlas_uid, string("data/fonts/Inconsolata-Regular.ttf"));
-
-	u32 default_tex_pixels[] = {
-		0x7f000000, 0xffff0000,
-		0xff00ff00, 0xff0000ff,
-	};
-	push_tex_from_surface_request(memory, init_data, &memory->textures.default_tex_uid, 2,2, default_tex_pixels);
-
-	u32 white_tex_pixels[] = {0xffffffff};
-	push_tex_from_surface_request(memory, init_data, &memory->textures.white_tex_uid, 1, 1, white_tex_pixels);
-
-	push_tex_from_file_request(memory, init_data, &memory->textures.ogre_tex_uid, string("data/textures/test_texture.png"));
-
-	push_tex_from_file_request(memory, init_data, &memory->textures.gradient_tex_uid, string("data/textures/gradient.png"));
-
-	Vertex3d triangle_vertices [3] = {
-		{{0, 1, 0},{0.5, 0.0}},
-		{{1, 0, 0},{1, 1}},
-		{{-1, 0, 0},{0, 1}}
-	};
-	u16 triangle_indices[3] = {
-		0,1,2
-	};
-	
-	Mesh_primitive* triangle_primitives = save_primitives(
-		memory->temp_arena, 
-		triangle_vertices, sizeof(triangle_vertices[0]), ARRAYCOUNT(triangle_vertices),
-		triangle_indices, ARRAYCOUNT(triangle_indices)
-	);
-	push_mesh_from_primitives_request(memory, init_data, &memory->meshes.triangle_mesh_uid, triangle_primitives);
-	
-	Vertex3d centered_plane_vertices[] =
-	{
-		{ { -1.0f, +1.0f, 0.0f}, { 0.0f, 0.0f }},
-		{ { +1.0f, +1.0f, 0.0f}, { 1.0f, 0.0f }},
-		{ { -1.0f, -1.0f, 0.0f}, { 0.0f, 1.0f }},
-		{ { +1.0f, -1.0f, 0.0f}, { 1.0f, 1.0f }}
-	};
-	Vertex3d plane_vertices[] = 
-	{
-		{ {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} },
-		{ {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} },
-		{ {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f} },
-		{ {1.0f, -1.0f, 0.0f}, {1.0f, 1.0f} },
-	};
-	u16 plane_indices[] =
-	{
-		0,1,2,
-		1,3,2
-	};
-	Mesh_primitive* plane_primitives = save_primitives(
-		memory->temp_arena,
-		plane_vertices, sizeof(plane_vertices[0]), ARRAYCOUNT(plane_vertices),
-		plane_indices, ARRAYCOUNT(plane_indices)
-	);
-	push_mesh_from_primitives_request(memory, init_data,&memory->meshes.plane_mesh_uid,plane_primitives);
-
-	Vertex3d test_vertices[8] =
-	{
-		{{-0.5, 0, 1},{},{-1,0,1}},
-		{{0.5, 0, 1},{},{1,0,1}},
-		{{-0.1f, 1, 1},{},{0,1,0}},
-		{{2, 0.5, 0.5},{},{1,0.5f,0.5f}},
-		{{0.1f, 0.5, -2},{},{0,0.1f,-1}},
-		{{0,3,-3}, {}, {0,1,0}},
-		{{3,-1,-3}, {}, {1,-0.1f,0}},
-		{{-3,-1,-3}, {}, {-1,-0.1f,0}}
-	};
-	u16 test_indices[] = 
-	{
-		2,4,0,
-		4,1,0,
-		4,3,1,
-		4,2,3,
-		1,2,0,
-		1,3,2,
-		5,6,7
-	};
-
-	Mesh_primitive* test_orientation_primitives = save_primitives(
-		memory->temp_arena,
-		test_vertices, sizeof(test_vertices[0]), ARRAYCOUNT(test_vertices),
-		test_indices, ARRAYCOUNT(test_indices)
-	);
-	push_mesh_from_primitives_request(memory,init_data,&memory->meshes.test_orientation2_uid, test_orientation_primitives);
-
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.ogre_mesh_uid, string("data/meshes/ogre.glb"));
-
-	push_mesh_from_file_request(memory, init_data, &memory->meshes.female_mesh_uid, string("data/meshes/female.glb"));
-
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.turret_mesh_uid, string("data/meshes/turret.glb"));
-
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.test_orientation_uid, string("data/meshes/new_test_orientation.glb"));
-	
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.ball_mesh_uid, string("data/meshes/ball.glb"));
-
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.icosphere_mesh_uid, string("data/meshes/icosphere.glb"));
-
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.cube_mesh_uid, string("data/meshes/cube.glb"));
-
-	push_mesh_from_file_request(memory, init_data, &memory->meshes.centered_cube_mesh_uid, string("data/meshes/centered_cube.glb"));
-
-	push_mesh_from_file_request(memory, init_data, &memory->meshes.shield_mesh_uid, string("data/meshes/shield.glb"));
-
-	push_mesh_from_file_request(memory, init_data,&memory->meshes.shooter_mesh_uid, string("data/meshes/shooter.glb"));
 }

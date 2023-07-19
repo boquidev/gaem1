@@ -304,6 +304,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// APP INIT
 	Init_data init_data = {0};
+	init_data.meshes_serialization = win_read_file(string("data/meshes_init.txt"),temp_arena);
+	init_data.textures_serialization = win_read_file(string("data/textures_init.txt"),temp_arena);
 	app.init(&memory, &init_data);
 	
 	// CREATING TEXTURES
@@ -337,10 +339,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		int comp;
 		Surface tex_surface = {0};
-		tex_surface.data = stbi_load(request->filename.text, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
+		char temp_buffer [MAX_PATH] = {0}; 
+		copy_mem(request->filename.text, temp_buffer, request->filename.length);
+		tex_surface.data = stbi_load(temp_buffer, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
 		ASSERT(tex_surface.data);
 		
-		*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
 		Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
 		tex_info->w = tex_surface.width;
 		tex_info->h = tex_surface.height;
@@ -439,7 +442,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				}
 			}
 		}
-		*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
 		Tex_info* atlas_tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, atlas_tex_info);
 		atlas_tex_info->texview_uid = atlas_texview_uid;
 		atlas_tex_info->w = atlas_size.x;
@@ -583,9 +585,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// {	
 			// }
 		}
-		
-		*request->p_uid = LIST_SIZE(meshes_list);
-
 		Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
 		*current_mesh = dx11_init_mesh(dx, 
 		&primitives[0],

@@ -170,7 +170,7 @@ struct User_input
 			s32 k5;
 			s32 k6;
 		};
-		s32 buttons[30];//TODO: narrow this number to the number of posible buttons
+		s32 buttons[30];//TODO: narrow this number to the amount of posible buttons
 	};
 };
 
@@ -179,30 +179,29 @@ struct User_input
 
 struct Meshes
 {
-	u32 triangle_mesh_uid;
-	u32 ogre_mesh_uid;
-	u32 female_mesh_uid;
-	u32 turret_mesh_uid;
+	u32 default_mesh_uid;
+	u32 ball_mesh_uid;
 	u32 centered_cube_mesh_uid;
+	u32 cube_mesh_uid;
+	u32 centered_plane_mesh_uid;
 	u32 plane_mesh_uid;
+	u32 icosphere_mesh_uid;
+
+	u32 player_mesh_uid;
+	u32 spawner_mesh_uid;
+	u32 boss_mesh_uid;
+	u32 tank_mesh_uid;
 	u32 shield_mesh_uid;
 	u32 shooter_mesh_uid;
-
-	u32 ball_mesh_uid;
-	u32 icosphere_mesh_uid;
-	u32 cube_mesh_uid;
-
-	u32 test_orientation_uid;
-	u32 test_orientation2_uid;
 };
 
 struct Textures
-{
+{	//TODO: maybe load the default texture in index:0 from raw data instead of a file
 	u32 default_tex_uid;
 	u32 white_tex_uid;
-	u32 ogre_tex_uid;
-	u32 font_atlas_uid;
 	u32 gradient_tex_uid;
+
+	u32 font_atlas_uid;
 };
 
 struct VShaders
@@ -333,10 +332,10 @@ printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_
 
 			Object3d* object = &request->object3d;
 			object->mesh_uid = memory->meshes.plane_mesh_uid;
-			object->texinfo_uid = memory->textures.font_atlas_uid;
+			object->texinfo_uid = memory->font_tex_infos_uids[char_index];
 			Tex_info* tex_info; LIST_GET(memory->tex_infos, object->texinfo_uid, tex_info);
 			V2 normalized_scale = normalize_texture_size(screen_size, {tex_info->w, tex_info->h});
-			object->scale = {2*normalized_scale.x, 2*normalized_scale.y, 1};
+			object->scale = {30*normalized_scale.x, 30*normalized_scale.y, 1};
 
 			object->pos = {xpos, pos.y, pos.z};
 			object->rotation = {PI32/4,0,0};
@@ -405,7 +404,6 @@ struct Tex_from_surface_request{
 };
 
 struct Tex_from_file_request{
-	u32* p_texinfo_uid;
 	String filename;
 };
 
@@ -431,6 +429,9 @@ struct Create_depth_stencil_request
 
 struct Init_data
 {
+	File_data meshes_serialization;
+	File_data textures_serialization;
+
 	LIST(From_file_request, mesh_from_file_requests);
 	LIST(Mesh_from_primitives_request, mesh_from_primitives_requests);
 	LIST(Tex_from_surface_request, tex_from_surface_requests);
@@ -472,12 +473,11 @@ push_tex_from_surface_request(App_memory* memory, Init_data* init_data,u32* inde
 }
 // returns the address reserved for the mesh's uid
 internal void
-push_tex_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
+push_tex_from_file_request(App_memory* memory, Init_data* init_data, String filename)
 {
 	// pushes the request in the initdata in the temp arena
 	Tex_from_file_request* request;
 	PUSH_BACK(init_data->tex_from_file_requests, memory->temp_arena, request);
-	request->p_texinfo_uid = index_handle;
 	request->filename = filename;
 }
 
@@ -486,7 +486,6 @@ push_load_font_request(App_memory* memory, Init_data* init_data, u32* index_hand
 	// THIS IS EXACTLY THE SAME AS THE FUNCTION ABOVE EXCEPT FOR ONE THING FUCKK
 	Tex_from_file_request* request;
 	PUSH_BACK(init_data->load_font_requests, memory->temp_arena, request);
-	request->p_texinfo_uid = index_handle;
 	request->filename = filename;
 }
 
@@ -502,12 +501,11 @@ push_mesh_from_primitives_request(App_memory* memory, Init_data* init_data, u32*
 
 // returns the address reserved for the mesh's uid
 internal void
-push_mesh_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename)
+push_mesh_from_file_request(App_memory* memory, Init_data* init_data, String filename)
 {
 	// pushes the request in the initdata in the temp arena
 	From_file_request* request;
 	PUSH_BACK(init_data->mesh_from_file_requests, memory->temp_arena, request);
-	request->p_uid = index_handle;
 	request->filename = filename;
 }
 
@@ -582,7 +580,7 @@ default_tank(Entity* out, App_memory* memory){
 	out->health = out->max_health;
 	out->shooting_cooldown = 5.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.icosphere_mesh_uid;
+	out->mesh_uid = memory->meshes.tank_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 	
@@ -614,7 +612,7 @@ default_spawner(Entity* out, App_memory* memory){
 	out->max_health = 2;
 	out->shooting_cooldown = 7.0f;
 	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.test_orientation2_uid;
+	out->mesh_uid = memory->meshes.spawner_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 
@@ -629,4 +627,110 @@ default_projectile(Entity* out, App_memory* memory){
 	out->texinfo_uid = memory->textures.white_tex_uid;
 	out->color = {0.6f,0.6f,0.6f,1};
 	out->scale = {0.4f,0.4f,0.4f};
+}
+
+// return value is -1 if substr is not a sub string of str, returns the pos it found the substring otherwise
+internal s32
+find_substring(String str, String substr){
+	s32 result = 0;
+	UNTIL(i, str.length-substr.length){
+		if(compare_strings(substr, {str.text+i, substr.length})){
+			return i;
+		}
+	}
+	return -1;
+}
+
+internal void 
+parse_meshes_serialization_file(App_memory* memory, File_data file, LIST(String, filenames)){
+	char* scan = (char*)file.data;
+	String key = string(":mesh:");
+	UNTIL(i, file.size - key.length){
+		if(compare_strings(key, {scan+i, key.length})){
+			i+=key.length;
+ 			String* filename; PUSH_BACK(filenames, memory->temp_arena, filename);
+			filename->text = scan+i;
+			while(scan[i] != '\n' && scan[i]!= '\r'){
+				filename->length++;
+				i++;
+			}
+		}
+	}
+	struct String_index_pair{
+		String str;
+		u32* index_p;
+	};
+	//TODO: PLEASE AUTOMATE THIS IN THE FUTURE
+	// maybe union the memory->meshes with an array of indexes and automatically index them 
+	String_index_pair string_index_pairs [] = {
+		{string(":default_mesh:"), &memory->meshes.default_mesh_uid},
+		{string(":ball_mesh:"), &memory->meshes.ball_mesh_uid},
+		{string(":centered_cube_mesh:"), &memory->meshes.centered_cube_mesh_uid},
+		{string(":cube_mesh:"), &memory->meshes.cube_mesh_uid},
+		{string(":centered_plane_mesh:"), &memory->meshes.centered_plane_mesh_uid},
+		{string(":plane_mesh:"), &memory->meshes.plane_mesh_uid},
+		{string(":icosphere_mesh:"), &memory->meshes.icosphere_mesh_uid},
+		{string(":player_mesh:"), &memory->meshes.player_mesh_uid},
+		{string(":spawner_mesh:"), &memory->meshes.spawner_mesh_uid},
+		{string(":boss_mesh:"), &memory->meshes.boss_mesh_uid},
+		{string(":tank_mesh:"), &memory->meshes.tank_mesh_uid},
+		{string(":shield_mesh:"), &memory->meshes.shield_mesh_uid},
+		{string(":shooter_mesh:"), &memory->meshes.shooter_mesh_uid}
+	};
+
+	String filestring = {(char*)file.data, file.size};
+	UNTIL(i, ARRAYCOUNT(string_index_pairs)){
+		s32 substring_pos = 0;
+		u32 number_length = 0;
+
+		substring_pos = find_substring(filestring, string_index_pairs[i].str);
+		ASSERT(substring_pos >= 0);
+		substring_pos += string_index_pairs[i].str.length;
+		while(filestring.text[substring_pos+number_length] >= '0' && filestring.text[substring_pos+number_length] <= '9'){
+			number_length++;
+		}
+		*string_index_pairs[i].index_p = string_to_int({filestring.text+substring_pos, number_length});
+	}
+}
+
+internal void
+parse_textures_serialization_file(App_memory* memory, File_data file, LIST(String, filenames)){
+	char* scan = (char*)file.data;
+	String key = string(":texture:");
+	UNTIL(i, file.size - key.length){
+		if(compare_strings(key, {scan+i, key.length})){
+			i+=key.length;
+			String* filename; PUSH_BACK(filenames, memory->temp_arena, filename);
+			filename->text = scan+i;
+			while(scan[i] != '\n' && scan[i]!= '\r'){
+				filename->length++;
+				i++;
+			}
+		}
+	}
+	struct String_index_pair{
+		String str;
+		u32* index_p;
+	};
+	//TODO: PLEASE AUTOMATE THIS IN THE FUTURE
+	// maybe union the memory->meshes with an array of indexes and automatically index them 
+	String_index_pair string_index_pairs [] = {
+		{string(":default_tex:"), &memory->textures.default_tex_uid},
+		{string(":white_tex:"), &memory->textures.white_tex_uid},
+		{string(":gradient_tex:"), &memory->textures.gradient_tex_uid}
+	};
+
+	String filestring = {(char*)file.data, file.size};
+	UNTIL(i, ARRAYCOUNT(string_index_pairs)){
+		s32 substring_pos = 0;
+		u32 number_length = 0;
+
+		substring_pos = find_substring(filestring, string_index_pairs[i].str);
+		ASSERT(substring_pos >= 0);
+		substring_pos += string_index_pairs[i].str.length;
+		while(filestring.text[substring_pos+number_length] >= '0' && filestring.text[substring_pos+number_length] <= '9'){
+			number_length++;
+		}
+		*string_index_pairs[i].index_p = string_to_int({filestring.text+substring_pos, number_length});
+	}
 }
