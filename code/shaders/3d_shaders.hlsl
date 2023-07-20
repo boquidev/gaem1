@@ -43,7 +43,7 @@ struct PSINPUT
 	float4 color : COLOR0;
 
 	float3 vertex_world_pos : COLOR1;
-	float3 camera_world_pos : COLOR2;
+	float4 camera_world_pos : COLOR2;
 };
 
 PSINPUT vs( VSINPUT input )
@@ -59,8 +59,11 @@ PSINPUT vs( VSINPUT input )
 	result.texcoord.x = object_texrect.x + (input.texcoord.x * object_texrect.z);
 	result.texcoord.y = object_texrect.y + (input.texcoord.y * object_texrect.w);
 	result.color = object_color;	
-	result.normal = normalize( mul( (float3x3)object_transform , input.normal) );
-	result.camera_world_pos = camera_pos.xyz;
+	result.normal = mul( (float3x3)object_transform , input.normal);
+	float4x4 world_rotation = world_view;
+	result.camera_world_pos.xyz = normalize(mul(float4(0,0,1,1), world_rotation).xyz);
+	result.camera_world_pos.xyz = lerp(result.camera_world_pos.xyz, camera_pos.xyz, camera_pos.w);
+	result.camera_world_pos.w = camera_pos.w;
 	result.vertex_world_pos = vertex_world_pos.xyz;
 	return result;
 }
@@ -73,28 +76,27 @@ sampler sampler0 : register(s0);
 
 float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 {
+	float3 N = normalize(input.normal);
 	float4 texcolor = texture0.Sample( sampler0, input.texcoord );
 	float result_alpha = texcolor.a*input.color.a;
 	clip(result_alpha-0.0001f);
-	// float a = sin(input.color.x*500);
-	// float4 result = float4(1,1,1,1);
 	float4 result = float4(
 		texcolor.r * (0.5+input.color.r)/1.5, 
 		texcolor.g * (0.5+input.color.g)/1.5,
 		texcolor.b * (0.5+input.color.b)/1.5,
 		result_alpha);
 
-	// clip(0.5-abs(input.normal.x));
-	result.rgb =   ( (input.normal.x+input.normal.y+input.normal.z+3)/3 ) * result.rgb;
-	float3 camera_vector = normalize(input.vertex_world_pos - input.camera_world_pos);
+	result.rgb *=   ( (N.x+N.y+N.z+3)/3 );
+	float3 camera_to_vertex = normalize(input.vertex_world_pos - input.camera_world_pos.xyz);
+	float3 camera_vector = lerp(input.camera_world_pos.xyz, camera_to_vertex, input.camera_world_pos.w);
 
-	float fresnel = 1.5+ dot(camera_vector, input.normal);
+	float fresnel = 1.5 + dot(camera_vector, N);
 
-	result.rgb = result.rgb * fresnel;
+	result.rgb *= fresnel;
 
 	// weird outline (just works in perspective view and with smooth meshes)
-	float clip_mask = floor(2.3-fresnel);
-	result.rgb = result.rgb * clip_mask;
+	float clip_mask = saturate(20*(1.15-fresnel));
+	result.rgb *= clip_mask;
 	
 	return result;
 }

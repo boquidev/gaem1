@@ -665,7 +665,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	r32 fov = 1;
 	memory.fov = 32;
-	bool perspective_on = false;
+	b32 perspective_on = 0;
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
 	// MAIN LOOP ____________________________________________________________
@@ -893,7 +893,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							else if(vkcode == 'O')
 								fov = fov*2;
 							else if(vkcode == 'P')
-								perspective_on = !perspective_on;
+								perspective_on = perspective_on^1;
 							// else if(msg.wParam == 'I')
 							// else if(msg.wParam == 'K')
 							else if(vkcode == 'I')
@@ -971,11 +971,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// GIVES THE ILLUSION OF YOU MOVING THE CAMERA
 			view_matrix = 
 				XMMatrixTranslation( -memory.camera_pos.x, -memory.camera_pos.y,-memory.camera_pos.z )*
-				XMMatrixRotationZ( memory.camera_rotation.z )*
+				XMMatrixRotationZ(-memory.camera_rotation.z )*
 				XMMatrixRotationY(-memory.camera_rotation.y)*
 				XMMatrixRotationX(-memory.camera_rotation.x) ;
-			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	
-			dx11_modify_resource(dx, camera_pos_buffer.buffer, &memory.camera_pos, sizeof(V3));
+			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));
+			V4 camera_pos = {memory.camera_pos.x, memory.camera_pos.y, memory.camera_pos.z, (r32)perspective_on};	
+			dx11_modify_resource(dx, camera_pos_buffer.buffer, &camera_pos, sizeof(V4));
 			
 			// WORLD PROJECTION
 			if(perspective_on)
