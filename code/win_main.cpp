@@ -547,6 +547,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dx, &object_texrect_buffer, sizeof(Rect), OBJECT_TEXRECT_BUFFER_REGISTER_INDEX, &default_texrect
 	);
 
+	D3D_constant_buffer camera_pos_buffer = {0};
+	dx11_create_and_bind_constant_buffer(
+		dx, &camera_pos_buffer, sizeof(V4), CAMERA_POS_BUFFER_REGISTER_INDEX, 0
+	);
+
 	// MESHES
 	//TODO: make meshes_list an array of size = sizeof(Meshes)/sizeof(u32*)
 	// but i am not sure if doing that i will not be able to create new meshes at runtime
@@ -970,6 +975,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				XMMatrixRotationY(-memory.camera_rotation.y)*
 				XMMatrixRotationX(-memory.camera_rotation.x) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));	
+			dx11_modify_resource(dx, camera_pos_buffer.buffer, &memory.camera_pos, sizeof(V3));
 			
 			// WORLD PROJECTION
 			if(perspective_on)

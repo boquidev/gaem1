@@ -11,6 +11,8 @@ void update(App_memory* memory){
 		set_mem(memory->entity_generations, MAX_ENTITIES*sizeof(u32), 0);
 
 		memory->camera_rotation.x = PI32/4;
+		memory->camera_rotation.y = 0;
+		memory->camera_rotation.z = 0;
 		memory->camera_pos.y = 32.0f;
 
 		memory->last_inactive_entity = 0;
