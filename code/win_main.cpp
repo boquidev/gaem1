@@ -6,6 +6,9 @@
 
 #include "d3d11_layer.h"
 
+// MINIAUDIO LIBRARY
+#include "libraries/miniaudio.h"
+
 // STB LIBRARIES
 //TODO: in the future use this just to convert image formats
 #define STB_IMAGE_IMPLEMENTATION
@@ -1028,7 +1031,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					// object->scale.x *= ((2.0f*tex_info.w) / global_client_size.x);
 					// object->scale.y *= (2.0f*tex_info.h) / global_client_size.y;
 
-					r32 half_pixel_offset = 0.25f;
+					r32 half_pixel_offset = 0.5f;
 					// r32 xoffset = (tex_info.xoffset+half_pixel_offset)/global_client_size.x;
 					// r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/global_client_size.y;
 					request->object3d.pos.x += half_pixel_offset/global_client_size.x;

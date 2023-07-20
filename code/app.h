@@ -47,6 +47,12 @@ enum UNIT_TYPE{
 	UNIT_COUNT
 };
 
+struct Entity_handle
+{
+	u32 index;
+	u32 generation; // this value updates when the entity is deleted
+};
+
 struct Entity{
 	b32 visible;
 	b32 active;
@@ -71,7 +77,7 @@ struct Entity{
 
 	r32 speed;
 
-	u32 parent_uid;
+	Entity_handle parent_handle;
 	u32 team_uid;
 	r32 current_scale; //TODO: this is becoming troublesome
 
@@ -82,6 +88,7 @@ struct Entity{
 		};
 	};
 };
+global_variable Entity nil_entity = {0}; 
 
 // internal void
 // test_collision(Entity* e1, Entity* e2, r32 delta_time){
@@ -124,12 +131,6 @@ last_inactive_entity(Entity entities[]){
 	return i;
 }
 
-struct Entity_handle
-{
-	u32 index;
-	u32 generation; // this value updates when the entity is deleted
-};
-
 //TODO: use this
 internal b32
 is_handle_valid(u32 entity_generations[], Entity_handle handle)
@@ -137,6 +138,14 @@ is_handle_valid(u32 entity_generations[], Entity_handle handle)
 	b32 result = entity_generations[handle.index] == handle.generation;
 	ASSERT(result);
 	return result;
+}
+
+internal Entity*
+entity_from_handle(Entity* entities, u32* entity_generations, Entity_handle handle){
+	if(entity_generations[handle.index] == handle.generation)
+		return &entities[handle.index];
+	else
+		return &nil_entity;
 }
 
 struct User_input

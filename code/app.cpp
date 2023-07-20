@@ -59,6 +59,7 @@ void update(App_memory* memory){
 	User_input* input = memory->input;
 	User_input* holding_inputs = memory->holding_inputs;
 	Entity* entities = memory->entities;
+	u32* generations = memory->entity_generations;
 	r32 delta_time = memory->delta_time;
 
 	//TODO: this
@@ -304,7 +305,8 @@ void update(App_memory* memory){
 					Entity* new_shield= &entities[new_entity_index];
 					default_shield(new_shield, memory);
 					Entity* parent = entity;
-					new_shield->parent_uid = i;
+					new_shield->parent_handle.index = i;
+					new_shield->parent_handle.generation = generations[i];
 					new_shield->team_uid = parent->team_uid;
 					new_shield->pos = parent->looking_at;
 					new_shield->target_move_pos = parent->looking_at;
@@ -344,7 +346,8 @@ void update(App_memory* memory){
 								new_bullet->speed = 50;
 
 								Entity* parent = entity;
-								new_bullet->parent_uid = i;
+								new_bullet->parent_handle.index = i;
+								new_bullet->parent_handle.generation = generations[i];
 								new_bullet->team_uid = parent->team_uid;
 								new_bullet->pos = parent->pos;
 								// TODO: go in the direction that parent is looking (the parent's rotation);
@@ -459,7 +462,8 @@ void update(App_memory* memory){
 								new_bullet->speed = 50;
 
 								Entity* parent = entity;
-								new_bullet->parent_uid = i;
+								new_bullet->parent_handle.index = i;
+								new_bullet->parent_handle.generation = generations[i];
 								new_bullet->team_uid = parent->team_uid;
 								new_bullet->pos = parent->pos;
 								// TODO: go in the direction that parent is looking (the parent's rotation);
@@ -494,7 +498,7 @@ void update(App_memory* memory){
 			}
 		// END OF BOSS CODE
 		}else if (entity->type == ENTITY_SHIELD){
-			Entity* parent = &entities[entity->parent_uid];
+			Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
 			if(parent->active){
 				entity->target_move_pos = (0.1f*parent->velocity)+parent->pos + v3_normalize((parent->target_pos)- parent->pos);
 				entity->target_pos = entity->pos + (entity->pos - parent->pos);
@@ -525,7 +529,8 @@ void update(App_memory* memory){
 						new_bullet->speed = 50;
 
 						Entity* parent = entity;
-						new_bullet->parent_uid = i;
+						new_bullet->parent_handle.index = i;
+						new_bullet->parent_handle.generation = generations[i];
 						new_bullet->team_uid = parent->team_uid;
 						new_bullet->pos = parent->pos;
 						// TODO: go in the direction that parent is looking (the parent's rotation);
@@ -547,7 +552,8 @@ void update(App_memory* memory){
 					new_bullet->speed = 50;
 
 					Entity* parent = entity;
-					new_bullet->parent_uid = i;
+					new_bullet->parent_handle.index = i;
+					new_bullet->parent_handle.generation = generations[i];
 					new_bullet->team_uid = parent->team_uid;
 					new_bullet->pos = parent->pos;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
@@ -666,6 +672,7 @@ void update(App_memory* memory){
 									memory->teams_resources[entity2->team_uid] += reward_value;
 								}
 								*entity2 = {0};
+								memory->entity_generations[j]++;
 							}
 							*entity = {0}; 
 							memory->entity_generations[i]++;
