@@ -1006,6 +1006,11 @@ void init(App_memory* memory, Init_data* init_data){
 		push_asset_request(memory, init_data, &request);
 	}
 
+	request.type = SOUND_FROM_FILE_REQUEST;
+	request.p_uid = &memory->sounds.weird_uid;
+	request.filename = string("data/sound/examples_resources_weird.wav");
+	push_asset_request(memory, init_data, &request);
+
 	//TODO: make it possible to load more than one font
 	request.type = FONT_FROM_FILE_REQUEST;
 	request.p_uid = &memory->textures.font_atlas_uid;

@@ -29,7 +29,9 @@
         "xtr1common": "cpp",
         "pch.h": "c",
         "system_error": "cpp",
-        "xlocale": "cpp"
+        "xlocale": "cpp",
+        "windows.h": "c",
+        "miniaudio.h": "c"
     },
     "files.watcherExclude": {
         "**/target": true

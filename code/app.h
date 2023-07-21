@@ -168,8 +168,11 @@ struct User_input
 };
 
 //TODO: create a meshes array ??
-// or make all render calls for each mesh
+//TODO: make all render calls for each mesh
 
+//TODO: maybe load the default mesh/texture in index:0 from raw data instead of a file
+// why? i don't remember
+// and the indices from the file will start a 1
 struct Meshes
 {
 	u32 default_mesh_uid;
@@ -188,8 +191,7 @@ struct Meshes
 	u32 shooter_mesh_uid;
 };
 
-struct Textures
-{	//TODO: maybe load the default texture in index:0 from raw data instead of a file
+struct Textures{
 	u32 default_tex_uid;
 	u32 white_tex_uid;
 	u32 gradient_tex_uid;
@@ -197,26 +199,27 @@ struct Textures
 	u32 font_atlas_uid;
 };
 
-struct VShaders
-{
+struct VShaders{
 	u32 default_vshader_uid;
 	u32 ui_vshader_uid;
 };
-struct PShaders
-{
+struct PShaders{
 	u32 default_pshader_uid;
 	u32 ui_pshader_uid;
 };
 
-struct Blend_states
-{
+struct Blend_states{
 	u32 default_blend_state_uid;
 };
 
-struct Depth_stencils
-{
+struct Depth_stencils{
 	u32 default_depth_stencil_uid;
 	u32 ui_depth_stencil_uid;
+};
+
+struct Sounds{
+	u32 weird_uid;
+	u32 pa_uid;
 };
 
 struct App_memory
@@ -228,6 +231,7 @@ struct App_memory
 
 	Meshes meshes;
 	Textures textures;
+	Sounds sounds;
 
 	LIST(Tex_info, tex_infos);
 	u32 font_tex_infos_uids[CHARS_COUNT];
@@ -387,7 +391,7 @@ enum Asset_request_type{
 	MESH_FROM_FILE_REQUEST,
 	CREATE_BLEND_STATE_REQUEST,
 	CREATE_DEPTH_STENCIL_REQUEST,
-
+	SOUND_FROM_FILE_REQUEST,
 
 	TEX_FROM_SURFACE_REQUEST,
 	MESH_FROM_PRIMITIVES_REQUEST,
