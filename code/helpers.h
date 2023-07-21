@@ -109,9 +109,13 @@ find_bigger_exponent_of_2(u32 target_value){
 #define LIST(type, var_name) type* var_name[3]
 #define LIST_LAST(l) l[1]
 #define LIST_SIZE(l) ((u32)(l[2]))
-#define NEXT_ELEM(e) {void** cast = &(void*)e;*cast = *((void**)(e+1));}
-#define LIST_GET(l,index, node) node = l[0];UNTIL(unique_index##__LINE__,(index)){NEXT_ELEM(node);}
-#define FOR_EACH(l, iterator) for(u32 iterator = 0; iterator < LIST_SIZE(l); iterator++)
+#define NEXT_ELEM(node) *((void**)(node+1))
+#define SKIP_ELEM(node) *(&(void*)node) = *((void**)(node+1))
+#define LIST_GET(l,index, node) node = l[0];UNTIL(unique_index##__LINE__,(index)){SKIP_ELEM(node);}
+#define FOREACH(type, node, list) \
+	for( type* node = list[0],*i##__LINE__=0; \
+	(*((u32*)&i##__LINE__))<LIST_SIZE(list); \
+	(*((u32*)&i##__LINE__))++, SKIP_ELEM(node))
 
 #define PUSH_BACK(l, arena, out){\
 	if(!l[0]){\

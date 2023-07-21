@@ -982,7 +982,7 @@ void init(App_memory* memory, Init_data* init_data){
 	String* mesh_filename = meshes_filenames[0];
 	UNTIL(i, LIST_SIZE(meshes_filenames)){
 		String* current = mesh_filename;
-		NEXT_ELEM(mesh_filename);
+		SKIP_ELEM(mesh_filename);
 
 		push_mesh_from_file_request(memory, init_data, *current);
 	}
@@ -992,7 +992,7 @@ void init(App_memory* memory, Init_data* init_data){
 	String* tex_filename = textures_filenames[0];
 	UNTIL(i, LIST_SIZE(textures_filenames)){
 		String* current = tex_filename;
-		NEXT_ELEM(tex_filename);
+		SKIP_ELEM(tex_filename);
 
 		push_tex_from_file_request(memory, init_data, *current);
 	}

@@ -394,6 +394,15 @@ printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_
 
 // REQUESTS STRUCTS AND FUNCTIONS BOILERPLATE
 // TODO: UNIFY ALL THIS FUNCTIONS AND STRUCTS TO BE JUST ONE THING
+enum Asset_request_type{
+	FORGOR_TO_SET_ASSET_TYPE,
+	ASSET_FROM_FILE_REQUEST,
+	
+};
+
+struct Asset_request{
+	Asset_request_type type;
+};
 
 struct From_file_request
 {

@@ -6,8 +6,6 @@
 
 #include "d3d11_layer.h"
 
-// MINIAUDIO LIBRARY
-#include "libraries/miniaudio.h"
 
 // STB LIBRARIES
 //TODO: in the future use this just to convert image formats
@@ -172,7 +170,7 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 
 	return result;
 }
-
+#define STRING(x) #x
 int WINAPI 
 wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cmd_show)
 {
@@ -310,154 +308,153 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	init_data.meshes_serialization = win_read_file(string("data/meshes_init.txt"),temp_arena);
 	init_data.textures_serialization = win_read_file(string("data/textures_init.txt"),temp_arena);
 	app.init(&memory, &init_data);
+
+	{
+		// Asset_request* asset_request = init_data.asset_requests[0];
+		// UNTIL(i, LIST_SIZE(init_data.asset_requests)){
+		// 	switch()
+		// }
+	}
 	
 	// CREATING TEXTURES
 	LIST(Dx11_texture_view*, textures_list) = {0};
-
-	Tex_from_surface_request* tex_from_surface_request_node = init_data.tex_from_surface_requests[0];
-	UNTIL(i, LIST_SIZE(init_data.tex_from_surface_requests))
 	{
-		Tex_from_surface_request* request = tex_from_surface_request_node;
-		NEXT_ELEM(tex_from_surface_request_node);
+		FOREACH(Tex_from_surface_request, request, init_data.tex_from_surface_requests){
+			*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
+			Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
+			tex_info->w = request->surface.width;
+			tex_info->h = request->surface.height;
 
-		*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
-		Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
-		tex_info->w = request->surface.width;
-		tex_info->h = request->surface.height;
-
-		tex_info->texrect.xf = 0.0f;
-		tex_info->texrect.yf = 0.0f;
-		tex_info->texrect.wf = 1.0f;
-		tex_info->texrect.hf = 1.0f;
-		
-		tex_info->texview_uid = LIST_SIZE(textures_list);
-		Dx11_texture_view** texture_view; PUSH_BACK(textures_list, memory.permanent_arena, texture_view);
-		dx11_create_texture_view(dx, &request->surface, texture_view);
+			tex_info->texrect.xf = 0.0f;
+			tex_info->texrect.yf = 0.0f;
+			tex_info->texrect.wf = 1.0f;
+			tex_info->texrect.hf = 1.0f;
+			
+			tex_info->texview_uid = LIST_SIZE(textures_list);
+			Dx11_texture_view** texture_view; PUSH_BACK(textures_list, memory.permanent_arena, texture_view);
+			dx11_create_texture_view(dx, &request->surface, texture_view);
+		}
 	}
 
-	Tex_from_file_request* tex_from_file_request_node = init_data.tex_from_file_requests[0];
-	UNTIL(i, LIST_SIZE(init_data.tex_from_file_requests)){
-		Tex_from_file_request* request = tex_from_file_request_node;
-		NEXT_ELEM(tex_from_file_request_node);
+	{
+		Tex_from_file_request* tex_from_file_request_node = init_data.tex_from_file_requests[0];
+		FOREACH(Tex_from_file_request, request, init_data.tex_from_file_requests){
+			int comp;
+			Surface tex_surface = {0};
+			char temp_buffer [MAX_PATH] = {0}; 
+			copy_mem(request->filename.text, temp_buffer, request->filename.length);
+			tex_surface.data = stbi_load(temp_buffer, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
+			ASSERT(tex_surface.data);
+			
+			Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
+			tex_info->w = tex_surface.width;
+			tex_info->h = tex_surface.height;
+			tex_info->texrect.xf = 0.0f;
+			tex_info->texrect.yf = 0.0f;
+			tex_info->texrect.wf = 1.0f;
+			tex_info->texrect.hf = 1.0f;
 
-		int comp;
-		Surface tex_surface = {0};
-		char temp_buffer [MAX_PATH] = {0}; 
-		copy_mem(request->filename.text, temp_buffer, request->filename.length);
-		tex_surface.data = stbi_load(temp_buffer, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
-		ASSERT(tex_surface.data);
-		
-		Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
-		tex_info->w = tex_surface.width;
-		tex_info->h = tex_surface.height;
-		tex_info->texrect.xf = 0.0f;
-		tex_info->texrect.yf = 0.0f;
-		tex_info->texrect.wf = 1.0f;
-		tex_info->texrect.hf = 1.0f;
-
-		tex_info->texview_uid = LIST_SIZE(textures_list);
-		Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
-		dx11_create_texture_view(dx, &tex_surface, texture_view);
-	}
+			tex_info->texview_uid = LIST_SIZE(textures_list);
+			Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
+			dx11_create_texture_view(dx, &tex_surface, texture_view);
+		}
+	}	
 
 	//  LOADING FONT
-	r32 lines_height = 18; 
+	{
+		r32 lines_height = 18; 
+		FOREACH(Tex_from_file_request, request, init_data.load_font_requests){
+			// TESTING FONTS 
+			File_data font_file = win_read_file(request->filename, temp_arena);
+			//currently just supporting ANSI characters
+			//TODO: learn how to do UNICODE
 
-	Tex_from_file_request* load_font_request_node = init_data.load_font_requests[0];
-	UNTIL(r, LIST_SIZE(init_data.load_font_requests)){
-		Tex_from_file_request* request = load_font_request_node;
-		NEXT_ELEM(load_font_request_node);
+			// GETTING BITMAPS AND INFO
+			u32 atlas_texview_uid = LIST_SIZE(textures_list);
 
-		// TESTING FONTS 
-		File_data font_file = win_read_file(request->filename, temp_arena);
-		//currently just supporting ANSI characters
-		//TODO: learn how to do UNICODE
+			stbtt_fontinfo font;
+			Color32* charbitmaps [CHARS_COUNT];
+			Tex_info temp_charinfos[CHARS_COUNT];
+			stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
+			UNTIL(c, CHARS_COUNT){
+				u32 codepoint = c+FIRST_CHAR;
 
-		// GETTING BITMAPS AND INFO
-		u32 atlas_texview_uid = LIST_SIZE(textures_list);
+				temp_charinfos[c].texview_uid = atlas_texview_uid;
 
-		stbtt_fontinfo font;
-		Color32* charbitmaps [CHARS_COUNT];
-		Tex_info temp_charinfos[CHARS_COUNT];
-		stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
-		UNTIL(c, CHARS_COUNT){
-			u32 codepoint = c+FIRST_CHAR;
-
-			temp_charinfos[c].texview_uid = atlas_texview_uid;
-
-			u8* monobitmap = stbtt_GetCodepointBitmap(
-				&font, 0, stbtt_ScaleForPixelHeight(&font, lines_height), codepoint, 
-				&temp_charinfos[c].w, &temp_charinfos[c].h, 
-				&temp_charinfos[c].xoffset, &temp_charinfos[c].yoffset
-			);
-			u32 bitmap_size = temp_charinfos[c].w * temp_charinfos[c].h;
-			charbitmaps[c] = ARENA_PUSH_STRUCTS(temp_arena, Color32, bitmap_size);
-			Color32* bitmap =  charbitmaps[c];
-			UNTIL(p, bitmap_size){
-				bitmap[p].r = 255;
-				bitmap[p].g = 255;
-				bitmap[p].b = 255;
-				bitmap[p].a = monobitmap[p];
+				u8* monobitmap = stbtt_GetCodepointBitmap(
+					&font, 0, stbtt_ScaleForPixelHeight(&font, lines_height), codepoint, 
+					&temp_charinfos[c].w, &temp_charinfos[c].h, 
+					&temp_charinfos[c].xoffset, &temp_charinfos[c].yoffset
+				);
+				u32 bitmap_size = temp_charinfos[c].w * temp_charinfos[c].h;
+				charbitmaps[c] = ARENA_PUSH_STRUCTS(temp_arena, Color32, bitmap_size);
+				Color32* bitmap =  charbitmaps[c];
+				UNTIL(p, bitmap_size){
+					bitmap[p].r = 255;
+					bitmap[p].g = 255;
+					bitmap[p].b = 255;
+					bitmap[p].a = monobitmap[p];
+				}
+				stbtt_FreeBitmap(monobitmap,0);
 			}
-			stbtt_FreeBitmap(monobitmap,0);
-		}
-		// PACKING BITMAP RECTS
+			// PACKING BITMAP RECTS
 
-		//total_atlas_size = atlas_side*atlas_side
-		s32 atlas_side = find_bigger_exponent_of_2((u32)(lines_height*(lines_height/2)*CHARS_COUNT));
+			//total_atlas_size = atlas_side*atlas_side
+			s32 atlas_side = find_bigger_exponent_of_2((u32)(lines_height*(lines_height/2)*CHARS_COUNT));
 
-		stbrp_context pack_context = {0};
-		stbrp_node* pack_nodes = ARENA_PUSH_STRUCTS(temp_arena, stbrp_node, atlas_side);
-		stbrp_init_target(&pack_context, atlas_side, atlas_side, pack_nodes, atlas_side);
+			stbrp_context pack_context = {0};
+			stbrp_node* pack_nodes = ARENA_PUSH_STRUCTS(temp_arena, stbrp_node, atlas_side);
+			stbrp_init_target(&pack_context, atlas_side, atlas_side, pack_nodes, atlas_side);
 
-		stbrp_rect* rects = ARENA_PUSH_STRUCTS(temp_arena, stbrp_rect, CHARS_COUNT);
-		UNTIL(i, CHARS_COUNT){
-			rects[i].w = temp_charinfos[i].w;
-			rects[i].h = temp_charinfos[i].h;
-		}
-		stbrp_pack_rects(&pack_context, rects, CHARS_COUNT);
+			stbrp_rect* rects = ARENA_PUSH_STRUCTS(temp_arena, stbrp_rect, CHARS_COUNT);
+			UNTIL(i, CHARS_COUNT){
+				rects[i].w = temp_charinfos[i].w;
+				rects[i].h = temp_charinfos[i].h;
+			}
+			stbrp_pack_rects(&pack_context, rects, CHARS_COUNT);
 
-		// CREATE TEXTURE ATLAS AND COPY EACH CHARACTER BITMAP INTO IT USING THE POSITIONS OBTAINED FROM PACK
-		Color32* atlas_pixels = ARENA_PUSH_STRUCTS(temp_arena, Color32, atlas_side*atlas_side);
+			// CREATE TEXTURE ATLAS AND COPY EACH CHARACTER BITMAP INTO IT USING THE POSITIONS OBTAINED FROM PACK
+			Color32* atlas_pixels = ARENA_PUSH_STRUCTS(temp_arena, Color32, atlas_side*atlas_side);
 
-		Int2 atlas_size = {atlas_side, atlas_side};
+			Int2 atlas_size = {atlas_side, atlas_side};
 
-		UNTIL(i, CHARS_COUNT){
-			ASSERT(rects[i].was_packed);
-			if(rects[i].was_packed){
-				temp_charinfos[i].texrect.xf = (r32)rects[i].x / atlas_size.x;
-				temp_charinfos[i].texrect.yf = (r32)rects[i].y / atlas_size.y;
-				temp_charinfos[i].texrect.wf = (r32)temp_charinfos[i].w / atlas_size.x;
-				temp_charinfos[i].texrect.hf = (r32)temp_charinfos[i].h / atlas_size.y;
-				
-				memory.font_tex_infos_uids[i] = LIST_SIZE(memory.tex_infos);
-				Tex_info* charinfo; PUSH_BACK(memory.tex_infos, permanent_arena, charinfo);
-				*charinfo = temp_charinfos[i]; 
+			UNTIL(i, CHARS_COUNT){
+				ASSERT(rects[i].was_packed);
+				if(rects[i].was_packed){
+					temp_charinfos[i].texrect.xf = (r32)rects[i].x / atlas_size.x;
+					temp_charinfos[i].texrect.yf = (r32)rects[i].y / atlas_size.y;
+					temp_charinfos[i].texrect.wf = (r32)temp_charinfos[i].w / atlas_size.x;
+					temp_charinfos[i].texrect.hf = (r32)temp_charinfos[i].h / atlas_size.y;
+					
+					memory.font_tex_infos_uids[i] = LIST_SIZE(memory.tex_infos);
+					Tex_info* charinfo; PUSH_BACK(memory.tex_infos, permanent_arena, charinfo);
+					*charinfo = temp_charinfos[i]; 
 
-				// PASTING EACH CHAR INTO THE ATLAS PIXELS
-				u32 first_char_pixel = (rects[i].y*atlas_side) + rects[i].x;
-				Color32* charpixels = charbitmaps[i];
-				UNTIL(y, (u32)rects[i].h){
-					UNTIL(x, (u32)rects[i].w){
-						u32 current_pixel = first_char_pixel + (y*atlas_side) + x;
-						atlas_pixels[current_pixel] = charpixels[(y*rects[i].w) + x];
+					// PASTING EACH CHAR INTO THE ATLAS PIXELS
+					u32 first_char_pixel = (rects[i].y*atlas_side) + rects[i].x;
+					Color32* charpixels = charbitmaps[i];
+					UNTIL(y, (u32)rects[i].h){
+						UNTIL(x, (u32)rects[i].w){
+							u32 current_pixel = first_char_pixel + (y*atlas_side) + x;
+							atlas_pixels[current_pixel] = charpixels[(y*rects[i].w) + x];
+						}
 					}
 				}
 			}
-		}
-		Tex_info* atlas_tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, atlas_tex_info);
-		atlas_tex_info->texview_uid = atlas_texview_uid;
-		atlas_tex_info->w = atlas_size.x;
-		atlas_tex_info->h = atlas_size.y;
-		atlas_tex_info->texrect.xf = 0.0f;
-		atlas_tex_info->texrect.yf = 0.0f;
-		atlas_tex_info->texrect.wf = 1.0f;
-		atlas_tex_info->texrect.hf = 1.0f;
+			Tex_info* atlas_tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, atlas_tex_info);
+			atlas_tex_info->texview_uid = atlas_texview_uid;
+			atlas_tex_info->w = atlas_size.x;
+			atlas_tex_info->h = atlas_size.y;
+			atlas_tex_info->texrect.xf = 0.0f;
+			atlas_tex_info->texrect.yf = 0.0f;
+			atlas_tex_info->texrect.wf = 1.0f;
+			atlas_tex_info->texrect.hf = 1.0f;
 
-		Dx11_texture_view** atlas_texture; PUSH_BACK(textures_list, permanent_arena, atlas_texture);
-		Surface atlas_surface = {(u32)atlas_size.x, (u32)atlas_size.y, atlas_pixels};
-		dx11_create_texture_view(dx, &atlas_surface, atlas_texture);
-	}
+			Dx11_texture_view** atlas_texture; PUSH_BACK(textures_list, permanent_arena, atlas_texture);
+			Surface atlas_surface = {(u32)atlas_size.x, (u32)atlas_size.y, atlas_pixels};
+			dx11_create_texture_view(dx, &atlas_surface, atlas_texture);
+		}
+	}	
 
 	// SHADERS
 	//TODO: remember the last write_time of the file when doing runtime compiling
@@ -466,11 +463,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	LIST(Dx11_pixel_shader*, pixel_shaders_list) = {0};
 	{
 		// VERTEX SHADERS	
-		Vertex_shader_from_file_request* vs_ff_request_node = init_data.vs_ff_requests[0];
-		UNTIL(i, LIST_SIZE(init_data.vs_ff_requests)){
-			Vertex_shader_from_file_request* request = vs_ff_request_node;
-			NEXT_ELEM(vs_ff_request_node);
-
+		FOREACH(Vertex_shader_from_file_request, request, init_data.vs_ff_requests){
 			// COMPILING VS
 				// File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
 			// CREATING VS
@@ -495,11 +488,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_create_input_layout(dx, compiled_vs, ied, request->ie_count, &vs->input_layout);
 		}
 		// PIXEL SHADERS
-		From_file_request* ps_ff_request_node = init_data.ps_ff_requests[0];
-		UNTIL(i, LIST_SIZE(init_data.ps_ff_requests)){
-			From_file_request* request = ps_ff_request_node;
-			NEXT_ELEM(ps_ff_request_node);
-
+		FOREACH(From_file_request, request, init_data.ps_ff_requests){
 			*request->p_uid = LIST_SIZE(pixel_shaders_list);
 			// COMPILING PS
 				// File_data compiled_ps = dx11_get_compiled_shader(request->filename, temp_arena, "ps", PS_PROFILE);
@@ -562,55 +551,51 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	LIST(Dx_mesh, meshes_list) = {0};
 
 	// LOADING MESHES FROM FILES
-	From_file_request* mff_request_node = init_data.mesh_from_file_requests[0];
-	UNTIL(i, LIST_SIZE(init_data.mesh_from_file_requests))
 	{
-		From_file_request* request = mff_request_node;
-		NEXT_ELEM(mff_request_node);
-		File_data glb_file = win_read_file(request->filename, temp_arena);
-		GLB glb = {0};
-		glb_get_chunks(glb_file.data, 
-			&glb);
-	#if DEBUGMODE
-		{ // THIS IS JUST FOR READABILITY OF THE JSON CHUNK
-			void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
-			u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
-			win_write_file(concat_strings(request->filename, string(".json"), temp_arena), formated_json, new_size);
-			arena_pop_back_size(temp_arena, MEGABYTES(4));
+		FOREACH(From_file_request, request, init_data.mesh_from_file_requests){
+			File_data glb_file = win_read_file(request->filename, temp_arena);
+			GLB glb = {0};
+			glb_get_chunks(glb_file.data, 
+				&glb);
+		#if DEBUGMODE
+			{ // THIS IS JUST FOR READABILITY OF THE JSON CHUNK
+				void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
+				u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
+				win_write_file(concat_strings(request->filename, string(".json"), temp_arena), formated_json, new_size);
+				arena_pop_back_size(temp_arena, MEGABYTES(4));
+			}
+		#endif
+			u32 meshes_count = 0;
+			Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
+			
+			Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
+			for(u32 m=0; m<meshes_count; m++)
+			{
+				u32 primitives_count = meshes[m].primitives_count;
+				Gltf_primitive* Mesh_primitive = meshes[m].primitives;
+				//TODO: here i am assuming this mesh has only one primitive
+				primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+				// for(u32 p=0; p<primitives_count; p++)
+				// {	
+				// }
+			}
+			Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
+			*current_mesh = dx11_init_mesh(dx, 
+			&primitives[0],
+			D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);	
 		}
-	#endif
-		u32 meshes_count = 0;
-		Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
-		
-		Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
-		for(u32 m=0; m<meshes_count; m++)
-		{
-			u32 primitives_count = meshes[m].primitives_count;
-			Gltf_primitive* Mesh_primitive = meshes[m].primitives;
-			//TODO: here i am assuming this mesh has only one primitive
-			primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
-			// for(u32 p=0; p<primitives_count; p++)
-			// {	
-			// }
-		}
-		Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
-		*current_mesh = dx11_init_mesh(dx, 
-		&primitives[0],
-		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		
 	}
 	// CREATING MESHES FROM MANUALLY DEFINED PRIMITIVES
-	Mesh_from_primitives_request* mfp_request_node = init_data.mesh_from_primitives_requests[0];
-	UNTIL(i, LIST_SIZE(init_data.mesh_from_primitives_requests))
-	{
-		Mesh_from_primitives_request* request = mfp_request_node;
-		NEXT_ELEM(mfp_request_node);
+	{	
+		Mesh_from_primitives_request* mfp_request_node = init_data.mesh_from_primitives_requests[0];
+		FOREACH(Mesh_from_primitives_request, request, init_data.mesh_from_primitives_requests){
 
-		*request->p_mesh_uid = LIST_SIZE(meshes_list);
-		Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
-		*current_mesh = dx11_init_mesh(dx, 
-		request->primitives, 
-		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			*request->p_mesh_uid = LIST_SIZE(meshes_list);
+			Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
+			*current_mesh = dx11_init_mesh(dx, 
+			request->primitives, 
+			D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		}
 	}
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
@@ -618,26 +603,28 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// TODO: CONVERT THIS TWO LISTS INTO STATIC ARRAYS IF BEING DYNAMIC SERVES NO PURPOSE AT ALL
 	LIST(Dx11_blend_state*, blend_states_list) = {0};
-	Create_blend_state_request* bs_request_node = init_data.create_blend_state_requests[0];
-	UNTIL(i, LIST_SIZE(init_data.create_blend_state_requests)){
-		Create_blend_state_request* request = bs_request_node;
-		NEXT_ELEM(bs_request_node);
-
-		*request->p_uid = LIST_SIZE(blend_states_list);
-		Dx11_blend_state** blend_state; PUSH_BACK(blend_states_list, memory.permanent_arena, blend_state);
-		dx11_create_blend_state(dx, blend_state, request->enable_alpha_blending);
+	{
+		FOREACH(Create_blend_state_request, request, init_data.create_blend_state_requests){
+			*request->p_uid = LIST_SIZE(blend_states_list);
+			Dx11_blend_state** blend_state; PUSH_BACK(blend_states_list, memory.permanent_arena, blend_state);
+			dx11_create_blend_state(dx, blend_state, request->enable_alpha_blending);
+		}
 	}
 
 	LIST(Depth_stencil, depth_stencils_list) = {0};
-	Create_depth_stencil_request* ds_request_node = init_data.create_depth_stencil_requests[0];
-	UNTIL(i, LIST_SIZE(init_data.create_depth_stencil_requests)){
-		Create_depth_stencil_request* request = ds_request_node;
-		NEXT_ELEM(ds_request_node);
-
-		*request->p_uid = LIST_SIZE(depth_stencils_list);
-		Depth_stencil* depth_stencil; PUSH_BACK(depth_stencils_list, memory.permanent_arena, depth_stencil);
-		dx11_create_depth_stencil_state(dx, &depth_stencil->state, request->enable_depth);
+	{
+		FOREACH(Create_depth_stencil_request, request, init_data.create_depth_stencil_requests){
+			*request->p_uid = LIST_SIZE(depth_stencils_list);
+			Depth_stencil* depth_stencil; PUSH_BACK(depth_stencils_list, memory.permanent_arena, depth_stencil);
+			dx11_create_depth_stencil_state(dx, &depth_stencil->state, request->enable_depth);
+		}
 	}
+
+	// MINIAUDIO SETUP
+	{
+		//TODO: this
+	}
+
 
 	// FRAME CAPPING SETUP
 	UINT desired_scheduler_ms = 1;
@@ -700,10 +687,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(dx->render_target_view)
 			{
 				dx->render_target_view->Release();
-				Depth_stencil* ds_node = depth_stencils_list[0];
-				FOR_EACH(depth_stencils_list, i){
-					Depth_stencil* current_ds = ds_node;
-					NEXT_ELEM(ds_node);
+				FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 					current_ds->view->Release();
 					current_ds->view = 0;
 				}
@@ -722,10 +706,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 				dx11_create_render_target_view(dx, &dx->render_target_view);
 
-				Depth_stencil* ds_node = depth_stencils_list[0];
-				FOR_EACH(depth_stencils_list, i){
-					Depth_stencil* current_ds = ds_node;
-					NEXT_ELEM(ds_node);
+				FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 					dx11_create_depth_stencil_view(dx, &current_ds->view, global_client_size.x, global_client_size.y);
 				}
 				
@@ -950,11 +931,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		{
 			// apparently always need to clear this buffers before rendering to them
 			dx->context->ClearRenderTargetView(dx->render_target_view, (float*)&bg_color);
-			Depth_stencil* ds_node = depth_stencils_list[0];
-			FOR_EACH(depth_stencils_list, i){
-				Depth_stencil* current_ds = ds_node;
-				NEXT_ELEM(ds_node);
-
+			FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 				dx->context->ClearDepthStencilView(
 					current_ds->view, 
 					D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 
@@ -990,13 +967,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 			// OBJECT TRANSFORM
 			//TODO: make a GENERAL RENDER REQUEST QUEUE 
-			Renderer_request* request_node = render_list[0];
-			FOR_EACH(render_list, i){
-				if(i == LIST_SIZE(render_list)-1)
-					ASSERT(true);
-				Renderer_request* request = request_node;
-				NEXT_ELEM(request_node);
-
+			FOREACH(Renderer_request, request, render_list){
 				ASSERT(request->type_flags); //assert at least one flag is set
 
 				if((request->type_flags & REQUEST_FLAG_RENDER_OBJECT)){
@@ -1034,8 +1005,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					r32 half_pixel_offset = 0.5f;
 					// r32 xoffset = (tex_info.xoffset+half_pixel_offset)/global_client_size.x;
 					// r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/global_client_size.y;
-					request->object3d.pos.x += half_pixel_offset/global_client_size.x;
-					request->object3d.pos.y -= half_pixel_offset/global_client_size.y;		
+					request->object3d.pos.x -= half_pixel_offset/global_client_size.x;
+					request->object3d.pos.y += half_pixel_offset/global_client_size.y;		
 
 					XMMATRIX object_transform_matrix = 
 						XMMatrixScaling(object->scale.x, object->scale.y, object->scale.z)*
@@ -1188,51 +1159,36 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	projection_buffer.buffer->Release();
 	object_color_buffer.buffer->Release();
 
-	Dx_mesh* mesh_node = meshes_list[0];
-	FOR_EACH(meshes_list, i)
+	// for( struct : Dx_mesh{u32 i}iterator = {0,list[0]}; 
+	// iterator.i<LIST_SIZE(list); 
+	// iterator.i++, SKIP_ELEM(iterator))
+
+	FOREACH(Dx_mesh, current_mesh, meshes_list)
 	{
-		Dx_mesh* current_mesh = mesh_node;
-		NEXT_ELEM(mesh_node);
 		current_mesh->vertex_buffer->Release();
 		current_mesh->index_buffer->Release();
 	}
-	Dx11_texture_view** texture_node = textures_list[0];
-	FOR_EACH(textures_list, i)
+
+
+	FOREACH(Dx11_texture_view*, current_tex, textures_list)
 	{
-		Dx11_texture_view** current_tex = texture_node;
-		NEXT_ELEM(texture_node);
 		(*current_tex)->Release();
 	}
 
-	Vertex_shader* vsnodes = vertex_shaders_list[0];
-	FOR_EACH(vertex_shaders_list, i){
-		Vertex_shader* current_vs = vsnodes;
-		NEXT_ELEM(vsnodes);
-
+	FOREACH(Vertex_shader, current_vs, vertex_shaders_list){
 		current_vs->shader->Release();
 		current_vs->input_layout->Release();
 	}
 
-	Dx11_pixel_shader** psnodes = pixel_shaders_list[0];
-	FOR_EACH(pixel_shaders_list, i){
-		Dx11_pixel_shader** current_ps = psnodes;
-		NEXT_ELEM(psnodes);
-
+	FOREACH(Dx11_pixel_shader*, current_ps, pixel_shaders_list){
 		(*current_ps)->Release();
 	}
 
-	Dx11_blend_state** blendnodes = blend_states_list[0];
-	FOR_EACH(blend_states_list, i){
-		Dx11_blend_state** current_blend = blendnodes;
-		NEXT_ELEM(blendnodes);
-
+	FOREACH(Dx11_blend_state*, current_blend, blend_states_list){
 		(*current_blend)->Release();
 	}
 
-	Depth_stencil* stencilnodes = depth_stencils_list[0];
-	FOR_EACH(depth_stencils_list, i){
-		Depth_stencil* current_stencil = stencilnodes;
-		NEXT_ELEM(stencilnodes);
+	FOREACH(Depth_stencil, current_stencil, depth_stencils_list){
 		if(current_stencil->view)
 			current_stencil->view->Release();
 		if(current_stencil->state)
