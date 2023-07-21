@@ -308,197 +308,250 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	init_data.meshes_serialization = win_read_file(string("data/meshes_init.txt"),temp_arena);
 	init_data.textures_serialization = win_read_file(string("data/textures_init.txt"),temp_arena);
 	app.init(&memory, &init_data);
-
-	{
-		// Asset_request* asset_request = init_data.asset_requests[0];
-		// UNTIL(i, LIST_SIZE(init_data.asset_requests)){
-		// 	switch()
-		// }
-	}
 	
-	// CREATING TEXTURES
 	LIST(Dx11_texture_view*, textures_list) = {0};
-	{
-		FOREACH(Tex_from_surface_request, request, init_data.tex_from_surface_requests){
-			*request->p_texinfo_uid = LIST_SIZE(memory.tex_infos);
-			Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
-			tex_info->w = request->surface.width;
-			tex_info->h = request->surface.height;
-
-			tex_info->texrect.xf = 0.0f;
-			tex_info->texrect.yf = 0.0f;
-			tex_info->texrect.wf = 1.0f;
-			tex_info->texrect.hf = 1.0f;
-			
-			tex_info->texview_uid = LIST_SIZE(textures_list);
-			Dx11_texture_view** texture_view; PUSH_BACK(textures_list, memory.permanent_arena, texture_view);
-			dx11_create_texture_view(dx, &request->surface, texture_view);
-		}
-	}
-
-	{
-		Tex_from_file_request* tex_from_file_request_node = init_data.tex_from_file_requests[0];
-		FOREACH(Tex_from_file_request, request, init_data.tex_from_file_requests){
-			int comp;
-			Surface tex_surface = {0};
-			char temp_buffer [MAX_PATH] = {0}; 
-			copy_mem(request->filename.text, temp_buffer, request->filename.length);
-			tex_surface.data = stbi_load(temp_buffer, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
-			ASSERT(tex_surface.data);
-			
-			Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
-			tex_info->w = tex_surface.width;
-			tex_info->h = tex_surface.height;
-			tex_info->texrect.xf = 0.0f;
-			tex_info->texrect.yf = 0.0f;
-			tex_info->texrect.wf = 1.0f;
-			tex_info->texrect.hf = 1.0f;
-
-			tex_info->texview_uid = LIST_SIZE(textures_list);
-			Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
-			dx11_create_texture_view(dx, &tex_surface, texture_view);
-		}
-	}	
-
-	//  LOADING FONT
-	{
-		r32 lines_height = 18; 
-		FOREACH(Tex_from_file_request, request, init_data.load_font_requests){
-			// TESTING FONTS 
-			File_data font_file = win_read_file(request->filename, temp_arena);
-			//currently just supporting ANSI characters
-			//TODO: learn how to do UNICODE
-
-			// GETTING BITMAPS AND INFO
-			u32 atlas_texview_uid = LIST_SIZE(textures_list);
-
-			stbtt_fontinfo font;
-			Color32* charbitmaps [CHARS_COUNT];
-			Tex_info temp_charinfos[CHARS_COUNT];
-			stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
-			UNTIL(c, CHARS_COUNT){
-				u32 codepoint = c+FIRST_CHAR;
-
-				temp_charinfos[c].texview_uid = atlas_texview_uid;
-
-				u8* monobitmap = stbtt_GetCodepointBitmap(
-					&font, 0, stbtt_ScaleForPixelHeight(&font, lines_height), codepoint, 
-					&temp_charinfos[c].w, &temp_charinfos[c].h, 
-					&temp_charinfos[c].xoffset, &temp_charinfos[c].yoffset
-				);
-				u32 bitmap_size = temp_charinfos[c].w * temp_charinfos[c].h;
-				charbitmaps[c] = ARENA_PUSH_STRUCTS(temp_arena, Color32, bitmap_size);
-				Color32* bitmap =  charbitmaps[c];
-				UNTIL(p, bitmap_size){
-					bitmap[p].r = 255;
-					bitmap[p].g = 255;
-					bitmap[p].b = 255;
-					bitmap[p].a = monobitmap[p];
-				}
-				stbtt_FreeBitmap(monobitmap,0);
-			}
-			// PACKING BITMAP RECTS
-
-			//total_atlas_size = atlas_side*atlas_side
-			s32 atlas_side = find_bigger_exponent_of_2((u32)(lines_height*(lines_height/2)*CHARS_COUNT));
-
-			stbrp_context pack_context = {0};
-			stbrp_node* pack_nodes = ARENA_PUSH_STRUCTS(temp_arena, stbrp_node, atlas_side);
-			stbrp_init_target(&pack_context, atlas_side, atlas_side, pack_nodes, atlas_side);
-
-			stbrp_rect* rects = ARENA_PUSH_STRUCTS(temp_arena, stbrp_rect, CHARS_COUNT);
-			UNTIL(i, CHARS_COUNT){
-				rects[i].w = temp_charinfos[i].w;
-				rects[i].h = temp_charinfos[i].h;
-			}
-			stbrp_pack_rects(&pack_context, rects, CHARS_COUNT);
-
-			// CREATE TEXTURE ATLAS AND COPY EACH CHARACTER BITMAP INTO IT USING THE POSITIONS OBTAINED FROM PACK
-			Color32* atlas_pixels = ARENA_PUSH_STRUCTS(temp_arena, Color32, atlas_side*atlas_side);
-
-			Int2 atlas_size = {atlas_side, atlas_side};
-
-			UNTIL(i, CHARS_COUNT){
-				ASSERT(rects[i].was_packed);
-				if(rects[i].was_packed){
-					temp_charinfos[i].texrect.xf = (r32)rects[i].x / atlas_size.x;
-					temp_charinfos[i].texrect.yf = (r32)rects[i].y / atlas_size.y;
-					temp_charinfos[i].texrect.wf = (r32)temp_charinfos[i].w / atlas_size.x;
-					temp_charinfos[i].texrect.hf = (r32)temp_charinfos[i].h / atlas_size.y;
-					
-					memory.font_tex_infos_uids[i] = LIST_SIZE(memory.tex_infos);
-					Tex_info* charinfo; PUSH_BACK(memory.tex_infos, permanent_arena, charinfo);
-					*charinfo = temp_charinfos[i]; 
-
-					// PASTING EACH CHAR INTO THE ATLAS PIXELS
-					u32 first_char_pixel = (rects[i].y*atlas_side) + rects[i].x;
-					Color32* charpixels = charbitmaps[i];
-					UNTIL(y, (u32)rects[i].h){
-						UNTIL(x, (u32)rects[i].w){
-							u32 current_pixel = first_char_pixel + (y*atlas_side) + x;
-							atlas_pixels[current_pixel] = charpixels[(y*rects[i].w) + x];
-						}
-					}
-				}
-			}
-			Tex_info* atlas_tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, atlas_tex_info);
-			atlas_tex_info->texview_uid = atlas_texview_uid;
-			atlas_tex_info->w = atlas_size.x;
-			atlas_tex_info->h = atlas_size.y;
-			atlas_tex_info->texrect.xf = 0.0f;
-			atlas_tex_info->texrect.yf = 0.0f;
-			atlas_tex_info->texrect.wf = 1.0f;
-			atlas_tex_info->texrect.hf = 1.0f;
-
-			Dx11_texture_view** atlas_texture; PUSH_BACK(textures_list, permanent_arena, atlas_texture);
-			Surface atlas_surface = {(u32)atlas_size.x, (u32)atlas_size.y, atlas_pixels};
-			dx11_create_texture_view(dx, &atlas_surface, atlas_texture);
-		}
-	}	
-
-	// SHADERS
-	//TODO: remember the last write_time of the file when doing runtime compiling
-	
 	LIST(Vertex_shader, vertex_shaders_list) = {0};
 	LIST(Dx11_pixel_shader*, pixel_shaders_list) = {0};
+	LIST(Dx_mesh, meshes_list) = {0};
+	LIST(Dx11_blend_state*, blend_states_list) = {0};
+	LIST(Depth_stencil, depth_stencils_list) = {0};
 	{
-		// VERTEX SHADERS	
-		FOREACH(Vertex_shader_from_file_request, request, init_data.vs_ff_requests){
-			// COMPILING VS
-				// File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
-			// CREATING VS
-			File_data compiled_vs = win_read_file(request->filename, temp_arena);
+		FOREACH(Asset_request, request, init_data.asset_requests){
+			switch(request->type){
+				case TEX_FROM_FILE_REQUEST:{
+					int comp;
+					Surface tex_surface = {0};
+					char temp_buffer [MAX_PATH] = {0}; 
+					copy_mem(request->filename.text, temp_buffer, request->filename.length);
+					tex_surface.data = stbi_load(temp_buffer, (int*)&tex_surface.width, (int*)&tex_surface.height, &comp, STBI_rgb_alpha);
+					ASSERT(tex_surface.data);
+					
+					Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
+					tex_info->w = tex_surface.width;
+					tex_info->h = tex_surface.height;
+					tex_info->texrect.xf = 0.0f;
+					tex_info->texrect.yf = 0.0f;
+					tex_info->texrect.wf = 1.0f;
+					tex_info->texrect.hf = 1.0f;
 
-			*request->p_uid = LIST_SIZE(vertex_shaders_list);
-			Vertex_shader* vs; PUSH_BACK(vertex_shaders_list, permanent_arena, vs);
-			dx11_create_vs(dx, compiled_vs, &vs->shader);
-			
-			D3D11_INPUT_ELEMENT_DESC* ied = ARENA_PUSH_STRUCTS(temp_arena, D3D11_INPUT_ELEMENT_DESC, request->ie_count);
-			u32 current_aligned_byte_offset = 0;
-			UNTIL(j, request->ie_count){
-				ied[j].SemanticName = request->ie_names[j].text;
-				// ied[j].SemanticIndex // this is in case the element is bigger than a float4 (a matrix for example)
-				ied[j].Format = input_element_format_from_size(request->ie_sizes[j]);
-				// ied[j].InputSlot // this is for using secondary buffers (like an instance buffer)
-				ied[j].AlignedByteOffset = current_aligned_byte_offset;
-				current_aligned_byte_offset += request->ie_sizes[j]; // reset this value if using instance buffer
-				// ied[j].InputSlotClass; // 0 PER_VERTEX_DATA vs 1 PER_INSTANCE_DATA
-				// ied[j].InstanceDataStepRate; // the amount of instances to draw using the PER_INSTANCE data
+					tex_info->texview_uid = LIST_SIZE(textures_list);
+					Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
+					dx11_create_texture_view(dx, &tex_surface, texture_view);
+				}break;
+
+
+				case VERTEX_SHADER_FROM_FILE_REQUEST:{
+					// COMPILING VS
+						// File_data compiled_vs = dx11_get_compiled_shader(request->filename, temp_arena, "vs", VS_PROFILE);
+					// CREATING VS
+					File_data compiled_vs = win_read_file(request->filename, temp_arena);
+
+					*request->p_uid = LIST_SIZE(vertex_shaders_list);
+					Vertex_shader* vs; PUSH_BACK(vertex_shaders_list, permanent_arena, vs);
+					dx11_create_vs(dx, compiled_vs, &vs->shader);
+					
+					D3D11_INPUT_ELEMENT_DESC* ied = ARENA_PUSH_STRUCTS(temp_arena, D3D11_INPUT_ELEMENT_DESC, request->ied.count);
+					u32 current_aligned_byte_offset = 0;
+					UNTIL(j, request->ied.count){
+						ied[j].SemanticName = request->ied.names[j].text;
+						// ied[j].SemanticIndex // this is in case the element is bigger than a float4 (a matrix for example)
+						ied[j].Format = input_element_format_from_size(request->ied.sizes[j]);
+						// ied[j].InputSlot // this is for using secondary buffers (like an instance buffer)
+						ied[j].AlignedByteOffset = current_aligned_byte_offset;
+						current_aligned_byte_offset += request->ied.sizes[j]; // reset this value if using instance buffer
+						// ied[j].InputSlotClass; // 0 PER_VERTEX_DATA vs 1 PER_INSTANCE_DATA
+						// ied[j].InstanceDataStepRate; // the amount of instances to draw using the PER_INSTANCE data
+					}
+					dx11_create_input_layout(dx, compiled_vs, ied, request->ied.count, &vs->input_layout);
+				}break;
+
+
+				case PIXEL_SHADER_FROM_FILE_REQUEST:{
+					*request->p_uid = LIST_SIZE(pixel_shaders_list);
+					// COMPILING PS
+						// File_data compiled_ps = dx11_get_compiled_shader(request->filename, temp_arena, "ps", PS_PROFILE);
+					// CREATING PS
+					File_data compiled_ps = win_read_file(request->filename, temp_arena);
+
+					Dx11_pixel_shader** ps; PUSH_BACK(pixel_shaders_list, permanent_arena, ps);
+					dx11_create_ps(dx, compiled_ps, ps);
+				}break;
+
+
+				case MESH_FROM_FILE_REQUEST:{
+					File_data glb_file = win_read_file(request->filename, temp_arena);
+					GLB glb = {0};
+					glb_get_chunks(glb_file.data, 
+						&glb);
+					#if DEBUGMODE
+						{ // THIS IS JUST FOR READABILITY OF THE JSON CHUNK
+							void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
+							u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
+							win_write_file(concat_strings(request->filename, string(".json"), temp_arena), formated_json, new_size);
+							arena_pop_back_size(temp_arena, MEGABYTES(4));
+						}
+					#endif
+					u32 meshes_count = 0;
+					Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
+					
+					Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
+					for(u32 m=0; m<meshes_count; m++)
+					{
+						u32 primitives_count = meshes[m].primitives_count;
+						Gltf_primitive* Mesh_primitive = meshes[m].primitives;
+						//TODO: here i am assuming this mesh has only one primitive
+						primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+						// for(u32 p=0; p<primitives_count; p++)
+						// {	
+						// }
+					}
+					Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
+					*current_mesh = dx11_init_mesh(dx, 
+					&primitives[0],
+					D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);	
+				}break;
+
+
+				case CREATE_BLEND_STATE_REQUEST:{
+					*request->p_uid = LIST_SIZE(blend_states_list);
+					Dx11_blend_state** blend_state; PUSH_BACK(blend_states_list, memory.permanent_arena, blend_state);
+					dx11_create_blend_state(dx, blend_state, request->enable_alpha_blending);
+				}break;
+
+
+				case CREATE_DEPTH_STENCIL_REQUEST:{
+					*request->p_uid = LIST_SIZE(depth_stencils_list);
+					Depth_stencil* depth_stencil; PUSH_BACK(depth_stencils_list, memory.permanent_arena, depth_stencil);
+					dx11_create_depth_stencil_state(dx, &depth_stencil->state, request->enable_depth);
+				}break;
+
+
+				case FONT_FROM_FILE_REQUEST:{
+					float lines_height = 18.0f;
+					// FONTS 
+					File_data font_file = win_read_file(request->filename, temp_arena);
+					//currently just supporting ANSI characters
+					//TODO: learn how to do UNICODE
+
+					// GETTING BITMAPS AND INFO
+					u32 atlas_texview_uid = LIST_SIZE(textures_list);
+
+					stbtt_fontinfo font;
+					Color32* charbitmaps [CHARS_COUNT];
+					Tex_info temp_charinfos[CHARS_COUNT];
+					stbtt_InitFont(&font, (u8*)font_file.data,stbtt_GetFontOffsetForIndex((u8*)font_file.data, 0));
+					UNTIL(c, CHARS_COUNT){
+						u32 codepoint = c+FIRST_CHAR;
+
+						temp_charinfos[c].texview_uid = atlas_texview_uid;
+
+						u8* monobitmap = stbtt_GetCodepointBitmap(
+							&font, 0, stbtt_ScaleForPixelHeight(&font, lines_height), codepoint, 
+							&temp_charinfos[c].w, &temp_charinfos[c].h, 
+							&temp_charinfos[c].xoffset, &temp_charinfos[c].yoffset
+						);
+						u32 bitmap_size = temp_charinfos[c].w * temp_charinfos[c].h;
+						charbitmaps[c] = ARENA_PUSH_STRUCTS(temp_arena, Color32, bitmap_size);
+						Color32* bitmap =  charbitmaps[c];
+						UNTIL(p, bitmap_size){
+							bitmap[p].r = 255;
+							bitmap[p].g = 255;
+							bitmap[p].b = 255;
+							bitmap[p].a = monobitmap[p];
+						}
+						stbtt_FreeBitmap(monobitmap,0);
+					}
+					// PACKING BITMAP RECTS
+
+					//total_atlas_size = atlas_side*atlas_side
+					s32 atlas_side = find_bigger_exponent_of_2((u32)(lines_height*(lines_height/2)*CHARS_COUNT));
+
+					stbrp_context pack_context = {0};
+					stbrp_node* pack_nodes = ARENA_PUSH_STRUCTS(temp_arena, stbrp_node, atlas_side);
+					stbrp_init_target(&pack_context, atlas_side, atlas_side, pack_nodes, atlas_side);
+
+					stbrp_rect* rects = ARENA_PUSH_STRUCTS(temp_arena, stbrp_rect, CHARS_COUNT);
+					UNTIL(i, CHARS_COUNT){
+						rects[i].w = temp_charinfos[i].w;
+						rects[i].h = temp_charinfos[i].h;
+					}
+					stbrp_pack_rects(&pack_context, rects, CHARS_COUNT);
+
+					// CREATE TEXTURE ATLAS AND COPY EACH CHARACTER BITMAP INTO IT USING THE POSITIONS OBTAINED FROM PACK
+					Color32* atlas_pixels = ARENA_PUSH_STRUCTS(temp_arena, Color32, atlas_side*atlas_side);
+
+					Int2 atlas_size = {atlas_side, atlas_side};
+
+					UNTIL(i, CHARS_COUNT){
+						ASSERT(rects[i].was_packed);
+						if(rects[i].was_packed){
+							temp_charinfos[i].texrect.xf = (r32)rects[i].x / atlas_size.x;
+							temp_charinfos[i].texrect.yf = (r32)rects[i].y / atlas_size.y;
+							temp_charinfos[i].texrect.wf = (r32)temp_charinfos[i].w / atlas_size.x;
+							temp_charinfos[i].texrect.hf = (r32)temp_charinfos[i].h / atlas_size.y;
+							
+							memory.font_tex_infos_uids[i] = LIST_SIZE(memory.tex_infos);
+							Tex_info* charinfo; PUSH_BACK(memory.tex_infos, permanent_arena, charinfo);
+							*charinfo = temp_charinfos[i]; 
+
+							// PASTING EACH CHAR INTO THE ATLAS PIXELS
+							u32 first_char_pixel = (rects[i].y*atlas_side) + rects[i].x;
+							Color32* charpixels = charbitmaps[i];
+							UNTIL(y, (u32)rects[i].h){
+								UNTIL(x, (u32)rects[i].w){
+									u32 current_pixel = first_char_pixel + (y*atlas_side) + x;
+									atlas_pixels[current_pixel] = charpixels[(y*rects[i].w) + x];
+								}
+							}
+						}
+					}
+					Tex_info* atlas_tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, atlas_tex_info);
+					atlas_tex_info->texview_uid = atlas_texview_uid;
+					atlas_tex_info->w = atlas_size.x;
+					atlas_tex_info->h = atlas_size.y;
+					atlas_tex_info->texrect.xf = 0.0f;
+					atlas_tex_info->texrect.yf = 0.0f;
+					atlas_tex_info->texrect.wf = 1.0f;
+					atlas_tex_info->texrect.hf = 1.0f;
+
+					Dx11_texture_view** atlas_texture; PUSH_BACK(textures_list, permanent_arena, atlas_texture);
+					Surface atlas_surface = {(u32)atlas_size.x, (u32)atlas_size.y, atlas_pixels};
+					dx11_create_texture_view(dx, &atlas_surface, atlas_texture);
+				}break;
+
+
+				case TEX_FROM_SURFACE_REQUEST:{
+					*request->p_uid = LIST_SIZE(memory.tex_infos);
+					Tex_info* tex_info; PUSH_BACK(memory.tex_infos, permanent_arena, tex_info);
+					tex_info->w = request->tex_surface.width;
+					tex_info->h = request->tex_surface.height;
+
+					tex_info->texrect.xf = 0.0f;
+					tex_info->texrect.yf = 0.0f;
+					tex_info->texrect.wf = 1.0f;
+					tex_info->texrect.hf = 1.0f;
+					
+					tex_info->texview_uid = LIST_SIZE(textures_list);
+					Dx11_texture_view** texture_view; PUSH_BACK(textures_list, memory.permanent_arena, texture_view);
+					dx11_create_texture_view(dx, &request->tex_surface, texture_view);
+				}break;
+
+
+				case MESH_FROM_PRIMITIVES_REQUEST:{
+					*request->p_uid = LIST_SIZE(meshes_list);
+					Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
+					*current_mesh = dx11_init_mesh(dx, 
+					request->mesh_primitives, 
+					D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				}break;
+
+
+				case FORGOR_TO_SET_ASSET_TYPE:
+				default:
+					ASSERT(false)
+				break;
 			}
-			dx11_create_input_layout(dx, compiled_vs, ied, request->ie_count, &vs->input_layout);
 		}
-		// PIXEL SHADERS
-		FOREACH(From_file_request, request, init_data.ps_ff_requests){
-			*request->p_uid = LIST_SIZE(pixel_shaders_list);
-			// COMPILING PS
-				// File_data compiled_ps = dx11_get_compiled_shader(request->filename, temp_arena, "ps", PS_PROFILE);
-			// CREATING PS
-			File_data compiled_ps = win_read_file(request->filename, temp_arena);
-
-			Dx11_pixel_shader** ps; PUSH_BACK(pixel_shaders_list, permanent_arena, ps);
-			dx11_create_ps(dx, compiled_ps, ps);
-		}
-			
 	}
 	
 	// CREATING CONSTANT BUFFER
@@ -544,81 +597,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dx, &camera_pos_buffer, sizeof(V4), CAMERA_POS_BUFFER_REGISTER_INDEX, 0
 	);
 
-	// MESHES
-	//TODO: make meshes_list an array of size = sizeof(Meshes)/sizeof(u32*)
-	// but i am not sure if doing that i will not be able to create new meshes at runtime
-	// we'll see
-	LIST(Dx_mesh, meshes_list) = {0};
-
-	// LOADING MESHES FROM FILES
-	{
-		FOREACH(From_file_request, request, init_data.mesh_from_file_requests){
-			File_data glb_file = win_read_file(request->filename, temp_arena);
-			GLB glb = {0};
-			glb_get_chunks(glb_file.data, 
-				&glb);
-		#if DEBUGMODE
-			{ // THIS IS JUST FOR READABILITY OF THE JSON CHUNK
-				void* formated_json = arena_push_size(temp_arena,MEGABYTES(4));
-				u32 new_size = format_json_more_readable(glb.json_chunk, glb.json_size, formated_json);
-				win_write_file(concat_strings(request->filename, string(".json"), temp_arena), formated_json, new_size);
-				arena_pop_back_size(temp_arena, MEGABYTES(4));
-			}
-		#endif
-			u32 meshes_count = 0;
-			Gltf_mesh* meshes = gltf_get_meshes(&glb, temp_arena, &meshes_count);
-			
-			Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
-			for(u32 m=0; m<meshes_count; m++)
-			{
-				u32 primitives_count = meshes[m].primitives_count;
-				Gltf_primitive* Mesh_primitive = meshes[m].primitives;
-				//TODO: here i am assuming this mesh has only one primitive
-				primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
-				// for(u32 p=0; p<primitives_count; p++)
-				// {	
-				// }
-			}
-			Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
-			*current_mesh = dx11_init_mesh(dx, 
-			&primitives[0],
-			D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);	
-		}
-	}
-	// CREATING MESHES FROM MANUALLY DEFINED PRIMITIVES
-	{	
-		Mesh_from_primitives_request* mfp_request_node = init_data.mesh_from_primitives_requests[0];
-		FOREACH(Mesh_from_primitives_request, request, init_data.mesh_from_primitives_requests){
-
-			*request->p_mesh_uid = LIST_SIZE(meshes_list);
-			Dx_mesh* current_mesh; PUSH_BACK(meshes_list, permanent_arena, current_mesh);
-			*current_mesh = dx11_init_mesh(dx, 
-			request->primitives, 
-			D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		}
-	}
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
-
-	// TODO: CONVERT THIS TWO LISTS INTO STATIC ARRAYS IF BEING DYNAMIC SERVES NO PURPOSE AT ALL
-	LIST(Dx11_blend_state*, blend_states_list) = {0};
-	{
-		FOREACH(Create_blend_state_request, request, init_data.create_blend_state_requests){
-			*request->p_uid = LIST_SIZE(blend_states_list);
-			Dx11_blend_state** blend_state; PUSH_BACK(blend_states_list, memory.permanent_arena, blend_state);
-			dx11_create_blend_state(dx, blend_state, request->enable_alpha_blending);
-		}
-	}
-
-	LIST(Depth_stencil, depth_stencils_list) = {0};
-	{
-		FOREACH(Create_depth_stencil_request, request, init_data.create_depth_stencil_requests){
-			*request->p_uid = LIST_SIZE(depth_stencils_list);
-			Depth_stencil* depth_stencil; PUSH_BACK(depth_stencils_list, memory.permanent_arena, depth_stencil);
-			dx11_create_depth_stencil_state(dx, &depth_stencil->state, request->enable_depth);
-		}
-	}
 
 	// MINIAUDIO SETUP
 	{

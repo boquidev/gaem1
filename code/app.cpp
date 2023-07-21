@@ -891,61 +891,72 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
+	Asset_request request = {0};
 	{
-		Vertex_shader_from_file_request vs_request = {0};
-		vs_request.p_uid = &memory->vshaders.default_vshader_uid;
-		vs_request.filename = string("shaders/3d_vs.cso");
-		vs_request.ie_count = 3;
-		vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
+		// TODO: THIS COULD BE AUTOMATED BY LOOKING INTO THE hlsl file
+		u32 ie_count = 3;
+		String* ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, ie_count);
 		
-		vs_request.ie_names[0] = string("POSITION");
-		vs_request.ie_names[1] = string("TEXCOORD");
-		vs_request.ie_names[2] = string("NORMAL");
+		ie_names[0] = string("POSITION");
+		ie_names[1] = string("TEXCOORD");
+		ie_names[2] = string("NORMAL");
 
+		u32* ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, ie_count);
+		ie_sizes[0] = sizeof(float)*3;
+		ie_sizes[1] = sizeof(float)*2;
+		ie_sizes[2] = sizeof(float)*3;
 
-		vs_request.ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, vs_request.ie_count);
-		vs_request.ie_sizes[0] = sizeof(float)*3;
-		vs_request.ie_sizes[1] = sizeof(float)*2;
-		vs_request.ie_sizes[2] = sizeof(float)*3;
+		request.type = VERTEX_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->vshaders.default_vshader_uid;
+		request.filename = string("shaders/3d_vs.cso");
+		request.ied = {ie_count, ie_names, ie_sizes};
 		
-		push_vertex_shader_from_file_request(memory, init_data, vs_request);
+		push_asset_request(memory, init_data, &request);
 
-		push_pixel_shader_from_file_request(memory, init_data, 
-			&memory->pshaders.default_pshader_uid, string("shaders/3d_ps.cso")
-		);
+		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->pshaders.default_pshader_uid; 
+		request.filename = string("shaders/3d_ps.cso");
+		push_asset_request(memory, init_data, &request);
 
-		push_create_blend_state_request(memory, init_data, 
-			&memory->blend_states.default_blend_state_uid, true
-		);
+		request.type = CREATE_BLEND_STATE_REQUEST;
+		request.p_uid = &memory->blend_states.default_blend_state_uid;
+		request.enable_alpha_blending = true;
+		push_asset_request(memory, init_data, &request);
 
-		push_create_depth_stencil_request(memory, init_data,
-			&memory->depth_stencils.default_depth_stencil_uid, true
-		);
+		request.type = CREATE_DEPTH_STENCIL_REQUEST;
+		request.p_uid = &memory->depth_stencils.default_depth_stencil_uid;
+		request.enable_depth = true;
+		push_asset_request(memory, init_data, &request);
 	}
 
 	{
-		Vertex_shader_from_file_request vs_request = {0};
-		vs_request.p_uid = &memory->vshaders.ui_vshader_uid;
-		vs_request.filename = string("shaders/ui_vs.cso");
-		vs_request.ie_count = 2;
-		vs_request.ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, vs_request.ie_count);
+		request.type = VERTEX_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->vshaders.ui_vshader_uid;
+		request.filename = string("shaders/ui_vs.cso");
 
-		vs_request.ie_names[0] = string("POSITION");
-		vs_request.ie_names[1] = string("TEXCOORD");
+		u32 ie_count = 2;
 
-		vs_request.ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, vs_request.ie_count);
-		vs_request.ie_sizes[0] = sizeof(float)*3;
-		vs_request.ie_sizes[1] = sizeof(float)*2;
+		String* ie_names = ARENA_PUSH_STRUCTS(memory->temp_arena, String, ie_count);
+		ie_names[0] = string("POSITION");
+		ie_names[1] = string("TEXCOORD");
+
+		u32* ie_sizes = ARENA_PUSH_STRUCTS(memory->temp_arena, u32, ie_count);
+		ie_sizes[0] = sizeof(float)*3;
+		ie_sizes[1] = sizeof(float)*2;
+
+		request.ied = {ie_count, ie_names, ie_sizes};
 		
-		push_vertex_shader_from_file_request(memory, init_data, vs_request);
+		push_asset_request(memory, init_data, &request);
 
-		push_pixel_shader_from_file_request(
-			memory, init_data, &memory->pshaders.ui_pshader_uid, string("shaders/ui_ps.cso")
-		);
+		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->pshaders.ui_pshader_uid;
+		request.filename = string("shaders/ui_ps.cso");
+		push_asset_request(memory, init_data, &request);
 
-		push_create_depth_stencil_request(memory, init_data,
-			&memory->depth_stencils.ui_depth_stencil_uid, true
-		);
+		request.type = CREATE_DEPTH_STENCIL_REQUEST;
+		request.p_uid = &memory->depth_stencils.ui_depth_stencil_uid;
+		request.enable_depth = true;
+		push_asset_request(memory, init_data, &request);
 	}
 
 
@@ -979,24 +990,25 @@ void init(App_memory* memory, Init_data* init_data){
 */
 	LIST(String, meshes_filenames) = {0};
 	parse_meshes_serialization_file(memory, init_data->meshes_serialization, meshes_filenames);
-	String* mesh_filename = meshes_filenames[0];
-	UNTIL(i, LIST_SIZE(meshes_filenames)){
-		String* current = mesh_filename;
-		SKIP_ELEM(mesh_filename);
 
-		push_mesh_from_file_request(memory, init_data, *current);
+	FOREACH(String, current, meshes_filenames){
+		request.type = MESH_FROM_FILE_REQUEST;
+		request.filename = *current;
+		push_asset_request(memory, init_data, &request);
 	}
 
 	LIST(String, textures_filenames) = {0};
 	parse_textures_serialization_file(memory, init_data->textures_serialization, textures_filenames);
-	String* tex_filename = textures_filenames[0];
-	UNTIL(i, LIST_SIZE(textures_filenames)){
-		String* current = tex_filename;
-		SKIP_ELEM(tex_filename);
 
-		push_tex_from_file_request(memory, init_data, *current);
+	FOREACH(String, current, textures_filenames){
+		request.type = TEX_FROM_FILE_REQUEST;
+		request.filename = *current;
+		push_asset_request(memory, init_data, &request);
 	}
 
 	//TODO: make it possible to load more than one font
-	push_load_font_request(memory, init_data, &memory->textures.font_atlas_uid, string("data/fonts/Inconsolata-Regular.ttf"));
+	request.type = FONT_FROM_FILE_REQUEST;
+	request.p_uid = &memory->textures.font_atlas_uid;
+	request.filename = string("data/fonts/Inconsolata-Regular.ttf");
+	push_asset_request(memory, init_data, &request);
 }

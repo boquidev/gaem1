@@ -90,22 +90,6 @@ struct Entity{
 };
 global_variable Entity nil_entity = {0}; 
 
-// internal void
-// test_collision(Entity* e1, Entity* e2, r32 delta_time){
-// 	V3 pos_difference = e2->pos-e1->pos;
-// 	r32 collision_magnitude = v3_magnitude(pos_difference);
-// 	//sphere vs sphere simplified
-// 	r32 overlapping = (e1->current_scale+e2->current_scale) - collision_magnitude;
-// 	if(overlapping > 0){
-// 		V3 collision_direction = v3_normalize(pos_difference);
-// 		if(!collision_magnitude)
-// 			collision_direction = {1.0f,0,0};
-// 		overlapping =  MIN(MIN(e1->current_scale, e2->current_scale),overlapping);
-// 		e1->velocity = e1->velocity - (((overlapping/delta_time)/2) * collision_direction);
-// 		e2->velocity = e2->velocity + (((overlapping/delta_time)/2) * collision_direction);
-// 	}
-// }
-
 internal u32
 next_inactive_entity(Entity entities[], u32* last_inactive_i){
 	u32 i = *last_inactive_i+1;
@@ -395,70 +379,53 @@ printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_
 // REQUESTS STRUCTS AND FUNCTIONS BOILERPLATE
 // TODO: UNIFY ALL THIS FUNCTIONS AND STRUCTS TO BE JUST ONE THING
 enum Asset_request_type{
-	FORGOR_TO_SET_ASSET_TYPE,
-	ASSET_FROM_FILE_REQUEST,
-	
+	FORGOR_TO_SET_ASSET_TYPE = 0,
+	TEX_FROM_FILE_REQUEST,
+	FONT_FROM_FILE_REQUEST,
+	VERTEX_SHADER_FROM_FILE_REQUEST,
+	PIXEL_SHADER_FROM_FILE_REQUEST,
+	MESH_FROM_FILE_REQUEST,
+	CREATE_BLEND_STATE_REQUEST,
+	CREATE_DEPTH_STENCIL_REQUEST,
+
+
+	TEX_FROM_SURFACE_REQUEST,
+	MESH_FROM_PRIMITIVES_REQUEST,
 };
 
 struct Asset_request{
 	Asset_request_type type;
-};
-
-struct From_file_request
-{
 	u32* p_uid;
-	String filename;
-};
+	union{
+		struct {
+			String filename;
+			struct {
+				u32 count;
+				String* names;
+				u32* sizes;
+				//TODO: per vertex vs per instance;
+			}ied; // input_element_desc
+		};
 
-struct Mesh_from_primitives_request
-{
-	u32* p_mesh_uid;
-	Mesh_primitive* primitives; //TODO: this could be the whole struct instead of a pointer
-};
+		Mesh_primitive* mesh_primitives; 
+		
+		Surface tex_surface; 
+		
+		//TODO: THIS ARE NOT ASSETS BUT I DON'T KNOW WHERE TO PUT'EM
+		b32 enable_alpha_blending;
 
-struct Tex_from_surface_request{
-	u32* p_texinfo_uid;
-	Surface surface; 
-};
-
-struct Tex_from_file_request{
-	String filename;
-};
-
-struct Vertex_shader_from_file_request
-{
-	u32* p_uid;
-	String filename;
-	u32 ie_count;
-	String* ie_names;
-	u32* ie_sizes;
-	//TODO: per vertex vs per instance;
-};
-struct Create_blend_state_request
-{
-	u32* p_uid;
-	b32 enable_alpha_blending;
-};
-struct Create_depth_stencil_request
-{
-	u32* p_uid;
-	b32 enable_depth;
+		b32 enable_depth;
+	};
 };
 
 struct Init_data
 {
+	// this is sent from the platform layer to the init function
 	File_data meshes_serialization;
 	File_data textures_serialization;
 
-	LIST(From_file_request, mesh_from_file_requests);
-	LIST(Mesh_from_primitives_request, mesh_from_primitives_requests);
-	LIST(Tex_from_surface_request, tex_from_surface_requests);
-	LIST(Tex_from_file_request, tex_from_file_requests);
-	LIST(Vertex_shader_from_file_request, vs_ff_requests);
-	LIST(From_file_request, ps_ff_requests);
-	LIST(Create_blend_state_request, create_blend_state_requests);
-	LIST(Create_depth_stencil_request, create_depth_stencil_requests);
-	LIST(Tex_from_file_request, load_font_requests);
+	// this is the result from the init function to the platform layer
+	LIST(Asset_request, asset_requests);
 };
 
 //TODO: IS THERE A WAY TO JUST PUT VERTICES AND INDICES ARRAYS AND EVERYTHING ELSE JUST GETS SOLVED??
@@ -477,86 +444,13 @@ save_primitives(Memory_arena* arena, void* vertices, u32 v_size, u32 v_count, u1
 
 	return result;
 }
-// TODO: MAKE A SINGLE STRUCT FOR BOTH FROM FILE AND FROM DATA
-// AND I HAVE 4 FUNCTIONS THAT ARE VERY SIMILAR
 
 internal void
-push_tex_from_surface_request(App_memory* memory, Init_data* init_data,u32* index_handle, u32 width, u32 height, u32* pixels)
-{
-	Tex_from_surface_request* request; 
-	PUSH_BACK(init_data->tex_from_surface_requests,memory->temp_arena, request);
-	request->p_texinfo_uid = index_handle;
-	request->surface = {width,height};
-	request->surface.data = arena_push_data(memory->temp_arena, pixels, width*height*sizeof(u32));
-}
-// returns the address reserved for the mesh's uid
-internal void
-push_tex_from_file_request(App_memory* memory, Init_data* init_data, String filename)
-{
-	// pushes the request in the initdata in the temp arena
-	Tex_from_file_request* request;
-	PUSH_BACK(init_data->tex_from_file_requests, memory->temp_arena, request);
-	request->filename = filename;
-}
-
-internal void
-push_load_font_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename){
-	// THIS IS EXACTLY THE SAME AS THE FUNCTION ABOVE EXCEPT FOR ONE THING FUCKK
-	Tex_from_file_request* request;
-	PUSH_BACK(init_data->load_font_requests, memory->temp_arena, request);
-	request->filename = filename;
-}
-
-// THIS 2 FUNCTIONS ARE BASICALLY THE SAME EXCEPT FOR 2 THINGS
-internal void
-push_mesh_from_primitives_request(App_memory* memory, Init_data* init_data, u32* index_handle, Mesh_primitive* primitives)
-{
-	Mesh_from_primitives_request* request;
-	PUSH_BACK(init_data->mesh_from_primitives_requests, memory->temp_arena, request);
-	request->p_mesh_uid = index_handle;
-	request->primitives = primitives;
-}
-
-// returns the address reserved for the mesh's uid
-internal void
-push_mesh_from_file_request(App_memory* memory, Init_data* init_data, String filename)
-{
-	// pushes the request in the initdata in the temp arena
-	From_file_request* request;
-	PUSH_BACK(init_data->mesh_from_file_requests, memory->temp_arena, request);
-	request->filename = filename;
-}
-
-//TODO: why is this one different from the others
-internal void
-push_vertex_shader_from_file_request(App_memory* memory, Init_data* init_data, Vertex_shader_from_file_request request){
-	Vertex_shader_from_file_request* result;
-	PUSH_BACK(init_data->vs_ff_requests, memory->temp_arena, result);
-	*result = request;
-}
-
-internal void
-push_pixel_shader_from_file_request(App_memory* memory, Init_data* init_data, u32* index_handle, String filename){
-	From_file_request* request;
-	PUSH_BACK(init_data->ps_ff_requests, memory->temp_arena, request);
-	request->p_uid = index_handle;
-	request->filename = filename;
-}
-
-internal void
-push_create_blend_state_request(App_memory* memory, Init_data* init_data, u32* index_handle, b32 enable_alpha_blending){
-	Create_blend_state_request* request;
-	PUSH_BACK(init_data->create_blend_state_requests, memory->temp_arena, request);
-	request->p_uid = index_handle;
-	request->enable_alpha_blending = enable_alpha_blending;
-}
-
-internal void
-push_create_depth_stencil_request(App_memory* memory, Init_data* init_data, u32* index_handle, b32 enable_depth){
-	Create_depth_stencil_request* request;
-	PUSH_BACK(init_data->create_depth_stencil_requests, memory->temp_arena, request);
-	request->p_uid = index_handle;
-	request->enable_depth = enable_depth;
+push_asset_request(App_memory* memory, Init_data* init_data, Asset_request* asset_request){
+	ASSERT(asset_request->type);
+	Asset_request* request;PUSH_BACK(init_data->asset_requests, memory->temp_arena, request);
+	*request = *asset_request;
+	*asset_request = {0};
 }
 
 internal void 
@@ -679,6 +573,7 @@ parse_meshes_serialization_file(App_memory* memory, File_data file, LIST(String,
 		u32* index_p;
 	};
 	//TODO: PLEASE AUTOMATE THIS IN THE FUTURE
+	//TODO: add another level of indirection using the keys
 	// maybe union the memory->meshes with an array of indexes and automatically index them 
 	String_index_pair string_index_pairs [] = {
 		{string(":default_mesh:"), &memory->meshes.default_mesh_uid},
