@@ -107,11 +107,12 @@ find_bigger_exponent_of_2(u32 target_value){
 // LINKED LISTS WITH MACRO FUNCTIONS
 
 #define LIST(type, var_name) type* var_name[3]
+#define CLEAR_LIST(l) l[0] = 0; l[1] = 0; l[2] = 0;
 #define LIST_LAST(l) l[1]
 #define LIST_SIZE(l) ((u32)(l[2]))
 #define NEXT_ELEM(node) *((void**)(node+1))
 #define SKIP_ELEM(node) *(&(void*)node) = *((void**)(node+1))
-#define LIST_GET(l,index, node) node = l[0];UNTIL(unique_index##__LINE__,(index)){SKIP_ELEM(node);}
+#define LIST_GET(l,index, node) node = l[0];ASSERT(index<LIST_SIZE(l));UNTIL(unique_index##__LINE__,(index)){SKIP_ELEM(node);}
 #define FOREACH(type, node, list) \
 	for( type* node = list[0],*i##__LINE__=0; \
 	(*((u32*)&i##__LINE__))<LIST_SIZE(list); \

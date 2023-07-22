@@ -556,7 +556,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				copy_mem(request->filename.text, filename, request->filename.length);
 				ma_error = ma_decoder_init_file(filename, &decoder_config, new_decoder);
 				ASSERT(ma_error == MA_SUCCESS);
-
 			}break;
 
 
@@ -574,6 +573,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				ASSERT(false)
 			break;
 		}
+	}
+	Audio_data audio_data = {0};
+	audio_data.decoders = ARENA_PUSH_STRUCTS(permanent_arena, ma_decoder*, LIST_SIZE(sounds_list));
+	audio_data.decoders_count = LIST_SIZE(sounds_list);
+	ma_decoder* current_decoder = sounds_list[0];
+	for(u32 i=0; i<audio_data.decoders_count; i++, SKIP_ELEM(current_decoder)){
+		audio_data.decoders[i] = current_decoder;
 	}
 	// MINIAUDIO SETUP
 	{
@@ -602,7 +608,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		sound_device_config.playback.channels = 2;
 		sound_device_config.sampleRate        = 48000;
 		sound_device_config.dataCallback      = miniaudio_callback;
-		sound_device_config.pUserData         = sounds_list;
+		sound_device_config.pUserData         = &audio_data;
 
 		ma_device sound_device;
 		ASSERT(ma_device_init(NULL, &sound_device_config, &sound_device) == MA_SUCCESS);
@@ -707,6 +713,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	while(global_running)
 	{
 		arena_pop_back_size(temp_arena, temp_arena->used);
+
 
 		// HANDLE WINDOW RESIZING
 		Int2 current_client_size = win_get_client_sizes(global_main_window);
@@ -886,8 +893,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							break;
 
 						}
-						// if(vkcode == 'A')
-						// 	holding_inputs.d_left = is_down;
+						if(vkcode == 'H'){
+							audio_data.playback_requests[audio_data.requests_count] = audio_data.requests_count % 2;
+							audio_data.requests_count ++;
+						}
 						// else if(vkcode == 'D')
 						// 	holding_inputs.d_right = is_down;
 						// else if(vkcode == 'W')

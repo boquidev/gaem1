@@ -304,6 +304,10 @@ struct Renderer_request{
 	};
 };
 
+struct Sound_playback_request{
+	u32 sound_uid;
+};
+
 internal V2
 normalize_texture_size(Int2 client_size, Int2 tex_size){
 	V2 result = {

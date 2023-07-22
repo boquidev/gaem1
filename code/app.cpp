@@ -885,7 +885,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	// draw(render_list, memory->temp_arena, &test_plane);
 }
 
-
+#define PUSH_ASSET_REQUEST push_asset_request(memory, init_data, &request)
 void init(App_memory* memory, Init_data* init_data){	
 
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
@@ -911,22 +911,22 @@ void init(App_memory* memory, Init_data* init_data){
 		request.filename = string("shaders/3d_vs.cso");
 		request.ied = {ie_count, ie_names, ie_sizes};
 		
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 
 		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
 		request.p_uid = &memory->pshaders.default_pshader_uid; 
 		request.filename = string("shaders/3d_ps.cso");
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 
 		request.type = CREATE_BLEND_STATE_REQUEST;
 		request.p_uid = &memory->blend_states.default_blend_state_uid;
 		request.enable_alpha_blending = true;
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 
 		request.type = CREATE_DEPTH_STENCIL_REQUEST;
 		request.p_uid = &memory->depth_stencils.default_depth_stencil_uid;
 		request.enable_depth = true;
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 	}
 
 	{
@@ -946,17 +946,17 @@ void init(App_memory* memory, Init_data* init_data){
 
 		request.ied = {ie_count, ie_names, ie_sizes};
 		
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 
 		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
 		request.p_uid = &memory->pshaders.ui_pshader_uid;
 		request.filename = string("shaders/ui_ps.cso");
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 
 		request.type = CREATE_DEPTH_STENCIL_REQUEST;
 		request.p_uid = &memory->depth_stencils.ui_depth_stencil_uid;
 		request.enable_depth = true;
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 	}
 
 
@@ -994,7 +994,7 @@ void init(App_memory* memory, Init_data* init_data){
 	FOREACH(String, current, meshes_filenames){
 		request.type = MESH_FROM_FILE_REQUEST;
 		request.filename = *current;
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 	}
 
 	LIST(String, textures_filenames) = {0};
@@ -1003,17 +1003,22 @@ void init(App_memory* memory, Init_data* init_data){
 	FOREACH(String, current, textures_filenames){
 		request.type = TEX_FROM_FILE_REQUEST;
 		request.filename = *current;
-		push_asset_request(memory, init_data, &request);
+		PUSH_ASSET_REQUEST;
 	}
 
 	request.type = SOUND_FROM_FILE_REQUEST;
 	request.p_uid = &memory->sounds.weird_uid;
 	request.filename = string("data/sound/examples_resources_weird.wav");
-	push_asset_request(memory, init_data, &request);
+	PUSH_ASSET_REQUEST;
+
+	request.type = SOUND_FROM_FILE_REQUEST;
+	request.p_uid = &memory->sounds.weird_uid;
+	request.filename = string("data/sound/pa.wav");
+	PUSH_ASSET_REQUEST;
 
 	//TODO: make it possible to load more than one font
 	request.type = FONT_FROM_FILE_REQUEST;
 	request.p_uid = &memory->textures.font_atlas_uid;
 	request.filename = string("data/fonts/Inconsolata-Regular.ttf");
-	push_asset_request(memory, init_data, &request);
+	PUSH_ASSET_REQUEST;
 }

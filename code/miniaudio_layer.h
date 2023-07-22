@@ -20,6 +20,13 @@ For simplicity, this example requires the device to use floating point samples.
 
 // 	return MA_TRUE;
 // }
+struct Audio_data
+{
+	ma_decoder** decoders;
+	u32 decoders_count;
+	u32 playback_requests[128];
+	u32 requests_count;
+};
 
 ma_uint32 read_and_mix_pcm_frames_f32(ma_decoder* pDecoder, float* pOutputF32, ma_uint32 frameCount)
 {
@@ -72,10 +79,15 @@ void miniaudio_callback(ma_device* device, void* output, const void* input, ma_u
 
 	MA_ASSERT(device->playback.format == ma_format_f32);   /* <-- Important for this example. */
 
-	ma_decoder** sounds_list = (ma_decoder**)device->pUserData;
-	FOREACH(ma_decoder, current_decoder, sounds_list){
-		ma_uint32 frames_read = read_and_mix_pcm_frames_f32(current_decoder, output_f32, frame_count);
+	Audio_data* data = (Audio_data*)device->pUserData;
+	UNTIL(i, data->requests_count){
+		ma_uint32 frames_read = read_and_mix_pcm_frames_f32(data->decoders[data->playback_requests[i]], output_f32, frame_count);
 	}
+
+	// UNTIL(i, data->decoders_count){
+	// 	ma_uint32 frames_read = read_and_mix_pcm_frames_f32(data->decoders[i], output_f32, frame_count);
+	// }
+
 	// for (iDecoder = 0; iDecoder < g_decoderCount; ++iDecoder) {
 	// 	if (!g_pDecodersAtEnd[iDecoder]) {
 	// 		ma_uint32 framesRead = read_and_mix_pcm_frames_f32(&g_pDecoders[iDecoder], output_f32, frame_count);
