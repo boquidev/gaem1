@@ -7,11 +7,6 @@
 
 #include "d3d11_layer.h"
 
-// MINIAUDIO LIBRARY
-#define MINIAUDIO_IMPLEMENTATION
-#include "libraries/miniaudio.h"
-
-#include "miniaudio_layer.h"
 
 // STB LIBRARIES
 //TODO: in the future use this just to convert image formats
@@ -321,7 +316,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	LIST(Dx_mesh, meshes_list) = {0};
 	LIST(Dx11_blend_state*, blend_states_list) = {0};
 	LIST(Depth_stencil, depth_stencils_list) = {0};
-	LIST(ma_decoder, sounds_list) = {0};
 	FOREACH(Asset_request, request, init_data.asset_requests){
 		switch(request->type){
 			case TEX_FROM_FILE_REQUEST:{
@@ -544,18 +538,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 			case SOUND_FROM_FILE_REQUEST:{
-				ma_result ma_error;
-				ma_decoder_config decoder_config;
-				
-				*request->p_uid = LIST_SIZE(sounds_list);
-				ma_decoder* new_decoder; PUSH_BACK(sounds_list, permanent_arena, new_decoder);
-
-				decoder_config = ma_decoder_config_init(ma_format_f32, 2, 48000);
-				
-				char filename [MAX_PATH]={0};
-				copy_mem(request->filename.text, filename, request->filename.length);
-				ma_error = ma_decoder_init_file(filename, &decoder_config, new_decoder);
-				ASSERT(ma_error == MA_SUCCESS);
 			}break;
 
 
@@ -573,58 +555,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				ASSERT(false)
 			break;
 		}
-	}
-	Audio_data audio_data = {0};
-	audio_data.decoders = ARENA_PUSH_STRUCTS(permanent_arena, ma_decoder*, LIST_SIZE(sounds_list));
-	audio_data.decoders_count = LIST_SIZE(sounds_list);
-	ma_decoder* current_decoder = sounds_list[0];
-	for(u32 i=0; i<audio_data.decoders_count; i++, SKIP_ELEM(current_decoder)){
-		audio_data.decoders[i] = current_decoder;
-	}
-	// MINIAUDIO SETUP
-	{
-		//TODO: this
-		ma_context context;
-		ASSERT(ma_context_init(NULL, 0, NULL, &context) == MA_SUCCESS);
-
-		ma_device_info* playback_infos;
-		ma_uint32 playback_count;
-		ma_device_info* capture_infos;
-		ma_uint32 capture_count;
-		ASSERT(ma_context_get_devices(&context, &playback_infos, &playback_count, &capture_infos, &capture_count) == MA_SUCCESS);
-		
-		// Loop over each device info and do something with it. Here we just print the name with their index. You may want
-		// to give the user the opportunity to choose which device they'd prefer.
-		for (ma_uint32 iDevice = 0; iDevice < playback_count; iDevice += 1) {
-			printf("%d - %s\n", iDevice, playback_infos[iDevice].name);
-		}
-		ASSERT(playback_count)
-		u32 chosen_device = 0;
-
-		/* Create only a single device. The decoders will be mixed together in the callback. In this example the data format needs to be the same as the decoders. */
-		ma_device_config sound_device_config = ma_device_config_init(ma_device_type_playback);
-		// sound_device_config.playback.pDeviceID = &pPlaybackInfos[chosen_device].id;
-		sound_device_config.playback.format   = ma_format_f32;
-		sound_device_config.playback.channels = 2;
-		sound_device_config.sampleRate        = 48000;
-		sound_device_config.dataCallback      = miniaudio_callback;
-		sound_device_config.pUserData         = &audio_data;
-
-		ma_device sound_device;
-		ASSERT(ma_device_init(NULL, &sound_device_config, &sound_device) == MA_SUCCESS);
-
-		// ma_event_init(&g_stopEvent);
-		// ma_event_wait(&g_stopEvent);
-		// ma_event_signal(&g_stopEvent);
-		/* 
-			what i understood is that this thread will wait in the ma_event_wait function 
-			until the audio thread(the callback function) sends the signal g_stop_Event
-			with the function ma_event_signal;
-			if the g_stopEvent is not initialized with ma_event_init
-			then ma_event_wait will be ignored
-		*/
-		ASSERT(ma_device_start(&sound_device) == MA_SUCCESS);
-
 	}
 	
 	// CREATING CONSTANT BUFFER
@@ -893,10 +823,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							break;
 
 						}
-						if(vkcode == 'H'){
-							audio_data.playback_requests[audio_data.requests_count] = audio_data.requests_count % 2;
-							audio_data.requests_count ++;
-						}
+						// if(vkcode == 'H')
 						// else if(vkcode == 'D')
 						// 	holding_inputs.d_right = is_down;
 						// else if(vkcode == 'W')
