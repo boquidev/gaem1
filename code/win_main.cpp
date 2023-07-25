@@ -6,7 +6,7 @@
 #include "win_functions.h"
 
 #include "d3d11_layer.h"
-
+#include "wasapi_layer.h"
 
 // STB LIBRARIES
 //TODO: in the future use this just to convert image formats
@@ -226,7 +226,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// GETTING CLIENT SIZES
 	// Int2 global_client_size = win_get_client_sizes(global_main_window);
 	// if(global_client_size.y) 
-	// 	memory.aspect_ratio = (r32)global_client_size.x / (r32)global_client_size.y;
+	// 	memory.aspect_ratio = (f32)global_client_size.x / (f32)global_client_size.y;
 
 	// DIRECTX11
 	// INITIALIZE DIRECT3D
@@ -289,6 +289,214 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		dxgi_adapter->Release();
 		factory->Release();
 	}
+
+
+
+	// INITIALIZE WASAPI AUDIO API
+
+
+	
+	hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	ASSERTHR(hr);
+
+	Wasapi_renderer sound_renderer = {0};
+	{
+		IMMDeviceEnumerator* device_enumerator;
+		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&device_enumerator));
+		ASSERTHR(hr);
+		// device_role possible_values:
+		// eConsole: Games, system notification sounds, and voice commands.
+		// eMultimedia: Music, movies, narration, and live music recording.
+		// eCommunications: Voice communications (talking to another person).
+		ERole device_role = eConsole;
+
+		// data_flow possible_values
+		// eRender: Audio rendering stream. Audio data flows from the application to the audio endpoint device, which renders the stream.
+		// eCapture: Audio capture stream. Audio data flows from the audio endpoint device that captures the stream, to the application.
+		// eAll: Audio rendering or capture stream. Audio data can flow either from the application to the audio endpoint device, or from the audio endpoint device to the application.
+		EDataFlow data_flow = eRender;
+		hr = device_enumerator->GetDefaultAudioEndpoint(data_flow, device_role, &sound_renderer.endpoint);
+		ASSERTHR(hr);
+		device_enumerator->Release();
+	}
+	// TODO: move this next to the thread creation
+
+	sound_renderer.shutdown_event = CreateEventEx(0,0,0, EVENT_MODIFY_STATE | SYNCHRONIZE);
+	ASSERT(sound_renderer.shutdown_event);
+
+	sound_renderer.stream_switch_event = CreateEventEx(0, 0, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
+	ASSERT(sound_renderer.stream_switch_event);
+
+	// CLSCTX_INPROC_SERVER / CLSCTX_LOCAL_SERVER
+	hr = sound_renderer.endpoint->Activate(__uuidof(IAudioClient), CLSCTX_INPROC_SERVER, 0, (void**)&sound_renderer.audio_client);
+	ASSERTHR(hr);
+
+
+	// LoadFormat
+
+
+	hr = sound_renderer.audio_client->GetMixFormat(&sound_renderer.mix_format);
+	ASSERTHR(hr);
+
+	hr = sound_renderer.audio_client->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, sound_renderer.mix_format, 0);
+	if( hr == AUDCLNT_E_UNSUPPORTED_FORMAT){
+		//TODO: it means it's not in f32 format convert to pcm
+		if (sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+		{
+			sound_renderer.mix_format->wFormatTag = WAVE_FORMAT_PCM;
+			sound_renderer.mix_format->wBitsPerSample = 16;
+			sound_renderer.mix_format->nBlockAlign = (sound_renderer.mix_format->wBitsPerSample / 8) * sound_renderer.mix_format->nChannels;
+			sound_renderer.mix_format->nAvgBytesPerSec = sound_renderer.mix_format->nSamplesPerSec*sound_renderer.mix_format->nBlockAlign;
+		}
+		else if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+		{
+			if(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+			{
+            WAVEFORMATEXTENSIBLE *waveFormatExtensible = (WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format;
+            waveFormatExtensible->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+            waveFormatExtensible->Format.wBitsPerSample = 16;
+            waveFormatExtensible->Format.nBlockAlign = (sound_renderer.mix_format->wBitsPerSample / 8) * sound_renderer.mix_format->nChannels;
+            waveFormatExtensible->Format.nAvgBytesPerSec = waveFormatExtensible->Format.nSamplesPerSec*waveFormatExtensible->Format.nBlockAlign;
+            waveFormatExtensible->Samples.wValidBitsPerSample = 16;
+			}else{
+				ASSERTHR(hr);
+			}
+		}else{
+			ASSERTHR(hr);
+		}
+	}else{
+		ASSERTHR(hr);
+	}
+	
+	sound_renderer.frame_size = sound_renderer.mix_format->nBlockAlign;
+
+
+	// CalculateMixFormatType
+
+	if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_PCM || 
+		sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
+		(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat) == KSDATAFORMAT_SUBTYPE_PCM)
+	{
+		
+		ASSERT(sound_renderer.mix_format->wBitsPerSample == 16);
+		sound_renderer.render_sample_type = SAMPLE_TYPE_S16;
+	}
+	else if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT || 
+		sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
+		(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat) == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+	{
+		sound_renderer.render_sample_type = SAMPLE_TYPE_F32;
+	}
+
+
+	// Initialize audio engine
+
+
+	u32 target_latency = 10;
+	u32 target_frequency = 440;
+	u32 target_duration_in_sec = 5;
+	u32 periods_per_buffer = 4;
+	
+
+	sound_renderer.engine_latency_ms = target_latency;
+
+	REFERENCE_TIME buffer_duration = sound_renderer.engine_latency_ms*10000*periods_per_buffer;
+	REFERENCE_TIME periodicity = sound_renderer.engine_latency_ms*10000;
+
+	hr = sound_renderer.audio_client->Initialize(
+		AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_NOPERSIST,
+		buffer_duration, periodicity, sound_renderer.mix_format, 0 
+	);
+	ASSERTHR(hr);
+
+	hr = sound_renderer.audio_client->GetBufferSize(&sound_renderer.client_buffer_size);
+	ASSERTHR(hr);
+
+	hr = sound_renderer.audio_client->GetService(IID_PPV_ARGS(&sound_renderer.render_client));
+	ASSERTHR(hr);
+
+	u32 render_buffer_size_in_bytes = (sound_renderer.client_buffer_size / periods_per_buffer) * sound_renderer.frame_size;
+	size_t render_data_length = (
+		sound_renderer.mix_format->nSamplesPerSec * target_duration_in_sec * sound_renderer.frame_size) + 
+		render_buffer_size_in_bytes -1;
+	size_t render_buffer_count = render_data_length / render_buffer_size_in_bytes;
+
+	u32 channels_count = sound_renderer.mix_format->nChannels;
+	
+	sound_renderer.samples_buffer.data = ARENA_PUSH_STRUCTS(permanent_arena, f32, 44100);
+	Samples_stream samples = {0}; 
+	samples.count = 44100* channels_count * target_duration_in_sec ;
+	samples.data = ARENA_PUSH_STRUCTS(permanent_arena, f32, samples.count);
+	
+	// GENERATE SINE WAVE
+	//TODO: maybe use r64 ???
+	f32 sample_increment = target_frequency * PI32*2 / sound_renderer.mix_format->nSamplesPerSec;
+	f32 t = 0;
+	for(u32 i = 0; i<samples.count; i += channels_count){
+		f32 sin_value = SINF(t);
+		UNTIL(channel_i, channels_count){
+			samples.data[i + channel_i] = sin_value;
+		}
+		t += sample_increment;
+	}
+	
+
+	// pre-rolling the first buffer's data into the pipeline. 
+	// so that the audio engine doesn't glitch on startup
+
+	{
+		u8* p_data;
+
+		
+		DWORD buffer_length_in_frames = render_buffer_size_in_bytes / sound_renderer.frame_size;
+
+		hr = sound_renderer.render_client->GetBuffer(buffer_length_in_frames, &p_data);
+		ASSERTHR(hr);
+		
+		s16* buffer_data = (s16*)p_data;
+		UNTIL(i, buffer_length_in_frames){
+			UNTIL(channel_i, channels_count){
+				buffer_data[i*channels_count + channel_i] = (s16)(samples.data[samples.pos]*MAX_S16);
+				samples.pos = (samples.pos+1)%samples.count;
+			}
+		}
+
+		hr = sound_renderer.render_client->ReleaseBuffer(buffer_length_in_frames, 0);
+		ASSERTHR(hr);
+	}
+	if(0){// TODO: for when i don't have anything to play at the beginning
+		u8* p_data;
+		hr = sound_renderer.render_client->GetBuffer(sound_renderer.client_buffer_size, &p_data);
+		ASSERTHR(hr);
+
+		hr = sound_renderer.render_client->ReleaseBuffer(sound_renderer.client_buffer_size, AUDCLNT_BUFFERFLAGS_SILENT);
+		ASSERTHR(hr);
+	}
+	
+	
+	//  Now create the thread which is going to drive the renderer.
+
+
+	sound_renderer.render_thread = CreateThread(0, 0, wasapi_render_thread, &sound_renderer, 0, 0);
+
+	ASSERT(sound_renderer.render_thread);
+
+	//  We're ready to go, start rendering!
+	hr = sound_renderer.audio_client->Start();
+	ASSERTHR(hr);
+
+
+
+
+
+
+	#endif
+
+
+
+	
+
+
 	
 	// LOADING APP DLL
 	App_dll app = {0};
@@ -485,10 +693,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				UNTIL(i, CHARS_COUNT){
 					ASSERT(rects[i].was_packed);
 					if(rects[i].was_packed){
-						temp_charinfos[i].texrect.xf = (r32)rects[i].x / atlas_size.x;
-						temp_charinfos[i].texrect.yf = (r32)rects[i].y / atlas_size.y;
-						temp_charinfos[i].texrect.wf = (r32)temp_charinfos[i].w / atlas_size.x;
-						temp_charinfos[i].texrect.hf = (r32)temp_charinfos[i].h / atlas_size.y;
+						temp_charinfos[i].texrect.xf = (f32)rects[i].x / atlas_size.x;
+						temp_charinfos[i].texrect.yf = (f32)rects[i].y / atlas_size.y;
+						temp_charinfos[i].texrect.wf = (f32)temp_charinfos[i].w / atlas_size.x;
+						temp_charinfos[i].texrect.hf = (f32)temp_charinfos[i].h / atlas_size.y;
 						
 						memory.font_tex_infos_uids[i] = LIST_SIZE(memory.tex_infos);
 						Tex_info* charinfo; PUSH_BACK(memory.tex_infos, permanent_arena, charinfo);
@@ -538,6 +746,20 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 			case SOUND_FROM_FILE_REQUEST:{
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 			}break;
 
 
@@ -617,8 +839,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	int monitor_refresh_hz = 60;
 	memory.delta_time = 1.0f/monitor_refresh_hz;
 	
-	memory.update_hz = (r32)monitor_refresh_hz;
-	r32 target_seconds_per_frame = 1.0f / memory.update_hz;
+	memory.update_hz = (f32)monitor_refresh_hz;
+	f32 target_seconds_per_frame = 1.0f / memory.update_hz;
 
 #if DEBUGMODE
 	u64 last_cycles_count = __rdtsc();
@@ -632,7 +854,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	User_input holding_inputs = {0};
 	memory.holding_inputs = &holding_inputs;
 
-	r32 fov = 1;
+	f32 fov = 1;
 	memory.fov = 32;
 	b32 perspective_on = 0;
 	memory.lock_mouse = false;
@@ -679,7 +901,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				global_client_size.x < 4000 && global_client_size.y < 4000
 			){
 				ASSERT(global_client_size.x < 4000 && global_client_size.y < 4000);
-				// memory.aspect_ratio = (r32)global_client_size.x / (r32) global_client_size.y;
+				// memory.aspect_ratio = (f32)global_client_size.x / (f32) global_client_size.y;
 				memory.aspect_ratio = 16.0f/9;
 				hr = dx->swap_chain->ResizeBuffers(0, global_client_size.x, global_client_size.y, DXGI_FORMAT_UNKNOWN, 0);
 				ASSERTHR(hr);
@@ -720,15 +942,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			if(memory.lock_mouse)
 			{
 				SetCursorPos(center_point.x, center_point.y);
-				r32 px = (r32)(mousep.x-client_center_pos.x)/global_client_size.x;
-				r32 py = -(r32)(mousep.y-client_center_pos.y)/global_client_size.y;
+				f32 px = (f32)(mousep.x-client_center_pos.x)/global_client_size.x;
+				f32 py = -(f32)(mousep.y-client_center_pos.y)/global_client_size.y;
 				input.cursor_speed.x = px - input.cursor_pos.x;
 				input.cursor_speed.y = py - input.cursor_pos.y;
 				input.cursor_pos = {0,0};
 			}else
 				input.cursor_pos = {
-					(r32)(mousep.x - client_center_pos.x)/global_client_size.x, 
-					-(r32)(mousep.y - client_center_pos.y)/global_client_size.y};
+					(f32)(mousep.x - client_center_pos.x)/global_client_size.x, 
+					-(f32)(mousep.y - client_center_pos.y)/global_client_size.y};
 				
 		}else{
 			holding_inputs = {0};
@@ -934,7 +1156,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				XMMatrixRotationY(-memory.camera_rotation.y)*
 				XMMatrixRotationX(-memory.camera_rotation.x) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));
-			V4 camera_pos = {memory.camera_pos.x, memory.camera_pos.y, memory.camera_pos.z, (r32)perspective_on};	
+			V4 camera_pos = {memory.camera_pos.x, memory.camera_pos.y, memory.camera_pos.z, (f32)perspective_on};	
 			dx11_modify_resource(dx, camera_pos_buffer.buffer, &camera_pos, sizeof(V4));
 			
 			// WORLD PROJECTION
@@ -981,9 +1203,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					// object->scale.x *= ((2.0f*tex_info.w) / global_client_size.x);
 					// object->scale.y *= (2.0f*tex_info.h) / global_client_size.y;
 
-					r32 half_pixel_offset = 0.5f;
-					// r32 xoffset = (tex_info.xoffset+half_pixel_offset)/global_client_size.x;
-					// r32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/global_client_size.y;
+					f32 half_pixel_offset = 0.5f;
+					// f32 xoffset = (tex_info.xoffset+half_pixel_offset)/global_client_size.x;
+					// f32 yoffset = (2*(tex_info.yoffset)+half_pixel_offset)/global_client_size.y;
 					request->object3d.pos.x -= half_pixel_offset/global_client_size.x;
 					request->object3d.pos.y += half_pixel_offset/global_client_size.y;		
 
@@ -1014,9 +1236,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					
 					// Tex_info tex_info = memory.font_charinfo[object->tex_uid.rect_uid];
 
-					// r32 half_pixel_offset = 0.25f;
-					// r32 xoffset = object->scale.x*(tex_info.xoffset+half_pixel_offset)/16;
-					// r32 yoffset = object->scale.y*(2*(tex_info.yoffset)+half_pixel_offset)/9;
+					// f32 half_pixel_offset = 0.25f;
+					// f32 xoffset = object->scale.x*(tex_info.xoffset+half_pixel_offset)/16;
+					// f32 yoffset = object->scale.y*(2*(tex_info.yoffset)+half_pixel_offset)/9;
 					
 					// object->scale.x *= ((2.0f*tex_info.w) / 16);
 					// object->scale.y *= (2.0f*tex_info.h) / 9;
@@ -1072,7 +1294,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			LARGE_INTEGER current_wall_clock;
 			QueryPerformanceCounter(&current_wall_clock);
 
-			r32 frame_seconds_elapsed = (r32)(current_wall_clock.QuadPart - last_counter.QuadPart) / (r32)performance_counter_frequency;
+			f32 frame_seconds_elapsed = (f32)(current_wall_clock.QuadPart - last_counter.QuadPart) / (f32)performance_counter_frequency;
 
 			DWORD sleep_ms = 0;
 			if(frame_seconds_elapsed < target_seconds_per_frame)
@@ -1086,7 +1308,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				while(frame_seconds_elapsed < target_seconds_per_frame)
 				{
 					QueryPerformanceCounter(&current_wall_clock); 
-					frame_seconds_elapsed = (r32)(current_wall_clock.QuadPart - last_counter.QuadPart) / (r32)performance_counter_frequency;
+					frame_seconds_elapsed = (f32)(current_wall_clock.QuadPart - last_counter.QuadPart) / (f32)performance_counter_frequency;
 				}
 			}else{
 				//TODO: Missed Framerate
@@ -1108,12 +1330,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			LARGE_INTEGER current_wall_clock;
 			QueryPerformanceCounter(&current_wall_clock);
 
-			r32 ms_per_frame = 1000.0f * (r32)(current_wall_clock.QuadPart - last_counter.QuadPart) / (r32)performance_counter_frequency;
+			f32 ms_per_frame = 1000.0f * (f32)(current_wall_clock.QuadPart - last_counter.QuadPart) / (f32)performance_counter_frequency;
 			s64 end_cycle_count = __rdtsc(); // clock cycles count
 
 
 			u64 cycles_elapsed = end_cycle_count - last_cycles_count;
-			r32 FPS = (1.0f / (ms_per_frame/1000.0f));
+			f32 FPS = (1.0f / (ms_per_frame/1000.0f));
 			s32 MegaCyclesPF = (s32)((r64)cycles_elapsed / (r64)(1000*1000));
 
 			char text_buffer[256];

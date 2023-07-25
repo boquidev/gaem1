@@ -61,7 +61,7 @@ struct Entity{
 	UNIT_TYPE unit_type;
 	u32 state;
 
-	r32 lifetime;
+	f32 lifetime;
 
 	s32 max_health;
 	s32 health;
@@ -72,14 +72,14 @@ struct Entity{
 	V3 looking_at;
 	V3 target_pos;
 	
-	r32 shooting_cooldown;
-	r32 shooting_cd_time_left;
+	f32 shooting_cooldown;
+	f32 shooting_cd_time_left;
 
-	r32 speed;
+	f32 speed;
 
 	Entity_handle parent_handle;
 	u32 team_uid;
-	r32 current_scale; //TODO: this is becoming troublesome
+	f32 current_scale; //TODO: this is becoming troublesome
 
 	union{
 		Object3d object3d;
@@ -242,8 +242,8 @@ struct App_memory
 	Blend_states blend_states;
 	Depth_stencils depth_stencils;
 
-	r32 fov;
-	r32 aspect_ratio;
+	f32 fov;
+	f32 aspect_ratio;
 	V3 camera_pos;
 	V3 camera_rotation;
 
@@ -257,13 +257,13 @@ struct App_memory
 	u32 clicked_uid;
 	u32 selected_uid;
 
-	r32 update_hz;
-	r32 delta_time;
+	f32 update_hz;
+	f32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
 
 	b32 is_paused;
 	
-	r32 spawn_timer; //TODO: this is not being used anymore
+	f32 spawn_timer; //TODO: this is not being used anymore
 
 	u32 player_uid;
 
@@ -320,7 +320,7 @@ normalize_texture_size(Int2 client_size, Int2 tex_size){
 internal void
 printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_list),String s, V3 pos, Color color){
 	Renderer_request* request = 0;
-	r32 xpos = pos.x;
+	f32 xpos = pos.x;
 	UNTIL(c, s.length){
 		char current_char = s.text[c];
 		char char_index = CHAR_TO_INDEX(current_char);
@@ -351,9 +351,9 @@ printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_
 
 internal void
 printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_list),String text, V2 pos, Color color){
-	r32 line_height = 18;
+	f32 line_height = 18;
 	Renderer_request* request = 0;
-	r32 xpos = pos.x;
+	f32 xpos = pos.x;
 	UNTIL(c, text.length){
 		char current_char = text.text[c];
 		char char_index = CHAR_TO_INDEX(current_char);
@@ -372,7 +372,7 @@ printo_screen(App_memory* memory,Int2 screen_size, LIST(Renderer_request,render_
 			V2 normalized_scale = normalize_texture_size(screen_size, {tex_info->w, tex_info->h});
 			object->scale = {normalized_scale.x, normalized_scale.y, 1};
 			
-			object->pos.x = xpos+((r32)(tex_info->xoffset)/screen_size.x);
+			object->pos.x = xpos+((f32)(tex_info->xoffset)/screen_size.x);
 			object->pos.y = pos.y-((2.0f*(line_height+tex_info->yoffset))/screen_size.y);
 
 			object->rotation = {0,0,0};

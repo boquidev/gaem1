@@ -10,33 +10,33 @@
 #define ATAN2F(y,x) atan2f(y,x)
 
 internal u32
-round_to_ui32(r32 n)
+round_to_ui32(f32 n)
 {
     return (u32)(n+0.5f);
 }
 internal u8
-round_to_ui8(r32 n)
+round_to_ui8(f32 n)
 {
     return (u8)(n+0.5f);
 }
 internal s32
-round_to_i32(r32 n)
+round_to_i32(f32 n)
 {
     return(s32)(n+0.5f);
 }
 
 internal s32 math_max(s32 n1, s32 n2){return ((n1 < n2) ? n2 :n1);}
 internal u32 math_max(u32 n1, u32 n2){return ((n1 < n2) ? n2 :n1);}
-internal r32 math_max(r32 n1, r32 n2){return ((n1 < n2) ? n2 :n1);}
+internal f32 math_max(f32 n1, f32 n2){return ((n1 < n2) ? n2 :n1);}
 
 internal s32 math_min(s32 n1, s32 n2){return ((n1 < n2) ? n1 : n2);}
 internal u32 math_min(u32 n1, u32 n2){return ((n1 < n2) ? n1 : n2);}
-internal r32 math_min(r32 n1, r32 n2){return ((n1 < n2) ? n1 : n2);}
+internal f32 math_min(f32 n1, f32 n2){return ((n1 < n2) ? n1 : n2);}
 
-internal r32
-r32_pow(r32 n, u32 e)
+internal f32
+r32_pow(f32 n, u32 e)
 {
-    r32 p = 1;
+    f32 p = 1;
     while(e>0)
     {
         p = p*n;
@@ -58,15 +58,15 @@ u32_pow(u32 base, u32 exponent)
     return result;
 }
 
-internal r32 math_abs(r32 n) {return ((n > 0) ? n : -1*n);} 
+internal f32 math_abs(f32 n) {return ((n > 0) ? n : -1*n);} 
 internal s32 math_abs(s32 n) {return ((n > 0) ? n : -1*n);}
 
-internal r32
-math_sqrt(r32 n)
+internal f32
+math_sqrt(f32 n)
 {
     ASSERT(n >= 0);
-    r32 r = n/2;
-    r32 precision = n/1000;
+    f32 r = n/2;
+    f32 precision = n/1000;
     while(ABS(n-(r*r)) > precision)
     {
         r = (r+(n/r))/2;
@@ -78,13 +78,13 @@ union V2
 {
     struct
     {
-        r32 x;
-        r32 y;
+        f32 x;
+        f32 y;
     };
     struct
     {
-        r32 u;
-        r32 v;
+        f32 u;
+        f32 v;
     };
 };
 struct Int2
@@ -97,20 +97,20 @@ operator -(Int2 i1, Int2 i2){
     return {i1.x-i2.x, i1.y-i2.y};
 }
 
-internal r32 magnitude(r32 x, r32 y){return SQRT(x*x + y*y);}
-internal r32 v2_magnitude(V2 v){return magnitude(v.x, v.y);}
-internal r32 magnitude(Int2 v){return magnitude((r32)v.x, (r32)v.y);}
+internal f32 magnitude(f32 x, f32 y){return SQRT(x*x + y*y);}
+internal f32 v2_magnitude(V2 v){return magnitude(v.x, v.y);}
+internal f32 magnitude(Int2 v){return magnitude((f32)v.x, (f32)v.y);}
 
-internal V2 normalize(r32 x, r32 y)
+internal V2 normalize(f32 x, f32 y)
 {
-    r32 vlength = magnitude(x,y);
+    f32 vlength = magnitude(x,y);
     if(vlength) return {x/vlength, y/vlength};
     else return {0,0};
 }
 internal V2 normalize(V2 v){return normalize(v.x, v.y);}
-internal V2 normalize(Int2 v){return normalize((r32)v.x, (r32)v.y);}
+internal V2 normalize(Int2 v){return normalize((f32)v.x, (f32)v.y);}
 
-internal r32
+internal f32
 v2_dot(V2 v1, V2 v2){
     return (v1.x*v2.x) + (v1.y*v2.y);
 }
@@ -125,19 +125,19 @@ struct Int3
 union V3
 {
     struct {
-        r32 x;
-        r32 y;
-        r32 z;
+        f32 x;
+        f32 y;
+        f32 z;
     };
     struct {
-        r32 r;
-        r32 g;
-        r32 b;
+        f32 r;
+        f32 g;
+        f32 b;
     };
     Int3 i;
     V2 v2;
 };
-internal r32
+internal f32
 v3_dot(V3 v1, V3 v2){
     return (v1.x*v2.x) + (v1.y*v2.y) + (v1.z*v2.z);
 }
@@ -169,29 +169,29 @@ operator -(V3 v1, V3 v2){
     return v3_difference(v1, v2);
 }
 internal V3
-operator *(r32 e, V3 v){
+operator *(f32 e, V3 v){
     return {e * v.x, e * v.y, e*v.z};
 }
 internal V3
-operator /(V3 v, r32 x){
+operator /(V3 v, f32 x){
     return {v.x / x, v.y / x, v.z /x};
 }
 
-internal r32 
-v3_magnitude(r32 x, r32 y, r32 z){return SQRT(x*x + y*y + z*z);}
-internal r32 
+internal f32 
+v3_magnitude(f32 x, f32 y, f32 z){return SQRT(x*x + y*y + z*z);}
+internal f32 
 v3_magnitude(V3 v){return v3_magnitude(v.x, v.y, v.z);}
 
 internal V3 
-v3_normalize_with_magnitude(r32 x, r32 y, r32 z, r32 magnitude){
+v3_normalize_with_magnitude(f32 x, f32 y, f32 z, f32 magnitude){
     if(magnitude) return {x/magnitude, y/magnitude, z/magnitude};
     else return {0,0,0};
 }
 internal V3
-v3_normalize_with_magnitude(V3 v, r32 magnitude){return v3_normalize_with_magnitude(v.x,v.y,v.z,magnitude);}
+v3_normalize_with_magnitude(V3 v, f32 magnitude){return v3_normalize_with_magnitude(v.x,v.y,v.z,magnitude);}
 internal V3
-v3_normalize(r32 x, r32 y, r32 z){
-    r32 vlength = v3_magnitude(x,y,z);
+v3_normalize(f32 x, f32 y, f32 z){
+    f32 vlength = v3_magnitude(x,y,z);
     return v3_normalize_with_magnitude(x,y,z,vlength);
 }
 internal V3 v3_normalize(V3 v){return v3_normalize(v.x, v.y, v.z);}
@@ -207,10 +207,10 @@ struct Int4
 union V4
 {   
     struct{
-        r32 x;
-        r32 y;
-        r32 z;
-        r32 w;
+        f32 x;
+        f32 y;
+        f32 z;
+        f32 w;
     };
     Int4 i;
     V2 v2;
@@ -218,7 +218,7 @@ union V4
     
 };
 
-internal r32
+internal f32
 v2_angle(V2 v)
 {
     if(v.x < 0)
@@ -256,13 +256,13 @@ operator -(V2 v1, V2 v2)
 }
 
 internal V2
-operator /(V2 v1, r32 a)
+operator /(V2 v1, f32 a)
 {
     return {v1.x/a, v1.y/a};
 }
 //Escalar multiplication
 internal V2
-operator *(r32 e, V2 v)
+operator *(f32 e, V2 v)
 {
     return {e * v.x, e * v.y};
 }
@@ -272,7 +272,7 @@ operator *(u32 e, V2 v)
     return {e * v.x, e * v.y};
 }
 internal V2
-operator *(V2 v, r32 e)
+operator *(V2 v, f32 e)
 {
     return {e * v.x, e * v.y};
 }
@@ -305,10 +305,10 @@ union Rect
         s32 h;
     };
     struct{
-        r32 xf;
-        r32 yf;
-        r32 wf;
-        r32 hf;
+        f32 xf;
+        f32 yf;
+        f32 wf;
+        f32 hf;
     };
 };
 
@@ -320,75 +320,75 @@ rect(V2 pos, V2 size)
 internal Rect
 rect(u32 px, u32 py, u32 sx, u32 sy)
 {
-    return {(r32)px, (r32)py, (r32)sx, (r32)sy};
+    return {(f32)px, (f32)py, (f32)sx, (f32)sy};
 }
 
-internal r32
-snap_to_grid(r32 value, r32 delta)
+internal f32
+snap_to_grid(f32 value, f32 delta)
 {
-    r32 difference = value - (r32)((s32)(value/delta));
+    f32 difference = value - (f32)((s32)(value/delta));
     return value - difference;
 }
 
 internal V3
 line_intersect_y0(V3 line_0, V3 line_d){
-    r32 t = (-line_0.y / line_d.y);
-    r32 x = line_0.x + (t*line_d.x);
-    r32 z = line_0.z + (t*line_d.z);
+    f32 t = (-line_0.y / line_d.y);
+    f32 x = line_0.x + (t*line_d.x);
+    f32 z = line_0.z + (t*line_d.z);
     return {x,0,z};
 }
 
-bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, r32* closest_t) {
-    r32 a = r32_pow(line_v.x, 2) + r32_pow(line_v.y, 2) + r32_pow(line_v.z, 2);
-    r32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
+bool line_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, f32 sphere_radius, f32* closest_t) {
+    f32 a = r32_pow(line_v.x, 2) + r32_pow(line_v.y, 2) + r32_pow(line_v.z, 2);
+    f32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
                     line_v.y * (line_0.y - sphere_center.y) +
                     line_v.z * (line_0.z - sphere_center.z));
-    r32 c = r32_pow(line_0.x - sphere_center.x, 2) +
+    f32 c = r32_pow(line_0.x - sphere_center.x, 2) +
                r32_pow(line_0.y - sphere_center.y, 2) +
                r32_pow(line_0.z - sphere_center.z, 2) -
                r32_pow(sphere_radius, 2);
 
-    r32 discriminant = r32_pow(b, 2) - 4 * a * c;
+    f32 discriminant = r32_pow(b, 2) - 4 * a * c;
 
     b32 result = false;
     if (0 <= discriminant)
     {
         result = true;
 
-        r32 discriminant_sqrt = SQRT(discriminant);
+        f32 discriminant_sqrt = SQRT(discriminant);
 
-        r32 t1 = (-b + discriminant_sqrt) / (2 * a);
-        r32 t2 = (-b - discriminant_sqrt) / (2 * a);
+        f32 t1 = (-b + discriminant_sqrt) / (2 * a);
+        f32 t2 = (-b - discriminant_sqrt) / (2 * a);
 
         *closest_t = MIN(t1,t2);
     }
     return result;
 }
 
-bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3* closest_point) {
-    r32 a = r32_pow(line_v.x, 2) + r32_pow(line_v.y, 2) + r32_pow(line_v.z, 2);
-    r32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
+bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, f32 sphere_radius, V3* closest_point) {
+    f32 a = r32_pow(line_v.x, 2) + r32_pow(line_v.y, 2) + r32_pow(line_v.z, 2);
+    f32 b = 2 * (line_v.x * (line_0.x - sphere_center.x) +
                     line_v.y * (line_0.y - sphere_center.y) +
                     line_v.z * (line_0.z - sphere_center.z));
-    r32 c = r32_pow(line_0.x - sphere_center.x, 2) +
+    f32 c = r32_pow(line_0.x - sphere_center.x, 2) +
                r32_pow(line_0.y - sphere_center.y, 2) +
                r32_pow(line_0.z - sphere_center.z, 2) -
                r32_pow(sphere_radius, 2);
 
-    r32 discriminant = r32_pow(b, 2) - 4 * a * c;
+    f32 discriminant = r32_pow(b, 2) - 4 * a * c;
 
     b32 result = false;
     if (0 <= discriminant)
     {
-        r32 discriminant_sqrt = SQRT(discriminant);
+        f32 discriminant_sqrt = SQRT(discriminant);
 
-        r32 t1 = (-b + discriminant_sqrt) / (2 * a);
-        r32 t2 = (-b - discriminant_sqrt) / (2 * a);
+        f32 t1 = (-b + discriminant_sqrt) / (2 * a);
+        f32 t2 = (-b - discriminant_sqrt) / (2 * a);
 
         if( t1 > 0 && t2 > 0)
         {
             result = true;
-            r32 t = MIN(t1,t2);
+            f32 t = MIN(t1,t2);
             *closest_point = {
                 line_0.x + t*line_v.x,
                 line_0.y + t*line_v.y,
@@ -403,7 +403,7 @@ bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, r32 sphere_radius, V3
     the closest point of the box to the center of the sphere
     Check if the magnitude is less than or equal to the sphere radius */
 internal V3
-sphere_vs_box(V3 sc, r32 sr, V3 bmin, V3 bmax){
+sphere_vs_box(V3 sc, f32 sr, V3 bmin, V3 bmax){
     // Calculate the closest point on the box to the sphere
     V3 closest_point;
     closest_point.x = MAX(bmin.x, MIN(sc.x, bmax.x));
@@ -416,17 +416,17 @@ sphere_vs_box(V3 sc, r32 sr, V3 bmin, V3 bmax){
 }
 
 // return value = overlap, if overlap < 0 then they don't overlap
-internal r32 
-sphere_vs_sphere(V3 c1,r32 r1, V3 c2, r32 r2){
+internal f32 
+sphere_vs_sphere(V3 c1,f32 r1, V3 c2, f32 r2){
     return ((r1+r2) - v3_magnitude(c1-c2));
 }
 
 // Function to rotate a vector using a rotation matrix
 internal V3 
-v3_rotate_x(V3 vector, r32 angle) 
+v3_rotate_x(V3 vector, f32 angle) 
 {
-    r32 cos_angle = COSF(angle);
-    r32 sin_angle = SINF(angle);
+    f32 cos_angle = COSF(angle);
+    f32 sin_angle = SINF(angle);
     
     V3 result = { 
         vector.x,
@@ -438,10 +438,10 @@ v3_rotate_x(V3 vector, r32 angle)
     
     
 internal V3
-v3_rotate_y(V3 vector, r32 angle)
+v3_rotate_y(V3 vector, f32 angle)
 {
-    r32 cos_angle = COSF(angle);
-    r32 sin_angle = SINF(angle);
+    f32 cos_angle = COSF(angle);
+    f32 sin_angle = SINF(angle);
     
     V3 result = { 
         vector.x * cos_angle + vector.z * sin_angle,
@@ -452,10 +452,10 @@ v3_rotate_y(V3 vector, r32 angle)
 }
 
 internal V3
-v3_rotate_z(V3 vector, r32 angle)
+v3_rotate_z(V3 vector, f32 angle)
 {
-    r32 cos_angle = COSF(angle);
-    r32 sin_angle = SINF(angle);
+    f32 cos_angle = COSF(angle);
+    f32 sin_angle = SINF(angle);
     
     V3 result = { 
         vector.x * cos_angle - vector.y * sin_angle,

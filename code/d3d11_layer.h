@@ -433,10 +433,10 @@ internal void
 dx11_set_viewport(D3D* dx, s32 posx, s32 posy, u32 width, u32 height)
 {
 	Dx11_viewport vp = {0};
-	vp.TopLeftX = (r32)posx;
-	vp.TopLeftY = (r32)posy;
-	vp.Width = (r32)width;
-	vp.Height = (r32)height;
+	vp.TopLeftX = (f32)posx;
+	vp.TopLeftY = (f32)posy;
+	vp.Width = (f32)width;
+	vp.Height = (f32)height;
 	vp.MinDepth = 0;
 	vp.MaxDepth = 1;
 	dx->viewport = vp;

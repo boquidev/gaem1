@@ -37,12 +37,14 @@ compare_mem(void* p1, void* p2, u32 size)
 	return true;
 }
 
+
 // MEMORY ARENAS YEAH
 struct Memory_arena{
 	u8* data;
 	u32 used;
 	u32 size;
 };
+typedef Memory_arena Data_stream;
 
 internal u8*
 arena_push_size(Memory_arena* arena, u32 size){
@@ -81,11 +83,11 @@ arena_push_data(Memory_arena* arena, void* data, u32 size){
 
 #include "string.h"
 
-struct File_data
-{
+struct Buffer{
 	void* data;
 	u32 size;
 };
+typedef Buffer File_data;
 
 
 // Image / Texture / Screen / RectPixels
@@ -117,6 +119,8 @@ find_bigger_exponent_of_2(u32 target_value){
 	for( type* node = list[0],*i##__LINE__=0; \
 	(*((u32*)&i##__LINE__))<LIST_SIZE(list); \
 	(*((u32*)&i##__LINE__))++, SKIP_ELEM(node))
+
+#define LIST_POP_FRONT(l) l[0]; *(&(void*)l[0]) = *(void**)(l[0]+1); *((u32*)&(l[2])) -= 1
 
 #define PUSH_BACK(l, arena, out){\
 	if(!l[0]){\
@@ -150,15 +154,15 @@ struct Tex_info{
 union Color
 {
 	struct{
-		r32 r;
-		r32 g;
-		r32 b;
-		r32 a;
+		f32 r;
+		f32 g;
+		f32 b;
+		f32 a;
 	};
 	struct RGB_accessor{
-		r32 r;
-		r32 g;
-		r32 b;
+		f32 r;
+		f32 g;
+		f32 b;
 	} rgb;
 };
 

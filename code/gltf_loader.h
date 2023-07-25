@@ -280,9 +280,9 @@ gltf_primitives_to_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitiv
         // I WON'T USE VERTEX COLORING
         // if(colors)
         // {
-        //     result.vertices[i].color.r = colors[i].r / (r32)0xffff;
-        //     result.vertices[i].color.g = colors[i].g / (r32)0xffff;
-        //     result.vertices[i].color.b = colors[i].b / (r32)0xffff;
+        //     result.vertices[i].color.r = colors[i].r / (f32)0xffff;
+        //     result.vertices[i].color.g = colors[i].g / (f32)0xffff;
+        //     result.vertices[i].color.b = colors[i].b / (f32)0xffff;
         // }else{
         //     result.vertices[i].color = {1.0f, 1.0f, 1.0f};
         // }

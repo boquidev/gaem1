@@ -60,22 +60,22 @@ void update(App_memory* memory){
 	User_input* holding_inputs = memory->holding_inputs;
 	Entity* entities = memory->entities;
 	u32* generations = memory->entity_generations;
-	r32 delta_time = memory->delta_time;
+	f32 delta_time = memory->delta_time;
 
 	//TODO: this
 	if(input->reset == 1)
 		memory->is_initialized = false;
 
-	r32 camera_speed = 1.0f;
-	r32 sensitivity = 2.0f;
+	f32 camera_speed = 1.0f;
+	f32 sensitivity = 2.0f;
 
-	memory->camera_rotation.y += sensitivity*(r32)input->cursor_speed.x;
-	memory->camera_rotation.x += -sensitivity*(r32)input->cursor_speed.y;
+	memory->camera_rotation.y += sensitivity*(f32)input->cursor_speed.x;
+	memory->camera_rotation.x += -sensitivity*(f32)input->cursor_speed.y;
 	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);	
 
 	memory->camera_pos = v3_rotate_y(v3_rotate_x({0,0,-32}, memory->camera_rotation.x), memory->camera_rotation.y);
 
-	V2 input_vector = {(r32)(holding_inputs->d_right - holding_inputs->d_left),(r32)(holding_inputs->d_up - holding_inputs->d_down)};
+	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
 	input_vector = normalize(input_vector);
 	{
 		// MOVE CAMERA IN THE DIRECTION I AM LOOKING
@@ -157,7 +157,7 @@ void update(App_memory* memory){
 
 	V3 cursor_world_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
 
-	r32 closest_t = {0};
+	f32 closest_t = {0};
 	b32 first_intersection = false;
 	// CURSOR RAYCASTING
 	UNTIL(i, MAX_ENTITIES){
@@ -168,7 +168,7 @@ void update(App_memory* memory){
 			
 			entities[i].color = {0.5f,0.5f,0.5f,1};
 
-			r32 intersected_t = 0;
+			f32 intersected_t = 0;
 			if(line_vs_sphere(cursor_world_pos, z_direction, 
 				entities[i].pos, entities[i].scale.x, 
 				&intersected_t)
@@ -366,7 +366,7 @@ void update(App_memory* memory){
 							// spawn entity
 							u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 							V3 target_distance = entity->target_pos - entity->pos;
-							r32 target_distance_magnitude = v3_magnitude(target_distance);
+							f32 target_distance_magnitude = v3_magnitude(target_distance);
 							V3 spawn_pos;
 							if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
 								spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
@@ -412,7 +412,7 @@ void update(App_memory* memory){
 
 							// spawn 2 entities
 							V3 target_distance = entity->target_pos - entity->pos;
-							r32 target_distance_magnitude = v3_magnitude(target_distance);
+							f32 target_distance_magnitude = v3_magnitude(target_distance);
 							V3 target_direction = v3_normalize(target_distance);
 
 							V3 spawn_direction = MIN(MAX_SPAWN_DISTANCE, target_distance_magnitude) * (target_direction);
@@ -564,7 +564,7 @@ void update(App_memory* memory){
 				} else if( entity->unit_type == UNIT_SPAWNER){
 					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 					V3 target_distance = entity->target_pos - entity->pos;
-					r32 target_distance_magnitude = v3_magnitude(target_distance);
+					f32 target_distance_magnitude = v3_magnitude(target_distance);
 					V3 spawn_pos;
 					if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
 						spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
@@ -601,11 +601,11 @@ void update(App_memory* memory){
 				V3 move_distance = (entity->target_move_pos - entity->pos);
 				// V3 accel = entity->speed*(move_v - (0.4f*entity->velocity));
 
-				// r32 temp_4log10_speed = 0.025f;
-				// r32 temp_4log10_speed = 0.1f;
+				// f32 temp_4log10_speed = 0.025f;
+				// f32 temp_4log10_speed = 0.1f;
 				// V3 accel = ((entity->speed)*move_distance) - ((entity->speed*temp_4log10_speed)*entity->velocity);
-				// r32 vel_magnitude = v3_magnitude(entity->velocity);
-				// r32 new_magnitude = ((1-(vel_magnitude/500)));
+				// f32 vel_magnitude = v3_magnitude(entity->velocity);
+				// f32 new_magnitude = ((1-(vel_magnitude/500)));
 				// V3 v_n = {
 				// 	entity->velocity.x*(1-(entity->velocity.x/10000)),
 				// 	entity->velocity.y*(1-(entity->velocity.y/10000)),
@@ -624,14 +624,14 @@ void update(App_memory* memory){
 				//LERPING TARGET POS
 				entity->looking_at = entity->looking_at + (10*delta_time * (entity->target_pos - entity->looking_at));
 				V3 target_direction = entity->looking_at - entity->pos;
-				r32 target_rotation = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
+				f32 target_rotation = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
 				entity->rotation.y = target_rotation;
 
 				//LERPING ROTATION
 				// V3 target_direction = entity->target_pos - entity->pos;
-				// r32 target_rotation = v2_angle({target_direction.x, target_direction.z})+ PI32/2;
+				// f32 target_rotation = v2_angle({target_direction.x, target_direction.z})+ PI32/2;
 
-				// r32 angle_difference = target_rotation - entity->rotation.y;
+				// f32 angle_difference = target_rotation - entity->rotation.y;
 				// if(angle_difference > TAU32/2)
 				// 	entity->rotation.y += TAU32;
 				// else if(angle_difference < -TAU32/2)
@@ -653,14 +653,14 @@ void update(App_memory* memory){
 					Entity* entity2 = &entities[j];
 					if(entity2->type == ENTITY_OBSTACLE){
 						V3 distance = sphere_vs_box(entity->pos, entity->current_scale, entity2->pos, entity2->pos+entity2->scale);
-						r32 distance_value = v3_magnitude(distance);
+						f32 distance_value = v3_magnitude(distance);
 						if(distance_value < entity->current_scale){
 							*entity = {0};
 							memory->entity_generations[i]++;
 							break;
 						}
 					} else if (entity->team_uid != entity2->team_uid){
-						r32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
+						f32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
 						if(intersect > 0){
 							entity2->health -= 1;
 							if(entity2->type == ENTITY_SHIELD)
@@ -687,9 +687,9 @@ void update(App_memory* memory){
 						Entity* entity2 = &entities[j];
 						if(entity2->type == ENTITY_UNIT){
 							V3 pos_difference = entity2->pos-entity->pos;
-							r32 collision_magnitude = v3_magnitude(pos_difference);
+							f32 collision_magnitude = v3_magnitude(pos_difference);
 							//sphere vs sphere simplified
-							r32 overlapping = ((entity->scale.x * entity->current_scale)+(entity2->scale.x * entity2->current_scale)) - collision_magnitude;
+							f32 overlapping = ((entity->scale.x * entity->current_scale)+(entity2->scale.x * entity2->current_scale)) - collision_magnitude;
 							if(overlapping > 0){
 								V3 collision_direction = v3_normalize(pos_difference);
 								if(!collision_magnitude)
@@ -701,13 +701,13 @@ void update(App_memory* memory){
 							}
 						}
 						else if(entity2->type == ENTITY_OBSTACLE){
-							r32 sphere_radius = entity->current_scale;
+							f32 sphere_radius = entity->current_scale;
 							V3 distance = sphere_vs_box(entity->pos, sphere_radius, entity2->pos, entity2->pos+entity2->scale);
-							r32 distance_value = v3_magnitude(distance);
+							f32 distance_value = v3_magnitude(distance);
 							// checking if distance is less than the sphere radius
 							if(distance_value < sphere_radius){
 								// entity->pos = entity->pos + ((sphere_radius-distance_value)/delta_time)*v3_normalize(distance);
-								r32 vel_magnitude = v3_magnitude(entity->velocity);
+								f32 vel_magnitude = v3_magnitude(entity->velocity);
 								entity->velocity = entity->velocity + (vel_magnitude * v3_normalize_with_magnitude(distance,distance_value));
 							}
 						}
@@ -784,9 +784,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 		Object3d template_object = {0};
 		template_object.mesh_uid = memory->meshes.plane_mesh_uid;
-		r32 scale_tex = 5;
+		f32 scale_tex = 5;
 
-		r32 unselected_alpha = 0.4f;
+		f32 unselected_alpha = 0.4f;
 		Color unselected_color = { 1.0f, 1.0f, 1.0f, unselected_alpha};
 		Color insuficient_res_color = { 1.0f, 0.5f, 0.5f, unselected_alpha};
 

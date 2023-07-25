@@ -5,6 +5,11 @@
 #define local_persist static
 #define global_variable static
 
+#define MAX_S16 32767 
+#define MIN_S16 -32768
+#define MAX_U16 65535
+
+
 #define PI32    3.14159265359f
 #define TAU32     6.28318530718f
 
@@ -30,7 +35,7 @@ typedef char b8;
 typedef short b16;
 typedef int b32;
 
-typedef float r32;
+typedef float f32;
 typedef double r64;
 
 #if DEBUGMODE
