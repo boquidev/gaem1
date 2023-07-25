@@ -289,13 +289,72 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		factory->Release();
 	}
 
-	// 
+
+	// DIRECT SOUND INITIALIZATION
 
 
+	// GET A DIRECT SOUND OBJECT
 
 
+	LPDIRECTSOUND direct_sound;
+	hr = DirectSoundCreate(0,&direct_sound, 0);
+	ASSERTHR(hr);
+
+	hr = direct_sound->SetCooperativeLevel(global_main_window, DSSCL_PRIORITY);
+	ASSERTHR(hr);
+
+
+	// CREATE PRIMARY BUFFER (JUST TO SET CONFIGURATION)
 
 	
+	LPDIRECTSOUNDBUFFER primary_buffer;
+
+	{
+		DSBUFFERDESC buffer_desc = {0};
+		buffer_desc.dwSize = sizeof(buffer_desc);
+		buffer_desc.dwFlags = DSBCAPS_PRIMARYBUFFER;
+
+		hr = direct_sound->CreateSoundBuffer(&buffer_desc, &primary_buffer, 0);
+		ASSERTHR(hr);
+	}
+
+	// SET FORMAT WITH THE PRIMARY BUFFER
+
+	u16 audio_hz = 48000;
+	u16 audio_channels = 2;
+	u32 samples_per_second = audio_hz * audio_channels;
+	u16 bytes_per_sample = sizeof(s16)*audio_channels;
+	u16 bits_per_sample = sizeof(s16)*8;
+
+	WAVEFORMATEX wave_format = {};
+	wave_format.wFormatTag = WAVE_FORMAT_PCM;
+	wave_format.nChannels = audio_channels;
+	wave_format.nSamplesPerSec = samples_per_second;
+	wave_format.nAvgBytesPerSec = bytes_per_sample * samples_per_second;
+	wave_format.nBlockAlign = bytes_per_sample;
+	wave_format.wBitsPerSample = bits_per_sample;
+	wave_format.cbSize = 0;
+	hr = primary_buffer->SetFormat(&wave_format);
+	ASSERTHR(hr);
+
+
+	// CREATE SECONDARY BUFFER (ACTUALLY WRITE TO IT)
+
+
+	u32 buffer_size = audio_hz * bytes_per_sample;
+	LPDIRECTSOUNDBUFFER secondary_buffer;
+	{
+		DSBUFFERDESC buffer_desc = {0};
+		buffer_desc.dwSize = sizeof(buffer_desc);
+		buffer_desc.dwFlags = 0;
+		buffer_desc.dwBufferBytes = buffer_size;
+		buffer_desc.lpwfxFormat = &wave_format; 
+		hr = direct_sound->CreateSoundBuffer(&buffer_desc, &secondary_buffer, 0);
+		ASSERTHR(hr);
+	}
+
+	secondary_buffer->Play(0,0, DSBPLAY_LOOPING);
+
 
 
 	
@@ -579,6 +638,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			break;
 		}
 	}
+
 	
 	// CREATING CONSTANT BUFFER
 	// OBJECT TRANSFORM CONSTANT BUFFER
@@ -661,6 +721,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
 	// MAIN LOOP ____________________________________________________________
+
+	u32 running_sample_t = 0;
 	
 	global_running = 1;
 	while(global_running)
@@ -1090,6 +1152,67 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			hr = dx->swap_chain->Present(1,0);
 			ASSERTHR(hr);
 		}
+
+
+		// SOUND RENDERING
+		
+
+		{
+			DWORD play_cursor;
+			DWORD write_cursor; 
+			hr = secondary_buffer->GetCurrentPosition(&play_cursor, &write_cursor);
+			ASSERTHR(hr);
+			
+			DWORD byte_to_lock = (running_sample_t * bytes_per_sample) % buffer_size;
+			DWORD bytes_to_write;
+			if(byte_to_lock > play_cursor){ // fill 2 regions
+				bytes_to_write = buffer_size - byte_to_lock + play_cursor;
+			}else if (byte_to_lock < play_cursor){ // only fill 1 region
+				bytes_to_write = play_cursor - byte_to_lock;
+			}else{
+				bytes_to_write = buffer_size;
+			}
+
+			void* region1 = 0;
+			DWORD region1_size = 0;
+			void* region2 = 0;
+			DWORD region2_size = 0;
+			hr = secondary_buffer->Lock(
+				byte_to_lock,
+				bytes_to_write,
+				&region1,
+				&region1_size,
+				&region2,
+				&region2_size,
+				0
+			); 
+			ASSERTHR(hr);
+			s32 wave_hz = 192;
+			s16 tone_volume = 600;
+			u32 square_wave_period = audio_hz / wave_hz;
+
+			s16* sample_out = (s16*)region1;
+			DWORD region1_sample_count = region1_size/bytes_per_sample;
+			for( DWORD sample_index = 0; sample_index < region1_sample_count; sample_index++){
+				s16 sample_value = ((running_sample_t / (square_wave_period/2))%2) ? tone_volume : -tone_volume;
+				*sample_out++ = sample_value;
+				*sample_out++ = sample_value;
+				++running_sample_t;
+			}
+
+
+			sample_out = (s16*)region2;
+			DWORD region2_sample_count = region2_size/bytes_per_sample;
+			for( DWORD sample_index = 0; sample_index < region2_sample_count; sample_index++){
+				s16 sample_value = ((running_sample_t / (square_wave_period/2))%2) ? tone_volume : -tone_volume;
+				*sample_out++ = sample_value;
+				*sample_out++ = sample_value;
+				++running_sample_t;
+			}
+
+			secondary_buffer->Unlock(region1, region1_size, region2,region2_size);
+
+		}		
 
 		{//FRAME CAPPING
 			LARGE_INTEGER current_wall_clock;
