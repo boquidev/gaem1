@@ -331,81 +331,107 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	hr = sound_renderer.endpoint->Activate(__uuidof(IAudioClient), CLSCTX_INPROC_SERVER, 0, (void**)&sound_renderer.audio_client);
 	ASSERTHR(hr);
 
+	hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&sound_renderer.device_enumerator));
+	ASSERTHR(hr);
+
 
 	// LoadFormat
 
 
-	hr = sound_renderer.audio_client->GetMixFormat(&sound_renderer.mix_format);
-	ASSERTHR(hr);
+	// hr = sound_renderer.audio_client->GetMixFormat(&sound_renderer.mix_format);
+	// ASSERTHR(hr);
+
+	u32 hz =  44100;
+	u16 channels = 2;
+	u16 bytes_per_sample = sizeof(s16);
+
+	u16 sample_block_size = bytes_per_sample * channels;
+	u32 bytes_per_second = hz * sample_block_size;
+	u16 bits_per_sample = bytes_per_sample*8;
+	
+	static WAVEFORMATEX DEFAULT_WAVE_FORMAT =
+	{
+		WAVE_FORMAT_PCM,       // Format tag
+		channels,                     // Channels (stereo)
+		hz,                 // Samples per second (Hz)
+		bytes_per_second,         // Average bytes per second
+		sample_block_size,                 // Block alignment (bytes per sample * channels)
+		bits_per_sample,                    // Bits per sample
+		0                      // Extra size (set to 0 for PCM)
+	};
+	sound_renderer.mix_format = &DEFAULT_WAVE_FORMAT;
 
 	hr = sound_renderer.audio_client->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, sound_renderer.mix_format, 0);
-	if( hr == AUDCLNT_E_UNSUPPORTED_FORMAT){
-		//TODO: it means it's not in f32 format convert to pcm
-		if (sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
-		{
-			sound_renderer.mix_format->wFormatTag = WAVE_FORMAT_PCM;
-			sound_renderer.mix_format->wBitsPerSample = 16;
-			sound_renderer.mix_format->nBlockAlign = (sound_renderer.mix_format->wBitsPerSample / 8) * sound_renderer.mix_format->nChannels;
-			sound_renderer.mix_format->nAvgBytesPerSec = sound_renderer.mix_format->nSamplesPerSec*sound_renderer.mix_format->nBlockAlign;
-		}
-		else if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
-		{
-			if(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
-			{
-            WAVEFORMATEXTENSIBLE *waveFormatExtensible = (WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format;
-            waveFormatExtensible->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
-            waveFormatExtensible->Format.wBitsPerSample = 16;
-            waveFormatExtensible->Format.nBlockAlign = (sound_renderer.mix_format->wBitsPerSample / 8) * sound_renderer.mix_format->nChannels;
-            waveFormatExtensible->Format.nAvgBytesPerSec = waveFormatExtensible->Format.nSamplesPerSec*waveFormatExtensible->Format.nBlockAlign;
-            waveFormatExtensible->Samples.wValidBitsPerSample = 16;
-			}else{
-				ASSERTHR(hr);
-			}
-		}else{
-			ASSERTHR(hr);
-		}
-	}else{
-		ASSERTHR(hr);
-	}
+	ASSERTHR(hr);
+	// if( hr == AUDCLNT_E_UNSUPPORTED_FORMAT){
+	// 	//TODO: it means it's not in f32 format convert to pcm
+	// 	if (sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+	// 	{
+	// 		sound_renderer.mix_format->wFormatTag = WAVE_FORMAT_PCM;
+	// 		sound_renderer.mix_format->wBitsPerSample = 16;
+	// 		sound_renderer.mix_format->nBlockAlign = (sound_renderer.mix_format->wBitsPerSample / 8) * sound_renderer.mix_format->nChannels;
+	// 		sound_renderer.mix_format->nAvgBytesPerSec = sound_renderer.mix_format->nSamplesPerSec*sound_renderer.mix_format->nBlockAlign;
+	// 	}
+	// 	else if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+	// 	{
+	// 		if(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+	// 		{
+   //          WAVEFORMATEXTENSIBLE *waveFormatExtensible = (WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format;
+   //          waveFormatExtensible->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+   //          waveFormatExtensible->Format.wBitsPerSample = 16;
+   //          waveFormatExtensible->Format.nBlockAlign = (sound_renderer.mix_format->wBitsPerSample / 8) * sound_renderer.mix_format->nChannels;
+   //          waveFormatExtensible->Format.nAvgBytesPerSec = waveFormatExtensible->Format.nSamplesPerSec*waveFormatExtensible->Format.nBlockAlign;
+   //          waveFormatExtensible->Samples.wValidBitsPerSample = 16;
+	// 		}else{
+	// 			ASSERTHR(hr);
+	// 		}
+	// 	}else{
+	// 		ASSERTHR(hr);
+	// 	}
+	// }else{
+	// 	ASSERTHR(hr);
+	// }
 	
-	sound_renderer.frame_size = sound_renderer.mix_format->nBlockAlign;
+	sound_renderer.frame_size = sample_block_size;
 
 
 	// CalculateMixFormatType
 
-	if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_PCM || 
-		sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
-		(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat) == KSDATAFORMAT_SUBTYPE_PCM)
-	{
+
+	// if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_PCM || 
+	// 	sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
+	// 	(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat) == KSDATAFORMAT_SUBTYPE_PCM)
+	// {
 		
-		ASSERT(sound_renderer.mix_format->wBitsPerSample == 16);
-		sound_renderer.render_sample_type = SAMPLE_TYPE_S16;
-	}
-	else if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT || 
-		sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
-		(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat) == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
-	{
-		sound_renderer.render_sample_type = SAMPLE_TYPE_F32;
-	}
+	// 	ASSERT(sound_renderer.mix_format->wBitsPerSample == 16);
+	// 	sound_renderer.render_sample_type = SAMPLE_TYPE_S16;
+	// }
+	// else if(sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT || 
+	// 	sound_renderer.mix_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
+	// 	(((WAVEFORMATEXTENSIBLE*)sound_renderer.mix_format)->SubFormat) == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+	// {
+	// 	sound_renderer.render_sample_type = SAMPLE_TYPE_F32;
+	// }
+	sound_renderer.render_sample_type = SAMPLE_TYPE_S16;
 
 
 	// Initialize audio engine
 
 
-	u32 target_latency = 10;
-	u32 target_frequency = 440;
+	u32 target_latency = 50; // engine latency in shared mode cannot be less than 50ms
+	
 	u32 target_duration_in_sec = 5;
-	u32 periods_per_buffer = 4;
 	
 
 	sound_renderer.engine_latency_ms = target_latency;
 
-	REFERENCE_TIME buffer_duration = sound_renderer.engine_latency_ms*10000*periods_per_buffer;
-	REFERENCE_TIME periodicity = sound_renderer.engine_latency_ms*10000;
+	REFERENCE_TIME buffer_duration_100_nanoseconds = sound_renderer.engine_latency_ms*10000;
+	// just used in exclusive mode
+	// REFERENCE_TIME periodicity = sound_renderer.engine_latency_ms*10000;
 
 	hr = sound_renderer.audio_client->Initialize(
 		AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_NOPERSIST,
-		buffer_duration, periodicity, sound_renderer.mix_format, 0 
+		buffer_duration_100_nanoseconds, 0, sound_renderer.mix_format, 0 
 	);
 	ASSERTHR(hr);
 
@@ -415,27 +441,50 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	hr = sound_renderer.audio_client->GetService(IID_PPV_ARGS(&sound_renderer.render_client));
 	ASSERTHR(hr);
 
-	u32 render_buffer_size_in_bytes = (sound_renderer.client_buffer_size / periods_per_buffer) * sound_renderer.frame_size;
+
+	// initialize stream switch
+
+
+	hr = sound_renderer.audio_client->GetService(IID_PPV_ARGS(&sound_renderer.audio_session_control));
+	ASSERTHR(hr);
+
+	//  Create the stream switch complete event- we want a manual reset event that starts in the not-signaled state.
+
+	sound_renderer.stream_switch_complete_event = CreateEventEx(
+		0,0,
+		CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_MODIFY_STATE | SYNCHRONIZE
+	);
+	ASSERT(sound_renderer.stream_switch_complete_event);
+	
+	// Register for session and endpoint change notifications.  
+	// A stream switch is initiated when we receive a session disconnect notification 
+	// or we receive a default device changed notification.
+
+	hr = sound_renderer.audio_session_control->RegisterAudioSessionNotification(&sound_renderer.audio_session_events);
+
+	u32 periods_per_buffer = 4;
+	u32 render_buffer_size_in_bytes = (sound_renderer.client_buffer_size / periods_per_buffer) * sample_block_size;
 	size_t render_data_length = (
-		sound_renderer.mix_format->nSamplesPerSec * target_duration_in_sec * sound_renderer.frame_size) + 
+		sound_renderer.mix_format->nSamplesPerSec * target_duration_in_sec * sample_block_size) + 
 		render_buffer_size_in_bytes -1;
 	size_t render_buffer_count = render_data_length / render_buffer_size_in_bytes;
 
 	u32 channels_count = sound_renderer.mix_format->nChannels;
 	
 	sound_renderer.samples_buffer.data = ARENA_PUSH_STRUCTS(permanent_arena, f32, 44100);
-	Samples_stream samples = {0}; 
-	samples.count = 44100* channels_count * target_duration_in_sec ;
-	samples.data = ARENA_PUSH_STRUCTS(permanent_arena, f32, samples.count);
+	Samples_stream source_samples = {0}; 
+	source_samples.count = 44100* channels_count * target_duration_in_sec ;
+	source_samples.data = ARENA_PUSH_STRUCTS(permanent_arena, f32, source_samples.count);
 	
 	// GENERATE SINE WAVE
 	//TODO: maybe use r64 ???
-	f32 sample_increment = target_frequency * PI32*2 / sound_renderer.mix_format->nSamplesPerSec;
+	u32 sine_wave_frequency = 440;
+	f32 sample_increment = sine_wave_frequency * PI32*2 / sound_renderer.mix_format->nSamplesPerSec;
 	f32 t = 0;
-	for(u32 i = 0; i<samples.count; i += channels_count){
+	for(u32 i = 0; i<source_samples.count; i += channels_count){
 		f32 sin_value = SINF(t);
 		UNTIL(channel_i, channels_count){
-			samples.data[i + channel_i] = sin_value;
+			source_samples.data[i + channel_i] = sin_value;
 		}
 		t += sample_increment;
 	}
@@ -448,7 +497,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		u8* p_data;
 
 		
-		DWORD buffer_length_in_frames = render_buffer_size_in_bytes / sound_renderer.frame_size;
+		DWORD buffer_length_in_frames = render_buffer_size_in_bytes / sample_block_size;
 
 		hr = sound_renderer.render_client->GetBuffer(buffer_length_in_frames, &p_data);
 		ASSERTHR(hr);
@@ -456,8 +505,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		s16* buffer_data = (s16*)p_data;
 		UNTIL(i, buffer_length_in_frames){
 			UNTIL(channel_i, channels_count){
-				buffer_data[i*channels_count + channel_i] = (s16)(samples.data[samples.pos]*MAX_S16);
-				samples.pos = (samples.pos+1)%samples.count;
+				buffer_data[i*channels_count + channel_i] = (s16)(source_samples.data[source_samples.pos]*MAX_S16);
+				source_samples.pos = (source_samples.pos+1)%source_samples.count;
 			}
 		}
 

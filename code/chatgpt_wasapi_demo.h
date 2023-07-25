@@ -242,3 +242,121 @@ int main()
     CoUninitialize();
     return 0;
 }
+
+// SINGLE THREADED VERSION #include <Windows.h>
+#include <Audioclient.h>
+#include <mmdeviceapi.h>
+#include <math.h>
+
+// Function to generate a sine wave at the specified frequency and duration
+void GenerateSineWave(float frequency, float duration, UINT32 sampleRate, UINT32 numChannels, UINT32 numFrames, float* buffer)
+{
+    const float twoPi = 2.0f * 3.14159265358979323846f;
+    const float increment = frequency / static_cast<float>(sampleRate);
+
+    for (UINT32 frame = 0; frame < numFrames; ++frame)
+    {
+        float t = static_cast<float>(frame) * increment * twoPi;
+        for (UINT32 channel = 0; channel < numChannels; ++channel)
+        {
+            *buffer++ = sinf(t); // Write sine wave sample to the buffer
+        }
+    }
+}
+
+int main()
+{
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    // Step 1: Initialize COM and get the audio client
+    IMMDeviceEnumerator* deviceEnumerator;
+    IMMDevice* audioDevice;
+    IAudioClient* audioClient;
+    WAVEFORMATEX* audioFormat;
+
+    // Your code to initialize deviceEnumerator, audioDevice, and audioClient here
+
+    // Step 2: Set the desired audio format
+    // (Code for setting the audio format goes here)
+
+    // Step 3: Initialize the audio client with the desired format
+    // (Code for initializing the audio client goes here)
+
+    // Step 4: Create the audio render client and get the buffer
+    // (Code for creating the render client and getting the buffer goes here)
+
+    // Step 5: Generate the sine wave and write to the buffer
+    const UINT32 numFrames = 44100 * 5; // Generate 5 seconds of audio
+    BYTE* audioBuffer;
+    HRESULT hr = renderClient->GetBuffer(numFrames * audioFormat->nBlockAlign, &audioBuffer);
+    if (FAILED(hr))
+    {
+        // Handle error
+        CoTaskMemFree(audioFormat);
+        renderClient->Release();
+        return 1;
+    }
+
+    // Fill the audio buffer with the sine wave
+    float* buffer = reinterpret_cast<float*>(audioBuffer);
+    GenerateSineWave(440.0f, 5.0f, audioFormat->nSamplesPerSec, audioFormat->nChannels, numFrames, buffer);
+
+    // Step 6: Release the buffer
+    hr = renderClient->ReleaseBuffer(numFrames * audioFormat->nBlockAlign, 0);
+    if (FAILED(hr))
+    {
+        // Handle error
+        CoTaskMemFree(audioFormat);
+        renderClient->Release();
+        return 1;
+    }
+
+    // Step 7: Start the audio stream
+    hr = audioClient->Start();
+    if (FAILED(hr))
+    {
+        // Handle error
+        CoTaskMemFree(audioFormat);
+        renderClient->Release();
+        return 1;
+    }
+
+    // Process audio in the same thread (audio processing loop)
+    while (true)
+    {
+        // You can do other tasks here if needed
+        // ...
+
+        // Continuously generate new audio samples and write to the buffer
+        hr = renderClient->GetBuffer(numFrames * audioFormat->nBlockAlign, &audioBuffer);
+        if (FAILED(hr))
+        {
+            // Handle error
+            break;
+        }
+
+        // Fill the audio buffer with the sine wave
+        buffer = reinterpret_cast<float*>(audioBuffer);
+        GenerateSineWave(440.0f, 5.0f, audioFormat->nSamplesPerSec, audioFormat->nChannels, numFrames, buffer);
+
+        // Release the buffer
+        hr = renderClient->ReleaseBuffer(numFrames * audioFormat->nBlockAlign, 0);
+        if (FAILED(hr))
+        {
+            // Handle error
+            break;
+        }
+
+        // Sleep for a short period to avoid excessive CPU usage (adjust as needed)
+        Sleep(50);
+    }
+
+    // Step 8: Stop and clean up
+    audioClient->Stop();
+    CoTaskMemFree(audioFormat);
+    renderClient->Release();
+    audioClient->Release();
+
+    CoUninitialize();
+    return 0;
+}

@@ -25,6 +25,7 @@ struct Wasapi_renderer{
 	//  Core Audio Rendering member variables.
 	//
 	IMMDevice * endpoint;
+	IMMDeviceEnumerator* device_enumerator;
 	IAudioClient *audio_client;
 	IAudioRenderClient *render_client;
 
@@ -42,6 +43,10 @@ struct Wasapi_renderer{
 	HANDLE      render_thread;
 	HANDLE      shutdown_event;
 	HANDLE 		stream_switch_event;
+	HANDLE 		stream_switch_complete_event;
+	IAudioSessionControl*  audio_session_control;
+	IAudioSessionEvents audio_session_events; //TODO:  this is where i left off
+	
 };
 
 #if 0
