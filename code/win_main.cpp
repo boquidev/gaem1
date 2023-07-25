@@ -720,9 +720,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	b32 perspective_on = 0;
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
-	// MAIN LOOP ____________________________________________________________
 
-	u32 running_sample_t = 0;
+	u32 t_tone = 0;
+	// MAIN LOOP ____________________________________________________________
 	
 	global_running = 1;
 	while(global_running)
@@ -1163,56 +1163,61 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			hr = secondary_buffer->GetCurrentPosition(&play_cursor, &write_cursor);
 			ASSERTHR(hr);
 			
-			DWORD byte_to_lock = (running_sample_t * bytes_per_sample) % buffer_size;
-			DWORD bytes_to_write;
-			if(byte_to_lock > play_cursor){ // fill 2 regions
+			DWORD byte_to_lock = (t_tone * bytes_per_sample) % buffer_size;
+			DWORD bytes_to_write = 0;
+			b32 skip_sound_rendering = false;
+			if (byte_to_lock == play_cursor){
+				skip_sound_rendering = true;
+			}else if(byte_to_lock > play_cursor){ // fill 2 regions
 				bytes_to_write = buffer_size - byte_to_lock + play_cursor;
-			}else if (byte_to_lock < play_cursor){ // only fill 1 region
+			}else{ // only fill 1 region
 				bytes_to_write = play_cursor - byte_to_lock;
-			}else{
-				bytes_to_write = buffer_size;
 			}
 
-			void* region1 = 0;
-			DWORD region1_size = 0;
-			void* region2 = 0;
-			DWORD region2_size = 0;
-			hr = secondary_buffer->Lock(
-				byte_to_lock,
-				bytes_to_write,
-				&region1,
-				&region1_size,
-				&region2,
-				&region2_size,
-				0
-			); 
-			ASSERTHR(hr);
-			s32 wave_hz = 192;
-			s16 tone_volume = 600;
-			u32 square_wave_period = audio_hz / wave_hz;
+			if(!skip_sound_rendering){
+				void* region1 = 0;
+				DWORD region1_size = 0;
+				void* region2 = 0;
+				DWORD region2_size = 0;
+				hr = secondary_buffer->Lock(
+					byte_to_lock,
+					bytes_to_write,
+					&region1,
+					&region1_size,
+					&region2,
+					&region2_size,
+					0
+				); 
+				ASSERTHR(hr);
+				s32 wave_hz = 192;
+				s16 tone_volume = 1500;
+				u32 wave_period = audio_hz / wave_hz;
 
-			s16* sample_out = (s16*)region1;
-			DWORD region1_sample_count = region1_size/bytes_per_sample;
-			for( DWORD sample_index = 0; sample_index < region1_sample_count; sample_index++){
-				s16 sample_value = ((running_sample_t / (square_wave_period/2))%2) ? tone_volume : -tone_volume;
-				*sample_out++ = sample_value;
-				*sample_out++ = sample_value;
-				++running_sample_t;
+				s16* sample_out = (s16*)region1;
+				DWORD region1_sample_count = region1_size/bytes_per_sample;
+				UNTIL(i, region1_sample_count){
+					f32 sine_value = SINF((TAU32*t_tone) / wave_period);
+					s16 sample_value = (s16)(sine_value * tone_volume);
+					*sample_out++ = sample_value;
+					*sample_out++ = sample_value;
+					++t_tone;
+				}
+
+
+				sample_out = (s16*)region2;
+				DWORD region2_sample_count = region2_size/bytes_per_sample;
+				UNTIL(i, region2_sample_count){
+					f32 sine_value = SINF((TAU32*t_tone) / wave_period);
+					s16 sample_value = (s16)(sine_value * tone_volume);
+					*sample_out++ = sample_value;
+					*sample_out++ = sample_value;
+					++t_tone;
+				}
+
+				secondary_buffer->Unlock(region1, region1_size, region2,region2_size);
 			}
 
-
-			sample_out = (s16*)region2;
-			DWORD region2_sample_count = region2_size/bytes_per_sample;
-			for( DWORD sample_index = 0; sample_index < region2_sample_count; sample_index++){
-				s16 sample_value = ((running_sample_t / (square_wave_period/2))%2) ? tone_volume : -tone_volume;
-				*sample_out++ = sample_value;
-				*sample_out++ = sample_value;
-				++running_sample_t;
-			}
-
-			secondary_buffer->Unlock(region1, region1_size, region2,region2_size);
-
-		}		
+		}
 
 		{//FRAME CAPPING
 			LARGE_INTEGER current_wall_clock;
