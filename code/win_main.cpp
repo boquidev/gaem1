@@ -33,6 +33,15 @@ struct App_dll
 	render_type(render);
 	init_type(init);
 };
+struct Audio_output{
+	u32 hz;
+	u32 channels;
+	u32 samples_per_second;
+	u32 bytes_per_sample;
+	u32 bits_per_channel;
+	u32 buffer_size;
+	LPDIRECTSOUNDBUFFER buffer;
+};
 
 #define ASSERMSG(msg) case msg:ASSERT(false); break;
 LRESULT CALLBACK
@@ -319,20 +328,21 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 
 	// SET FORMAT WITH THE PRIMARY BUFFER
+	Audio_output audio;
 
-	u16 audio_hz = 48000;
-	u16 audio_channels = 2;
-	u32 samples_per_second = audio_hz * audio_channels;
-	u16 bytes_per_sample = sizeof(s16)*audio_channels;
-	u16 bits_per_sample = sizeof(s16)*8;
+	audio.hz = 44100;
+	audio.channels = 2;
+	audio.samples_per_second = audio.hz * audio.channels;
+	audio.bytes_per_sample = sizeof(s16)*audio.channels;
+	audio.bits_per_channel = sizeof(s16)*8;
 
 	WAVEFORMATEX wave_format = {};
 	wave_format.wFormatTag = WAVE_FORMAT_PCM;
-	wave_format.nChannels = audio_channels;
-	wave_format.nSamplesPerSec = samples_per_second;
-	wave_format.nAvgBytesPerSec = bytes_per_sample * samples_per_second;
-	wave_format.nBlockAlign = bytes_per_sample;
-	wave_format.wBitsPerSample = bits_per_sample;
+	wave_format.nChannels = (WORD)audio.channels;
+	wave_format.nSamplesPerSec = audio.samples_per_second;
+	wave_format.nAvgBytesPerSec = audio.bytes_per_sample * audio.samples_per_second;
+	wave_format.nBlockAlign = (WORD)audio.bytes_per_sample;
+	wave_format.wBitsPerSample = (WORD)audio.bits_per_channel;
 	wave_format.cbSize = 0;
 	hr = primary_buffer->SetFormat(&wave_format);
 	ASSERTHR(hr);
@@ -341,19 +351,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// CREATE SECONDARY BUFFER (ACTUALLY WRITE TO IT)
 
 
-	u32 buffer_size = audio_hz * bytes_per_sample;
-	LPDIRECTSOUNDBUFFER secondary_buffer;
+	audio.buffer_size = audio.hz * audio.bytes_per_sample;
+	audio.buffer;
 	{
 		DSBUFFERDESC buffer_desc = {0};
 		buffer_desc.dwSize = sizeof(buffer_desc);
 		buffer_desc.dwFlags = 0;
-		buffer_desc.dwBufferBytes = buffer_size;
+		buffer_desc.dwBufferBytes = audio.buffer_size;
 		buffer_desc.lpwfxFormat = &wave_format; 
-		hr = direct_sound->CreateSoundBuffer(&buffer_desc, &secondary_buffer, 0);
+		hr = direct_sound->CreateSoundBuffer(&buffer_desc, &audio.buffer, 0);
 		ASSERTHR(hr);
 	}
 
-	secondary_buffer->Play(0,0, DSBPLAY_LOOPING);
+	audio.buffer->Play(0,0, DSBPLAY_LOOPING);
 
 
 
@@ -384,6 +394,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	LIST(Dx_mesh, meshes_list) = {0};
 	LIST(Dx11_blend_state*, blend_states_list) = {0};
 	LIST(Depth_stencil, depth_stencils_list) = {0};
+
+	LIST(Audio_samples, sounds_list) = {0};
+	LIST(Audio_playback, audio_playback_list) = {0};
 	FOREACH(Asset_request, request, init_data.asset_requests){
 		switch(request->type){
 			case TEX_FROM_FILE_REQUEST:{
@@ -600,25 +613,60 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				tex_info->texrect.hf = 1.0f;
 				
 				tex_info->texview_uid = LIST_SIZE(textures_list);
-				Dx11_texture_view** texture_view; PUSH_BACK(textures_list, memory.permanent_arena, texture_view);
+				Dx11_texture_view** texture_view; PUSH_BACK(textures_list, permanent_arena, texture_view);
 				dx11_create_texture_view(dx, &request->tex_surface, texture_view);
 			}break;
 
 
 			case SOUND_FROM_FILE_REQUEST:{
+				*request->p_uid = LIST_SIZE(sounds_list);
+				Audio_samples* audio_samples; PUSH_BACK(sounds_list, permanent_arena, audio_samples);
+
+				File_data audio_file = win_read_file(request->filename, temp_arena);
+				u32* scan = (u32*)audio_file.data;
+				ASSERT(scan[0] == 'FFIR'); // RIFF
+				u32 file_size = scan[1];
+				ASSERT(scan[2] == 'EVAW'); // WAVE
+				ASSERT(scan[3] == ' tmf'); // fmt\0 format chunk identifier
+				u32 format_chunk_size = scan[4];
+
+				u16* scan16 = (u16*)&scan[5];
+				u16 sample_format = scan16[0]; // 1 is PCM
+				ASSERT(sample_format == 1);
+				u16 channels_count = scan16[1];
+				ASSERT(channels_count == 2);
+
+				u32 sample_hz = scan[6];
+				ASSERT(sample_hz == 44100);
+				u32 bytes_p_second = scan[7]; // sample_hz * bits_per_channel * channels / 8
+
+				scan16 = (u16*)&scan[8];
+				u16 bytes_per_sample = scan16[0]; // bits_per_channel*channels / 8
+				u16 bits_per_channel = scan16[1]; 
+				ASSERT(bits_per_channel == 16);
+
+
+				ASSERT(scan[9] == 'atad'); // data
+				u32 data_chunk_size = scan[10];
+
+				s16* sample_values = (s16*)&scan[11];
+				u16 bytes_per_unit_sample = bytes_per_sample / channels_count;
+
+				audio_samples->samples_count = data_chunk_size/(bytes_per_sample/channels_count);
+				audio_samples->channels = channels_count;
+				audio_samples->samples = ARENA_PUSH_STRUCTS(permanent_arena, s16, audio_samples->samples_count);
+
+				UNTIL(i, audio_samples->samples_count){
+					audio_samples->samples[i] = sample_values[i];
+				}
 
 
 
+				
 
+				
 
-
-
-
-
-
-
-
-
+				ASSERT(true);
 
 			}break;
 
@@ -637,6 +685,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				ASSERT(false)
 			break;
 		}
+	}
+	{
+		Audio_playback* test_playback; PUSH_BACK(audio_playback_list, permanent_arena, test_playback);
+		test_playback->sound = sounds_list[0];
+		test_playback->loop = true;
+
+		PUSH_BACK(audio_playback_list, permanent_arena, test_playback);
+	LIST_GET(sounds_list, 1, test_playback->sound);
+		test_playback->loop = false;
 	}
 
 	
@@ -723,6 +780,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	u32 t_tone = 0;
 	// MAIN LOOP ____________________________________________________________
+
 	
 	global_running = 1;
 	while(global_running)
@@ -908,7 +966,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							break;
 
 						}
-						// if(vkcode == 'H')
+						if(vkcode == 'H' && is_down){
+							Audio_playback* new_playback; PUSH_BACK(audio_playback_list, permanent_arena, new_playback);
+							LIST_GET(sounds_list, 0, new_playback->sound);
+							new_playback->loop = false;
+						}
 						// else if(vkcode == 'D')
 						// 	holding_inputs.d_right = is_down;
 						// else if(vkcode == 'W')
@@ -1155,21 +1217,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 		// SOUND RENDERING
-		
-
 		{
 			DWORD play_cursor;
 			DWORD write_cursor; 
-			hr = secondary_buffer->GetCurrentPosition(&play_cursor, &write_cursor);
+			hr = audio.buffer->GetCurrentPosition(&play_cursor, &write_cursor);
 			ASSERTHR(hr);
 			
-			DWORD byte_to_lock = (t_tone * bytes_per_sample) % buffer_size;
+			DWORD byte_to_lock = (t_tone * audio.bytes_per_sample) % audio.buffer_size;
 			DWORD bytes_to_write = 0;
 			b32 skip_sound_rendering = false;
 			if (byte_to_lock == play_cursor){
 				skip_sound_rendering = true;
 			}else if(byte_to_lock > play_cursor){ // fill 2 regions
-				bytes_to_write = buffer_size - byte_to_lock + play_cursor;
+				bytes_to_write = audio.buffer_size - byte_to_lock + play_cursor;
 			}else{ // only fill 1 region
 				bytes_to_write = play_cursor - byte_to_lock;
 			}
@@ -1179,7 +1239,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				DWORD region1_size = 0;
 				void* region2 = 0;
 				DWORD region2_size = 0;
-				hr = secondary_buffer->Lock(
+				hr = audio.buffer->Lock(
 					byte_to_lock,
 					bytes_to_write,
 					&region1,
@@ -1189,34 +1249,42 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					0
 				); 
 				ASSERTHR(hr);
-				s32 wave_hz = 192;
-				s16 tone_volume = 1500;
-				u32 wave_period = audio_hz / wave_hz;
+				f32 volume = 1.0f;
 
-				s16* sample_out = (s16*)region1;
-				DWORD region1_sample_count = region1_size/bytes_per_sample;
-				UNTIL(i, region1_sample_count){
-					f32 sine_value = SINF((TAU32*t_tone) / wave_period);
-					s16 sample_value = (s16)(sine_value * tone_volume);
-					*sample_out++ = sample_value;
-					*sample_out++ = sample_value;
-					++t_tone;
+				set_mem(region1, region1_size, 0);
+				set_mem(region2, region2_size, 0);
+
+				u32 regions_total_size = region1_size + region2_size;
+				t_tone += regions_total_size/audio.bytes_per_sample;
+				
+				s16* audio_processing_buffer = (s16*)arena_push_size(temp_arena, region1_size+region2_size);
+
+				FOREACH(Audio_playback, playback, audio_playback_list){
+					s16* sample_out = audio_processing_buffer;
+					UNTIL(i, regions_total_size/audio.bytes_per_sample){
+						*sample_out += playback->sound->samples[playback->sample_i];
+						sample_out++;
+						*sample_out += playback->sound->samples[playback->sample_i];
+						sample_out++;
+						playback->sample_i = (playback->sample_i+1) % playback->sound->samples_count;
+					}
 				}
-
+				DWORD region1_sample_count = region1_size/audio.bytes_per_sample;
+				u32 processing_buffer_i = 0;
+				s16* sample_out = (s16*)region1;
+				for(u32 i=0; i<region1_sample_count; i++){
+					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
+					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
+				}
 
 				sample_out = (s16*)region2;
-				DWORD region2_sample_count = region2_size/bytes_per_sample;
-				UNTIL(i, region2_sample_count){
-					f32 sine_value = SINF((TAU32*t_tone) / wave_period);
-					s16 sample_value = (s16)(sine_value * tone_volume);
-					*sample_out++ = sample_value;
-					*sample_out++ = sample_value;
-					++t_tone;
+				DWORD region2_sample_count = region2_size/audio.bytes_per_sample;
+				for(u32 i=0; i<region2_sample_count; i++){
+					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
+					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
 				}
-
-				secondary_buffer->Unlock(region1, region1_size, region2,region2_size);
+				audio.buffer->Unlock(region1, region1_size, region2,region2_size);
 			}
-
 		}
 
 		{//FRAME CAPPING

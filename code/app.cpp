@@ -1008,7 +1008,7 @@ void init(App_memory* memory, Init_data* init_data){
 
 	request.type = SOUND_FROM_FILE_REQUEST;
 	request.p_uid = &memory->sounds.weird_uid;
-	request.filename = string("data/sound/examples_resources_weird.wav");
+	request.filename = string("data/sound/wa.wav");
 	PUSH_ASSET_REQUEST;
 
 	request.type = SOUND_FROM_FILE_REQUEST;
