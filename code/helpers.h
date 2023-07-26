@@ -48,6 +48,7 @@ typedef Memory_arena Data_stream;
 
 internal u8*
 arena_push_size(Memory_arena* arena, u32 size){
+	ASSERT(size+arena->used < arena->size);
 	u8* result = arena->data+arena->used;
 	arena->used += size;
 	return result;
@@ -106,7 +107,15 @@ find_bigger_exponent_of_2(u32 target_value){
 	return result;
 }
 
-// LINKED LISTS WITH MACRO FUNCTIONS
+
+// FIXED SIZE ARRAYS
+
+
+
+
+
+// TYPESAFE LINKED LISTS WITH MACRO FUNCTIONS
+
 
 #define LIST(type, var_name) type* var_name[3]
 #define CLEAR_LIST(l) l[0] = 0; l[1] = 0; l[2] = 0;
@@ -222,9 +231,24 @@ struct Audio_samples{
 
 struct Audio_playback{
 	Audio_samples* sound;
+	u32 initial_time;
 	u32 sample_i;
 	b32 loop;
 };
+
+internal Audio_playback*
+find_next_available_playback(Audio_playback* list, u32 list_length){
+	Audio_playback* result = 0;
+	UNTIL(i, list_length){
+		if(!list[i].sound){
+			result = &list[i];
+			break;
+		}
+	}
+	ASSERT(result);
+	return result;
+}
+
 
 
 // OLD LINKED LISTS

@@ -38,9 +38,13 @@ struct Audio_output{
 	u32 channels;
 	u32 samples_per_second;
 	u32 bytes_per_sample;
-	u32 bits_per_channel;
+	u32 bits_per_sample;
 	u32 buffer_size;
 	LPDIRECTSOUNDBUFFER buffer;
+
+	u32 bytes_per_full_sample(){
+		return bytes_per_sample*channels;
+	}
 };
 
 #define ASSERMSG(msg) case msg:ASSERT(false); break;
@@ -333,16 +337,16 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	audio.hz = 44100;
 	audio.channels = 2;
 	audio.samples_per_second = audio.hz * audio.channels;
-	audio.bytes_per_sample = sizeof(s16)*audio.channels;
-	audio.bits_per_channel = sizeof(s16)*8;
+	audio.bytes_per_sample = sizeof(s16);
+	audio.bits_per_sample = sizeof(s16)*8;
 
 	WAVEFORMATEX wave_format = {};
 	wave_format.wFormatTag = WAVE_FORMAT_PCM;
 	wave_format.nChannels = (WORD)audio.channels;
 	wave_format.nSamplesPerSec = audio.samples_per_second;
-	wave_format.nAvgBytesPerSec = audio.bytes_per_sample * audio.samples_per_second;
-	wave_format.nBlockAlign = (WORD)audio.bytes_per_sample;
-	wave_format.wBitsPerSample = (WORD)audio.bits_per_channel;
+	wave_format.nAvgBytesPerSec = audio.bytes_per_full_sample() * audio.samples_per_second;
+	wave_format.nBlockAlign = (WORD)audio.bytes_per_full_sample();
+	wave_format.wBitsPerSample = (WORD)audio.bits_per_sample;
 	wave_format.cbSize = 0;
 	hr = primary_buffer->SetFormat(&wave_format);
 	ASSERTHR(hr);
@@ -351,8 +355,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// CREATE SECONDARY BUFFER (ACTUALLY WRITE TO IT)
 
 
-	audio.buffer_size = audio.hz * audio.bytes_per_sample;
-	audio.buffer;
+	audio.buffer_size = 5 * audio.hz * audio.bytes_per_full_sample();
 	{
 		DSBUFFERDESC buffer_desc = {0};
 		buffer_desc.dwSize = sizeof(buffer_desc);
@@ -396,7 +399,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	LIST(Depth_stencil, depth_stencils_list) = {0};
 
 	LIST(Audio_samples, sounds_list) = {0};
-	LIST(Audio_playback, audio_playback_list) = {0};
+	Audio_playback audio_playback_list [100] = {0};
 	FOREACH(Asset_request, request, init_data.asset_requests){
 		switch(request->type){
 			case TEX_FROM_FILE_REQUEST:{
@@ -638,21 +641,21 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 				u32 sample_hz = scan[6];
 				ASSERT(sample_hz == 44100);
-				u32 bytes_p_second = scan[7]; // sample_hz * bits_per_channel * channels / 8
+				u32 bytes_p_second = scan[7]; // sample_hz * bits_per_sample * channels / 8
 
 				scan16 = (u16*)&scan[8];
-				u16 bytes_per_sample = scan16[0]; // bits_per_channel*channels / 8
-				u16 bits_per_channel = scan16[1]; 
-				ASSERT(bits_per_channel == 16);
+				u16 bytes_per_full_sample = scan16[0]; // bits_per_sample*channels / 8
+				u16 bits_per_sample = scan16[1]; 
+				ASSERT(bits_per_sample == 16);
 
 
 				ASSERT(scan[9] == 'atad'); // data
 				u32 data_chunk_size = scan[10];
 
 				s16* sample_values = (s16*)&scan[11];
-				u16 bytes_per_unit_sample = bytes_per_sample / channels_count;
+				u16 bytes_per_sample = bits_per_sample / 8;
 
-				audio_samples->samples_count = data_chunk_size/(bytes_per_sample/channels_count);
+				audio_samples->samples_count = data_chunk_size/bytes_per_sample;
 				audio_samples->channels = channels_count;
 				audio_samples->samples = ARENA_PUSH_STRUCTS(permanent_arena, s16, audio_samples->samples_count);
 
@@ -660,13 +663,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					audio_samples->samples[i] = sample_values[i];
 				}
 
-
-
-				
-
-				
-
-				ASSERT(true);
 
 			}break;
 
@@ -687,12 +683,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 	}
 	{
-		Audio_playback* test_playback; PUSH_BACK(audio_playback_list, permanent_arena, test_playback);
+		Audio_playback* test_playback = find_next_available_playback(audio_playback_list,ARRAYCOUNT(audio_playback_list));
 		test_playback->sound = sounds_list[0];
-		test_playback->loop = true;
+		test_playback->loop = false;
 
-		PUSH_BACK(audio_playback_list, permanent_arena, test_playback);
-	LIST_GET(sounds_list, 1, test_playback->sound);
+		test_playback = find_next_available_playback(audio_playback_list, ARRAYCOUNT(audio_playback_list));
+		LIST_GET(sounds_list, 1, test_playback->sound);
 		test_playback->loop = false;
 	}
 
@@ -778,7 +774,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	memory.lock_mouse = false;
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
 
-	u32 t_tone = 0;
+	u32 sample_t = 0;
 	// MAIN LOOP ____________________________________________________________
 
 	
@@ -967,8 +963,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 						}
 						if(vkcode == 'H' && is_down){
-							Audio_playback* new_playback; PUSH_BACK(audio_playback_list, permanent_arena, new_playback);
+							Audio_playback* new_playback = find_next_available_playback(audio_playback_list, ARRAYCOUNT(audio_playback_list));
 							LIST_GET(sounds_list, 0, new_playback->sound);
+							new_playback->initial_time = sample_t;
 							new_playback->loop = false;
 						}
 						// else if(vkcode == 'D')
@@ -1223,7 +1220,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			hr = audio.buffer->GetCurrentPosition(&play_cursor, &write_cursor);
 			ASSERTHR(hr);
 			
-			DWORD byte_to_lock = (t_tone * audio.bytes_per_sample) % audio.buffer_size;
+			DWORD byte_to_lock = (sample_t * audio.bytes_per_full_sample()) % audio.buffer_size;
 			DWORD bytes_to_write = 0;
 			b32 skip_sound_rendering = false;
 			if (byte_to_lock == play_cursor){
@@ -1249,36 +1246,50 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					0
 				); 
 				ASSERTHR(hr);
+				
 				f32 volume = 1.0f;
-
 				set_mem(region1, region1_size, 0);
 				set_mem(region2, region2_size, 0);
 
 				u32 regions_total_size = region1_size + region2_size;
-				t_tone += regions_total_size/audio.bytes_per_sample;
-				
+				u32 regions_full_sample_count = regions_total_size/audio.bytes_per_full_sample();
+				sample_t += regions_full_sample_count;
+
 				s16* audio_processing_buffer = (s16*)arena_push_size(temp_arena, region1_size+region2_size);
 
-				FOREACH(Audio_playback, playback, audio_playback_list){
-					s16* sample_out = audio_processing_buffer;
-					UNTIL(i, regions_total_size/audio.bytes_per_sample){
-						*sample_out += playback->sound->samples[playback->sample_i];
-						sample_out++;
-						*sample_out += playback->sound->samples[playback->sample_i];
-						sample_out++;
-						playback->sample_i = (playback->sample_i+1) % playback->sound->samples_count;
+				UNTIL(i, ARRAYCOUNT(audio_playback_list)){
+					if(!audio_playback_list[i].sound) continue;
+
+					Audio_playback* playback = &audio_playback_list[i];
+        			s16* sample_out = audio_processing_buffer;
+        			UNTIL(j, regions_full_sample_count){
+						if(playback->sample_i >= playback->sound->samples_count){
+							if(playback->loop)
+                			playback->sample_i -= playback->sound->samples_count;
+							else{
+								*playback = {0};
+								break;
+							}
+						}
+                	*sample_out += playback->sound->samples[playback->sample_i];
+                	sample_out++;
+                	*sample_out += playback->sound->samples[playback->sample_i];
+                	sample_out++;
+						playback->sample_i++;
 					}
 				}
-				DWORD region1_sample_count = region1_size/audio.bytes_per_sample;
+
+				DWORD region1_sample_count = region1_size/audio.bytes_per_full_sample();
 				u32 processing_buffer_i = 0;
 				s16* sample_out = (s16*)region1;
+
 				for(u32 i=0; i<region1_sample_count; i++){
 					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
 					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
 				}
 
 				sample_out = (s16*)region2;
-				DWORD region2_sample_count = region2_size/audio.bytes_per_sample;
+				DWORD region2_sample_count = region2_size/audio.bytes_per_full_sample();
 				for(u32 i=0; i<region2_sample_count; i++){
 					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
 					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
