@@ -207,8 +207,6 @@ scan_json_to_structure(Json_buffer* buffer, Memory_arena* arena, Json_var* curre
     while(buffer->pos < buffer->size)
     {
         char current_char = *(buffer->data+buffer->pos);
-        if(compare_strings(current_var->key, "primitives"))//TODO: DELETE THIS
-            u32 x = 0;
 
         if(current_var->var_type == JSON_VAR_NULL)
         {

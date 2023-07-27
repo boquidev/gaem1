@@ -139,7 +139,9 @@ glb_get_chunks(void* file_data, GLB* glb)
     u8* scan = (u8*)file_data;
     scan+=4;
     u32 version = SCAN(scan,u32);
+    version; 
     u32 filesize = SCAN(scan,u32);
+    filesize;
 
     //JSON HEADER
     u32 json_chunk_size = SCAN(scan,u32);
@@ -185,6 +187,7 @@ gltf_get_meshes(
     Json_var** accessors_list = get_json_var(&json_structure, string("accessors"))->list;
     Json_var** buffer_views_list = get_json_var(&json_structure, string("bufferViews"))->list;
     Json_var** buffers_list = get_json_var(&json_structure, string("buffers"))->list;
+    buffers_list; // i THINK this is not used because there is just one buffer in the data chunk
 
     *meshes_count = LIST_SIZE(meshes_var->list);
     Gltf_mesh* meshes_list = ARENA_PUSH_STRUCTS(arena, Gltf_mesh, LIST_SIZE(meshes_var->list));
@@ -227,6 +230,7 @@ gltf_get_meshes(
                 String component_type = get_json_var(accessor_var, string("componentType"))->value_data;
                 // TODO: normalize if normalized
                 bool normalized = get_json_value_as_bool(accessor_var, string("normalized")); 
+                normalized;
 
                 s32 component_type_size  = gltf_get_component_type_size( component_type );
                 
@@ -272,7 +276,7 @@ gltf_primitives_to_mesh_primitives(Memory_arena* arena, Gltf_primitive* primitiv
         vertices[i].pos.z = -primitive->vertices[i].z;
         if(texcoords)
             vertices[i].texcoord = texcoords[i];
-        Color_u16* colors = primitive->colors;
+        // Color_u16* colors = primitive->colors;
 
         vertices[i].normal.x = primitive->normals[i].x;
         vertices[i].normal.y = primitive->normals[i].y;

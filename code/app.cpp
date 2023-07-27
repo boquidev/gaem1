@@ -66,7 +66,7 @@ void update(App_memory* memory){
 	if(input->reset == 1)
 		memory->is_initialized = false;
 
-	f32 camera_speed = 1.0f;
+	// f32 camera_speed = 1.0f;
 	f32 sensitivity = 2.0f;
 
 	memory->camera_rotation.y += sensitivity*(f32)input->cursor_speed.x;
@@ -652,7 +652,7 @@ void update(App_memory* memory){
 					if(!entities[j].visible) continue;
 					Entity* entity2 = &entities[j];
 					if(entity2->type == ENTITY_OBSTACLE){
-						V3 distance = sphere_vs_box(entity->pos, entity->current_scale, entity2->pos, entity2->pos+entity2->scale);
+						V3 distance = sphere_vs_box(entity->pos, entity2->pos, entity2->pos+entity2->scale);
 						f32 distance_value = v3_magnitude(distance);
 						if(distance_value < entity->current_scale){
 							*entity = {0};
@@ -702,7 +702,7 @@ void update(App_memory* memory){
 						}
 						else if(entity2->type == ENTITY_OBSTACLE){
 							f32 sphere_radius = entity->current_scale;
-							V3 distance = sphere_vs_box(entity->pos, sphere_radius, entity2->pos, entity2->pos+entity2->scale);
+							V3 distance = sphere_vs_box(entity->pos, entity2->pos, entity2->pos+entity2->scale);
 							f32 distance_value = v3_magnitude(distance);
 							// checking if distance is less than the sphere radius
 							if(distance_value < sphere_radius){
@@ -1008,12 +1008,12 @@ void init(App_memory* memory, Init_data* init_data){
 
 	request.type = SOUND_FROM_FILE_REQUEST;
 	request.p_uid = &memory->sounds.weird_uid;
-	request.filename = string("data/sound/wa.wav");
+	request.filename = string("data/sound/short_wa.wav");
 	PUSH_ASSET_REQUEST;
 
 	request.type = SOUND_FROM_FILE_REQUEST;
 	request.p_uid = &memory->sounds.weird_uid;
-	request.filename = string("data/sound/pa.wav");
+	request.filename = string("data/sound/wa.wav");
 	PUSH_ASSET_REQUEST;
 
 	//TODO: make it possible to load more than one font

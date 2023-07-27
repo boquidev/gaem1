@@ -11,7 +11,7 @@ win_read_file(String filename, Memory_arena* arena)
 	if(file_handle == INVALID_HANDLE_VALUE)
 	{
 		DWORD error = GetLastError();
-		ASSERT(false);
+		ASSERT(!error);
 	}
 	LARGE_INTEGER file_size;
 	if( GetFileSizeEx(file_handle, &file_size) )
@@ -50,7 +50,7 @@ win_write_file(String filename, void* data, u32 file_size)
 			result = (bytes_written == file_size);
 		}else{
 			DWORD error = GetLastError();
-			ASSERT(false);
+			ASSERT(!error);
 		}
 
 		CloseHandle(file_handle);
@@ -58,7 +58,7 @@ win_write_file(String filename, void* data, u32 file_size)
 	else
 	{
 		DWORD error = GetLastError();
-		ASSERT(false);
+		ASSERT(!error);
 	}
 
 	return result;

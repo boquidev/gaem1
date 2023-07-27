@@ -231,8 +231,8 @@ struct Audio_samples{
 
 struct Audio_playback{
 	Audio_samples* sound;
-	u32 initial_time;
-	u32 sample_i;
+	// with a u32 i could have 12.6 hours until it overflows (maybe 25)
+	u32 initial_sample_t; 
 	b32 loop;
 };
 

@@ -403,7 +403,7 @@ bool ray_vs_sphere(V3 line_0, V3 line_v, V3 sphere_center, f32 sphere_radius, V3
     the closest point of the box to the center of the sphere
     Check if the magnitude is less than or equal to the sphere radius */
 internal V3
-sphere_vs_box(V3 sc, f32 sr, V3 bmin, V3 bmax){
+sphere_vs_box(V3 sc, V3 bmin, V3 bmax){
     // Calculate the closest point on the box to the sphere
     V3 closest_point;
     closest_point.x = MAX(bmin.x, MIN(sc.x, bmax.x));

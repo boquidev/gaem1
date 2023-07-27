@@ -552,7 +552,6 @@ default_projectile(Entity* out, App_memory* memory){
 // return value is -1 if substr is not a sub string of str, returns the pos it found the substring otherwise
 internal s32
 find_substring(String str, String substr){
-	s32 result = 0;
 	UNTIL(i, str.length-substr.length){
 		if(compare_strings(substr, {str.text+i, substr.length})){
 			return i;

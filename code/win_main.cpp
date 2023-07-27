@@ -182,7 +182,8 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 
 int WINAPI 
 wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cmd_show)
-{
+{h_prev_instance; cmd_line; cmd_show; //unreferenced formal parameters
+	
 	RECT winrect = {0,0,1600,900};
 	AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);
 	Int2 win_size = {winrect.right-winrect.left, winrect.bottom-winrect.top};
@@ -477,10 +478,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				Mesh_primitive* primitives = ARENA_PUSH_STRUCTS(permanent_arena, Mesh_primitive, meshes_count);
 				for(u32 m=0; m<meshes_count; m++)
 				{
-					u32 primitives_count = meshes[m].primitives_count;
 					Gltf_primitive* Mesh_primitive = meshes[m].primitives;
 					//TODO: here i am assuming this mesh has only one primitive
 					primitives[m] = gltf_primitives_to_mesh_primitives(permanent_arena, &Mesh_primitive[0]);
+					// u32 primitives_count = meshes[m].primitives_count;
 					// for(u32 p=0; p<primitives_count; p++)
 					// {	
 					// }
@@ -625,9 +626,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				u32* scan = (u32*)audio_file.data;
 				ASSERT(scan[0] == 'FFIR'); // RIFF
 				u32 file_size = scan[1];
+				file_size;
 				ASSERT(scan[2] == 'EVAW'); // WAVE
 				ASSERT(scan[3] == ' tmf'); // fmt\0 format chunk identifier
 				u32 format_chunk_size = scan[4];
+				format_chunk_size;
 
 				u16* scan16 = (u16*)&scan[5];
 				u16 sample_format = scan16[0]; // 1 is PCM
@@ -643,6 +646,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				u16 bytes_per_full_sample = scan16[0]; // bits_per_sample*channels / 8
 				u16 bits_per_sample = scan16[1]; 
 				ASSERT(bits_per_sample == 16);
+				ASSERT(bytes_p_second == (sample_hz*bytes_per_full_sample))
 
 
 				ASSERT(scan[9] == 'atad'); // data
@@ -685,7 +689,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		test_playback = find_next_available_playback(audio_playback_list, ARRAYCOUNT(audio_playback_list));
 		LIST_GET(sounds_list, 1, test_playback->sound);
-		test_playback->loop = false;
+		test_playback->loop = true;
 	}
 
 	
@@ -771,6 +775,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
 
 	u32 sample_t = 0;
+	u32 last_byte_to_lock = 0;
 	// MAIN LOOP ____________________________________________________________
 
 	
@@ -902,7 +907,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				case WM_KEYUP:
 				{
 					u32 vkcode = msg.wParam;
+					//TODO: maybe use this for something
 					u16 repeat_count = (u16)msg.lParam;
+					repeat_count;
 					b32 was_down = ((msg.lParam & (1 <<  30)) != 0);
 					b32 is_down = ((msg.lParam & (1 << 31)) == 0 );
 					ASSERT(is_down == 0 || is_down == 1);
@@ -961,8 +968,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 						if(vkcode == 'H' && is_down){
 							Audio_playback* new_playback = find_next_available_playback(audio_playback_list, ARRAYCOUNT(audio_playback_list));
 							LIST_GET(sounds_list, 0, new_playback->sound);
-							new_playback->initial_time = sample_t;
-							new_playback->loop = false;
+							new_playback->initial_sample_t = sample_t;
+							new_playback->loop = true;
 						}
 						// else if(vkcode == 'D')
 						// 	holding_inputs.d_right = is_down;
@@ -1039,12 +1046,125 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					input.buttons[i] = 0;
 			}
 		}
+
+
 		// APP UPDATE
+
+
 		app.update(&memory);
 
-		// APP RENDER
+
+		// SOUND RENDERING
+
+		
+		{
+			DWORD play_cursor;
+			DWORD write_cursor; 
+			hr = audio.buffer->GetCurrentPosition(&play_cursor, &write_cursor);
+			ASSERTHR(hr);
+
+			DWORD unwrapped_write_cursor = write_cursor;
+			if( unwrapped_write_cursor < play_cursor)
+				unwrapped_write_cursor += audio.buffer_size;
+
+			DWORD bytes_latency = unwrapped_write_cursor - play_cursor;
+			DWORD unwrapped_byte_to_lock = write_cursor + bytes_latency;
+			DWORD byte_to_lock = (unwrapped_byte_to_lock) % audio.buffer_size;
+
+			if(unwrapped_byte_to_lock < last_byte_to_lock)
+				unwrapped_byte_to_lock += audio.buffer_size;
+
+			sample_t += ((unwrapped_byte_to_lock-last_byte_to_lock) % audio.buffer_size)/audio.bytes_per_sample;
+			last_byte_to_lock = byte_to_lock;
+
+			DWORD bytes_to_write = audio.buffer_size - (bytes_latency);
+			b32 skip_sound_rendering = false;
+			// skip_sound_rendering = sample_t > 0;
+			if(!skip_sound_rendering)
+			{
+				u32 samples_to_write = bytes_to_write / audio.bytes_per_sample;
+				s16* audio_processing_buffer = (s16*)arena_push_size(temp_arena, bytes_to_write);
+				u32 max_audio_playback_count = ARRAYCOUNT(audio_playback_list);
+				UNTIL(i, max_audio_playback_count)
+				{
+					if(!audio_playback_list[i].sound) continue;
+
+					Audio_playback* playback = &audio_playback_list[i];
+        			s16* sample_out = audio_processing_buffer;
+					
+					u32 playback_sample_t = sample_t-playback->initial_sample_t;
+
+					if(playback_sample_t >= playback->sound->samples_count)
+					{
+						if(playback->loop)
+							playback->initial_sample_t = sample_t;
+						else{
+							*playback = {0};
+							continue;
+						}
+					}
+        			for(u32 j=0; j<samples_to_write && ((j+playback_sample_t) < playback->sound->samples_count); j++)
+					{
+                	sample_out[j] += playback->sound->samples[j+playback_sample_t];
+					}
+					ASSERT(true);
+				}
+
+
+				void* region1 = 0;
+				DWORD region1_size = 0;
+				void* region2 = 0;
+				DWORD region2_size = 0;
+
+				{// LOCKING SOUND BUFFER
+					hr = audio.buffer->Lock(
+						byte_to_lock,
+						bytes_to_write,
+						&region1,
+						&region1_size,
+						&region2,
+						&region2_size,
+						0
+					); 
+
+					ASSERTHR(hr);
+					
+					set_mem(region1, region1_size, 0);
+					set_mem(region2, region2_size, 0);
+
+					u32 processing_buffer_i = 0;
+
+					s16* sample_out = (s16*)region1;
+					DWORD region1_sample_count = region1_size/audio.bytes_per_sample;
+					for(u32 i=0; i<region1_sample_count; i++){
+						*sample_out++ = audio_processing_buffer[processing_buffer_i++];
+					}
+
+					sample_out = (s16*)region2;
+					DWORD region2_sample_count = region2_size/audio.bytes_per_sample;
+					for(u32 i=0; i<region2_sample_count; i++){
+						*sample_out++ = audio_processing_buffer[processing_buffer_i++];
+					}
+
+
+					audio.buffer->Unlock(region1, region1_size, region2,region2_size);
+				}
+
+
+			}
+		}
+
+
+
+		// APP RENDER REQUESTS/PREPARATION
+
+
 		LIST(Renderer_request, render_list) = {0};
 		app.render(&memory, render_list, global_client_size);
+
+
+		// ACTUALLY RENDER
+
 
 		if(dx->render_target_view)
 		{
@@ -1209,102 +1329,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 
 
-		// SOUND RENDERING
-		{
-			DWORD play_cursor;
-			DWORD write_cursor; 
-			hr = audio.buffer->GetCurrentPosition(&play_cursor, &write_cursor);
-			ASSERTHR(hr);
-			
-			DWORD byte_to_lock = (sample_t * audio.bytes_per_full_sample) % audio.buffer_size;
-			DWORD bytes_to_write = 0;
-			b32 skip_sound_rendering = sample_t>0;
-			if (byte_to_lock == play_cursor){
-				skip_sound_rendering = true;
-			}else if(byte_to_lock > play_cursor){ // fill 2 regions
-				bytes_to_write = audio.buffer_size - byte_to_lock + play_cursor;
-			}else{ // only fill 1 region
-				bytes_to_write = play_cursor - byte_to_lock;
-			}
-
-			if(!skip_sound_rendering)
-			{
-				void* region1 = 0;
-				DWORD region1_size = 0;
-				void* region2 = 0;
-				DWORD region2_size = 0;
-				hr = audio.buffer->Lock(
-					byte_to_lock,
-					bytes_to_write,
-					&region1,
-					&region1_size,
-					&region2,
-					&region2_size,
-					0
-				); 
-				ASSERTHR(hr);
-				
-				f32 volume = 1.0f;
-				set_mem(region1, region1_size, 0);
-				set_mem(region2, region2_size, 0);
-
-				u32 regions_total_size = region1_size + region2_size;
-				u32 regions_full_sample_count = regions_total_size/audio.bytes_per_full_sample;
-				sample_t += regions_full_sample_count;
-
-				s16* audio_processing_buffer = (s16*)arena_push_size(temp_arena, region1_size+region2_size);
-
-				UNTIL(i, ARRAYCOUNT(audio_playback_list))
-				{
-					if(!audio_playback_list[i].sound) continue;
-
-					Audio_playback* playback = &audio_playback_list[i];
-        			s16* sample_out = audio_processing_buffer;
-        			UNTIL(j, regions_full_sample_count)
-					{
-
-						if(playback->sample_i >= playback->sound->samples_count)
-						{
-							if(playback->loop)
-                			playback->sample_i -= playback->sound->samples_count;
-							else
-							{
-								*playback = {0};
-								break;
-							}
-						}
-
-                	*sample_out += playback->sound->samples[playback->sample_i];
-                	sample_out++;
-						playback->sample_i++;
-                	*sample_out += playback->sound->samples[playback->sample_i];
-                	sample_out++;
-						playback->sample_i++;
-					}
-					ASSERT(true);
-				}
-
-				DWORD region1_sample_count = region1_size/audio.bytes_per_full_sample;
-				u32 processing_buffer_i = 0;
-				s16* sample_out = (s16*)region1;
-
-				for(u32 i=0; i<region1_sample_count; i++)
-				{
-					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
-					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
-				}
-
-				sample_out = (s16*)region2;
-				DWORD region2_sample_count = region2_size/audio.bytes_per_full_sample;
-				for(u32 i=0; i<region2_sample_count; i++)
-				{
-					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
-					*sample_out++ = audio_processing_buffer[processing_buffer_i++];
-				}
-				audio.buffer->Unlock(region1, region1_size, region2,region2_size);
-			}
-		}
-
+#if DEBUGMODE 
+		// this is just for logging the framerate later
+		LARGE_INTEGER this_frame_counter = last_counter;
+#endif
 		{//FRAME CAPPING
 			LARGE_INTEGER current_wall_clock;
 			QueryPerformanceCounter(&current_wall_clock);
@@ -1328,6 +1356,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}else{
 				//TODO: Missed Framerate
 			}
+			QueryPerformanceCounter(&last_counter);
 
 			// memory.delta_time = frame_seconds_elapsed;
 			// TODO: this is slower than delta time probably cuz it does not take into account sub ms times
@@ -1345,7 +1374,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			LARGE_INTEGER current_wall_clock;
 			QueryPerformanceCounter(&current_wall_clock);
 
-			f32 ms_per_frame = 1000.0f * (f32)(current_wall_clock.QuadPart - last_counter.QuadPart) / (f32)performance_counter_frequency;
+			f32 ms_per_frame = 1000.0f * (f32)(current_wall_clock.QuadPart - this_frame_counter.QuadPart) / (f32)performance_counter_frequency;
 			s64 end_cycle_count = __rdtsc(); // clock cycles count
 
 
@@ -1359,7 +1388,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			last_cycles_count = __rdtsc();
 		}
 #endif
-		QueryPerformanceCounter(&last_counter);
 	}
 	//TODO: this is dumb but i don't want dumb messages each time i close
 	dx->device->Release();
