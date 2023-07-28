@@ -352,7 +352,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	// CREATE SECONDARY BUFFER (ACTUALLY WRITE TO IT)
 
 
-	audio.buffer_size = 5 * audio.hz * audio.bytes_per_sample * audio.channels;
+	audio.buffer_size = 3 * audio.hz * audio.bytes_per_sample * audio.channels;
 	{
 		DSBUFFERDESC buffer_desc = {0};
 		buffer_desc.dwSize = sizeof(buffer_desc);
@@ -395,8 +395,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	LIST(Dx11_blend_state*, blend_states_list) = {0};
 	LIST(Depth_stencil, depth_stencils_list) = {0};
 
-	LIST(Audio_samples, sounds_list) = {0};
-	Audio_playback audio_playback_list [100] = {0};
+	Sound_sample sounds_list [10] = {0};
+
+	ARRAY(Audio_playback, playback_list, 100, permanent_arena);
+
 	FOREACH(Asset_request, request, init_data.asset_requests){
 		switch(request->type){
 			case TEX_FROM_FILE_REQUEST:{
@@ -619,8 +621,16 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 			case SOUND_FROM_FILE_REQUEST:{
-				*request->p_uid = LIST_SIZE(sounds_list);
-				Audio_samples* audio_samples; PUSH_BACK(sounds_list, permanent_arena, audio_samples);
+				Sound_sample* new_audio_samples = 0; 
+				UNTIL(i, ARRAYCOUNT(sounds_list)){
+					if(!sounds_list[i].samples){
+						*request->p_uid = i;
+						new_audio_samples = &sounds_list[i];
+						break;
+					}
+				}
+				ASSERT(new_audio_samples);
+
 
 				File_data audio_file = win_read_file(request->filename, temp_arena);
 				u32* scan = (u32*)audio_file.data;
@@ -655,12 +665,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				s16* sample_values = (s16*)&scan[11];
 				u16 bytes_per_sample = bits_per_sample / 8;
 
-				audio_samples->samples_count = data_chunk_size/bytes_per_sample;
-				audio_samples->channels = channels_count;
-				audio_samples->samples = ARENA_PUSH_STRUCTS(permanent_arena, s16, audio_samples->samples_count);
+				new_audio_samples->samples_count = data_chunk_size/bytes_per_sample;
+				new_audio_samples->channels = channels_count;
+				new_audio_samples->samples = ARENA_PUSH_STRUCTS(permanent_arena, s16, new_audio_samples->samples_count);
 
-				UNTIL(i, audio_samples->samples_count){
-					audio_samples->samples[i] = sample_values[i];
+				UNTIL(i, new_audio_samples->samples_count){
+					new_audio_samples->samples[i] = sample_values[i];
 				}
 
 
@@ -681,15 +691,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				ASSERT(false)
 			break;
 		}
-	}
-	{
-		Audio_playback* test_playback = find_next_available_playback(audio_playback_list,ARRAYCOUNT(audio_playback_list));
-		test_playback->sound = sounds_list[0];
-		test_playback->loop = false;
-
-		test_playback = find_next_available_playback(audio_playback_list, ARRAYCOUNT(audio_playback_list));
-		LIST_GET(sounds_list, 1, test_playback->sound);
-		test_playback->loop = true;
 	}
 
 	
@@ -966,10 +967,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 						}
 						if(vkcode == 'H' && is_down){
-							Audio_playback* new_playback = find_next_available_playback(audio_playback_list, ARRAYCOUNT(audio_playback_list));
-							LIST_GET(sounds_list, 0, new_playback->sound);
+							Audio_playback* new_playback = find_next_available_playback(playback_list);
+							new_playback->sound_uid = memory.sounds.wa_uid;
 							new_playback->initial_sample_t = sample_t;
-							new_playback->loop = true;
+							new_playback->loop = false;
 						}
 						// else if(vkcode == 'D')
 						// 	holding_inputs.d_right = is_down;
@@ -1047,19 +1048,39 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}
 		}
 
+		// INITIALIZING SAMPLE_T BEFORE PROCESSING THE FIRST TIME 
+		if(!sample_t)
+		{
+			DWORD play_cursor, write_cursor;
+			hr = audio.buffer->GetCurrentPosition(&play_cursor, &write_cursor);
+			ASSERTHR(hr);
+			
+			DWORD unwrapped_write_cursor = write_cursor;
+			if( unwrapped_write_cursor < play_cursor)
+				unwrapped_write_cursor += audio.buffer_size;
+				
+			DWORD bytes_latency = unwrapped_write_cursor - play_cursor;
+			DWORD unwrapped_byte_to_lock = write_cursor + bytes_latency;
+			DWORD byte_to_lock = (unwrapped_byte_to_lock) % audio.buffer_size;
+
+			if(unwrapped_byte_to_lock < last_byte_to_lock)
+				unwrapped_byte_to_lock += audio.buffer_size;
+
+			sample_t += ((unwrapped_byte_to_lock-last_byte_to_lock) % audio.buffer_size)/audio.bytes_per_sample;
+			last_byte_to_lock = byte_to_lock;	
+		}
 
 		// APP UPDATE
 
 
-		app.update(&memory);
+		app.update(&memory, playback_list, sample_t);
 
 
 		// SOUND RENDERING
 
 		
 		{
-			DWORD play_cursor;
-			DWORD write_cursor; 
+			DWORD play_cursor,  write_cursor; 
 			hr = audio.buffer->GetCurrentPosition(&play_cursor, &write_cursor);
 			ASSERTHR(hr);
 
@@ -1078,23 +1099,23 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			last_byte_to_lock = byte_to_lock;
 
 			DWORD bytes_to_write = audio.buffer_size - (bytes_latency);
-			b32 skip_sound_rendering = false;
-			// skip_sound_rendering = sample_t > 0;
-			if(!skip_sound_rendering)
+
 			{
 				u32 samples_to_write = bytes_to_write / audio.bytes_per_sample;
 				s16* audio_processing_buffer = (s16*)arena_push_size(temp_arena, bytes_to_write);
-				u32 max_audio_playback_count = ARRAYCOUNT(audio_playback_list);
+				u32 max_audio_playback_count = ARRAYLEN(playback_list);
 				UNTIL(i, max_audio_playback_count)
 				{
-					if(!audio_playback_list[i].sound) continue;
+					if(!playback_list[i].initial_sample_t) continue;
 
-					Audio_playback* playback = &audio_playback_list[i];
+					Audio_playback* playback = &playback_list[i];
         			s16* sample_out = audio_processing_buffer;
 					
 					u32 playback_sample_t = sample_t-playback->initial_sample_t;
 
-					if(playback_sample_t >= playback->sound->samples_count)
+					Sound_sample* sound_samples = &sounds_list[playback->sound_uid];
+
+					if(playback_sample_t >= sound_samples->samples_count)
 					{
 						if(playback->loop)
 							playback->initial_sample_t = sample_t;
@@ -1103,9 +1124,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							continue;
 						}
 					}
-        			for(u32 j=0; j<samples_to_write && ((j+playback_sample_t) < playback->sound->samples_count); j++)
+        			for(u32 j=0; j<samples_to_write && ((j+playback_sample_t) < sound_samples->samples_count); j++)
 					{
-                	sample_out[j] += playback->sound->samples[j+playback_sample_t];
+                	sample_out[j] += sound_samples->samples[j+playback_sample_t];
 					}
 					ASSERT(true);
 				}

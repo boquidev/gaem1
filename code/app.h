@@ -3,7 +3,7 @@
 #include "gltf_loader.h"
 
 
-#define update_type(name) void (*name)(App_memory*)
+#define update_type(name) void (*name)(App_memory*, Audio_playback*, u32)
 #define render_type(name) void (*name)(App_memory*, LIST(Renderer_request,), Int2 )
 #define init_type(name) void (*name)(App_memory*, Init_data* )
 
@@ -218,8 +218,10 @@ struct Depth_stencils{
 };
 
 struct Sounds{
-	u32 weird_uid;
+	u32 wa_uid;
+	u32 pe_uid;
 	u32 pa_uid;
+	u32 psss_uid;
 };
 
 struct App_memory

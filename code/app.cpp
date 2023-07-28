@@ -2,11 +2,10 @@
 
 #define MAX_SPAWN_DISTANCE 5.0f
 #define BOSS_INDEX 1
-void update(App_memory* memory){
+void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
 		
-		//TODO: test this against setting each entity to {0}
 		set_mem(memory->entities, MAX_ENTITIES*sizeof(Entity), 0);
 		set_mem(memory->entity_generations, MAX_ENTITIES*sizeof(u32), 0);
 
@@ -256,6 +255,10 @@ void update(App_memory* memory){
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
 				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 1.0f});
+				
+				Audio_playback* new_playback = find_next_available_playback(playback_list);
+				new_playback->initial_sample_t = sample_t;
+				new_playback->sound_uid = memory->sounds.wa_uid;
 			}
 		}
 	} else {  // NO SELECTED UNIT TO CREATE
@@ -1007,13 +1010,24 @@ void init(App_memory* memory, Init_data* init_data){
 	}
 
 	request.type = SOUND_FROM_FILE_REQUEST;
-	request.p_uid = &memory->sounds.weird_uid;
+	request.p_uid = &memory->sounds.pe_uid;
+	request.filename = string("data/sound/pe.wav");
+	PUSH_ASSET_REQUEST;
+
+	request.type = SOUND_FROM_FILE_REQUEST;
+	request.p_uid = &memory->sounds.wa_uid;
 	request.filename = string("data/sound/short_wa.wav");
 	PUSH_ASSET_REQUEST;
 
 	request.type = SOUND_FROM_FILE_REQUEST;
-	request.p_uid = &memory->sounds.weird_uid;
-	request.filename = string("data/sound/wa.wav");
+	request.p_uid = &memory->sounds.pa_uid;
+	request.filename = string("data/sound/pa.wav");
+	PUSH_ASSET_REQUEST;
+
+	
+	request.type = SOUND_FROM_FILE_REQUEST;
+	request.p_uid = &memory->sounds.psss_uid;
+	request.filename = string("data/sound/psss.wav");
 	PUSH_ASSET_REQUEST;
 
 	//TODO: make it possible to load more than one font
