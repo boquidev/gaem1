@@ -386,6 +386,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	Init_data init_data = {0};
 	init_data.meshes_serialization = win_read_file(string("data/meshes_init.txt"),temp_arena);
 	init_data.textures_serialization = win_read_file(string("data/textures_init.txt"),temp_arena);
+	init_data.sounds_serialization = win_read_file(string("data/sounds_init.txt"), temp_arena);
 	app.init(&memory, &init_data);
 	
 	LIST(Dx11_texture_view*, textures_list) = {0};
@@ -624,7 +625,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				Sound_sample* new_audio_samples = 0; 
 				UNTIL(i, ARRAYCOUNT(sounds_list)){
 					if(!sounds_list[i].samples){
-						*request->p_uid = i;
 						new_audio_samples = &sounds_list[i];
 						break;
 					}

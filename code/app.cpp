@@ -991,44 +991,74 @@ void init(App_memory* memory, Init_data* init_data){
 	);
 
 */
-	LIST(String, meshes_filenames) = {0};
-	parse_meshes_serialization_file(memory, init_data->meshes_serialization, meshes_filenames);
+	//TODO: PLEASE AUTOMATE THIS IN THE FUTURE
+	//TODO: add another level of indirection using the keys
+	// maybe union the memory->meshes with an array of indexes and automatically index them 
+	{
+		String_index_pair string_index_pairs [] = {
+			{string(":default_mesh:"), &memory->meshes.default_mesh_uid},
+			{string(":ball_mesh:"), &memory->meshes.ball_mesh_uid},
+			{string(":centered_cube_mesh:"), &memory->meshes.centered_cube_mesh_uid},
+			{string(":cube_mesh:"), &memory->meshes.cube_mesh_uid},
+			{string(":centered_plane_mesh:"), &memory->meshes.centered_plane_mesh_uid},
+			{string(":plane_mesh:"), &memory->meshes.plane_mesh_uid},
+			{string(":icosphere_mesh:"), &memory->meshes.icosphere_mesh_uid},
+			{string(":player_mesh:"), &memory->meshes.player_mesh_uid},
+			{string(":spawner_mesh:"), &memory->meshes.spawner_mesh_uid},
+			{string(":boss_mesh:"), &memory->meshes.boss_mesh_uid},
+			{string(":tank_mesh:"), &memory->meshes.tank_mesh_uid},
+			{string(":shield_mesh:"), &memory->meshes.shield_mesh_uid},
+			{string(":shooter_mesh:"), &memory->meshes.shooter_mesh_uid}
+		};
 
-	FOREACH(String, current, meshes_filenames){
-		request.type = MESH_FROM_FILE_REQUEST;
-		request.filename = *current;
-		PUSH_ASSET_REQUEST;
+		LIST(String, meshes_filenames) = {0};
+		parse_assets_serialization_file(memory, init_data->meshes_serialization, 
+			string_index_pairs, ARRAYCOUNT(string_index_pairs), meshes_filenames);
+
+		FOREACH(String, current, meshes_filenames){
+			request.type = MESH_FROM_FILE_REQUEST;
+			request.filename = *current;
+			PUSH_ASSET_REQUEST;
+		}
+	}
+	{
+		String_index_pair string_index_pairs [] = {
+			{string(":default_tex:"), &memory->textures.default_tex_uid},
+			{string(":white_tex:"), &memory->textures.white_tex_uid},
+			{string(":gradient_tex:"), &memory->textures.gradient_tex_uid}
+		};
+
+		LIST(String, textures_filenames) = {0};
+		parse_assets_serialization_file(memory, init_data->textures_serialization,
+			string_index_pairs, ARRAYCOUNT(string_index_pairs), textures_filenames);
+
+		FOREACH(String, current, textures_filenames){
+			request.type = TEX_FROM_FILE_REQUEST;
+			request.filename = *current;
+			PUSH_ASSET_REQUEST;
+		}
 	}
 
-	LIST(String, textures_filenames) = {0};
-	parse_textures_serialization_file(memory, init_data->textures_serialization, textures_filenames);
+	//TODO: PLEASE AUTOMATE THIS IN THE FUTURE
+	// maybe union the memory->meshes with an array of indexes and automatically index them 
+	{
+		String_index_pair string_index_pairs [] = {
+			{string(":wa:"), &memory->sounds.wa_uid},
+			{string(":pe:"), &memory->sounds.pe_uid},
+			{string(":pa:"), &memory->sounds.pa_uid},
+			{string(":psss:"), &memory->sounds.psss_uid}
+		};
 
-	FOREACH(String, current, textures_filenames){
-		request.type = TEX_FROM_FILE_REQUEST;
-		request.filename = *current;
-		PUSH_ASSET_REQUEST;
+		LIST(String, sound_filenames) = {0};
+		parse_assets_serialization_file(memory, init_data->sounds_serialization, 
+			string_index_pairs, ARRAYCOUNT(string_index_pairs), sound_filenames);
+
+		FOREACH(String, current, sound_filenames){
+			request.type = SOUND_FROM_FILE_REQUEST;
+			request.filename = *current;
+			PUSH_ASSET_REQUEST;
+		}
 	}
-
-	request.type = SOUND_FROM_FILE_REQUEST;
-	request.p_uid = &memory->sounds.pe_uid;
-	request.filename = string("data/sound/pe.wav");
-	PUSH_ASSET_REQUEST;
-
-	request.type = SOUND_FROM_FILE_REQUEST;
-	request.p_uid = &memory->sounds.wa_uid;
-	request.filename = string("data/sound/short_wa.wav");
-	PUSH_ASSET_REQUEST;
-
-	request.type = SOUND_FROM_FILE_REQUEST;
-	request.p_uid = &memory->sounds.pa_uid;
-	request.filename = string("data/sound/pa.wav");
-	PUSH_ASSET_REQUEST;
-
-	
-	request.type = SOUND_FROM_FILE_REQUEST;
-	request.p_uid = &memory->sounds.psss_uid;
-	request.filename = string("data/sound/psss.wav");
-	PUSH_ASSET_REQUEST;
 
 	//TODO: make it possible to load more than one font
 	request.type = FONT_FROM_FILE_REQUEST;

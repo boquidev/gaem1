@@ -433,6 +433,7 @@ struct Init_data
 	// this is sent from the platform layer to the init function
 	File_data meshes_serialization;
 	File_data textures_serialization;
+	File_data sounds_serialization;
 
 	// this is the result from the init function to the platform layer
 	LIST(Asset_request, asset_requests);
@@ -562,14 +563,23 @@ find_substring(String str, String substr){
 	return -1;
 }
 
+struct String_index_pair{
+	String str;
+	u32* index_p;
+};
+
 internal void 
-parse_meshes_serialization_file(App_memory* memory, File_data file, LIST(String, filenames)){
+parse_assets_serialization_file(
+	App_memory* memory, File_data file, 
+	String_index_pair string_index_pairs[], u32 pairs_count,
+	LIST(String, filenames)){
 	char* scan = (char*)file.data;
-	String key = string(":mesh:");
+	String key = string(":asset:");
 	UNTIL(i, file.size - key.length){
 		if(compare_strings(key, {scan+i, key.length})){
 			i+=key.length;
- 			String* filename; PUSH_BACK(filenames, memory->temp_arena, filename);
+ 			String* filename; 
+			PUSH_BACK(filenames, memory->temp_arena, filename);
 			filename->text = scan+i;
 			while(scan[i] != '\n' && scan[i]!= '\r'){
 				filename->length++;
@@ -577,73 +587,9 @@ parse_meshes_serialization_file(App_memory* memory, File_data file, LIST(String,
 			}
 		}
 	}
-	struct String_index_pair{
-		String str;
-		u32* index_p;
-	};
-	//TODO: PLEASE AUTOMATE THIS IN THE FUTURE
-	//TODO: add another level of indirection using the keys
-	// maybe union the memory->meshes with an array of indexes and automatically index them 
-	String_index_pair string_index_pairs [] = {
-		{string(":default_mesh:"), &memory->meshes.default_mesh_uid},
-		{string(":ball_mesh:"), &memory->meshes.ball_mesh_uid},
-		{string(":centered_cube_mesh:"), &memory->meshes.centered_cube_mesh_uid},
-		{string(":cube_mesh:"), &memory->meshes.cube_mesh_uid},
-		{string(":centered_plane_mesh:"), &memory->meshes.centered_plane_mesh_uid},
-		{string(":plane_mesh:"), &memory->meshes.plane_mesh_uid},
-		{string(":icosphere_mesh:"), &memory->meshes.icosphere_mesh_uid},
-		{string(":player_mesh:"), &memory->meshes.player_mesh_uid},
-		{string(":spawner_mesh:"), &memory->meshes.spawner_mesh_uid},
-		{string(":boss_mesh:"), &memory->meshes.boss_mesh_uid},
-		{string(":tank_mesh:"), &memory->meshes.tank_mesh_uid},
-		{string(":shield_mesh:"), &memory->meshes.shield_mesh_uid},
-		{string(":shooter_mesh:"), &memory->meshes.shooter_mesh_uid}
-	};
 
 	String filestring = {(char*)file.data, file.size};
-	UNTIL(i, ARRAYCOUNT(string_index_pairs)){
-		s32 substring_pos = 0;
-		u32 number_length = 0;
-
-		substring_pos = find_substring(filestring, string_index_pairs[i].str);
-		ASSERT(substring_pos >= 0);
-		substring_pos += string_index_pairs[i].str.length;
-		while(filestring.text[substring_pos+number_length] >= '0' && filestring.text[substring_pos+number_length] <= '9'){
-			number_length++;
-		}
-		*string_index_pairs[i].index_p = string_to_int({filestring.text+substring_pos, number_length});
-	}
-}
-
-internal void
-parse_textures_serialization_file(App_memory* memory, File_data file, LIST(String, filenames)){
-	char* scan = (char*)file.data;
-	String key = string(":texture:");
-	UNTIL(i, file.size - key.length){
-		if(compare_strings(key, {scan+i, key.length})){
-			i+=key.length;
-			String* filename; PUSH_BACK(filenames, memory->temp_arena, filename);
-			filename->text = scan+i;
-			while(scan[i] != '\n' && scan[i]!= '\r'){
-				filename->length++;
-				i++;
-			}
-		}
-	}
-	struct String_index_pair{
-		String str;
-		u32* index_p;
-	};
-	//TODO: PLEASE AUTOMATE THIS IN THE FUTURE
-	// maybe union the memory->meshes with an array of indexes and automatically index them 
-	String_index_pair string_index_pairs [] = {
-		{string(":default_tex:"), &memory->textures.default_tex_uid},
-		{string(":white_tex:"), &memory->textures.white_tex_uid},
-		{string(":gradient_tex:"), &memory->textures.gradient_tex_uid}
-	};
-
-	String filestring = {(char*)file.data, file.size};
-	UNTIL(i, ARRAYCOUNT(string_index_pairs)){
+	UNTIL(i, pairs_count){
 		s32 substring_pos = 0;
 		u32 number_length = 0;
 
