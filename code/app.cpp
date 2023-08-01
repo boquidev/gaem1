@@ -18,12 +18,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 
 		Entity* player = &memory->entities[memory->player_uid];
-		default_entity(player);
+		default_object3d(player);
+		player->pos = {-25, 0, 0};
 		player->max_health = 10;
 		player->health = player->max_health;
 		player->team_uid = 0;
 		memory->teams_resources[player->team_uid] = 30;
-		player->active = true;
+		player->flags = VISIBLE|ACTIVE;
 		player->current_scale = 1.0f;
 
 		player->team_uid = 0;
@@ -34,14 +35,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		player->texinfo_uid = memory->textures.white_tex_uid;
 		
 		Entity* boss = &memory->entities[BOSS_INDEX];
-		default_entity(boss);
+		default_object3d(boss);
 		boss->speed = 40.0f;
 		boss->shooting_cooldown = 2.0f;
 		boss->shooting_cd_time_left = boss->shooting_cooldown;
 
+		boss->flags = VISIBLE;
 		boss->max_health = 100;
 		boss->health = boss->max_health;
-		boss->pos = {0, 0, 15};
+		boss->pos = {25, 0, 0};
 		boss->target_move_pos = boss->pos;
 		boss->team_uid = 1;
 		boss->current_scale = 1.0f;
@@ -53,6 +55,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		memory->unit_creation_costs[UNIT_SHOOTER] = 20; // 20
 		memory->unit_creation_costs[UNIT_TANK] = 15;
 		memory->unit_creation_costs[UNIT_SPAWNER] = 40;
+		memory->unit_creation_costs[UNIT_MELEE] = 5;
 	}
 
 	User_input* input = memory->input;
@@ -91,8 +94,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 		Entity* wall = 0;
 		wall = &entities[5];
-		wall->visible = true;
-		wall->active = true;
+		wall->flags = VISIBLE | ACTIVE;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
 		wall->mesh_uid = memory->meshes.cube_mesh_uid;
@@ -103,8 +105,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		wall->rotation = {0,0,0};
 		
 		wall = &entities[6];
-		wall->visible = true;
-		wall->active = true;
+		wall->flags = VISIBLE | ACTIVE;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
 		wall->mesh_uid = memory->meshes.cube_mesh_uid;
@@ -115,8 +116,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		wall->rotation = {0,0,0};
 		
 		wall = &entities[7];
-		wall->visible = true;
-		wall->active = true;
+		wall->flags = VISIBLE | ACTIVE;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
 		wall->mesh_uid = memory->meshes.cube_mesh_uid;
@@ -127,8 +127,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		wall->rotation = {0,0,0};
 
 		wall = &entities[8];
-		wall->visible = true;
-		wall->active = true;
+		wall->flags = VISIBLE | ACTIVE;
 		wall->current_scale = 1.0f;
 		wall->type = ENTITY_OBSTACLE;
 		wall->mesh_uid = memory->meshes.cube_mesh_uid;
@@ -160,8 +159,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	b32 first_intersection = false;
 	// CURSOR RAYCASTING
 	UNTIL(i, MAX_ENTITIES){
-		if(entities[i].active && 
-			entities[i].selectable &&
+		if((entities[i].flags & VISIBLE) && 
+			(entities[i].flags & SELECTABLE) &&
 			entities[i].team_uid == entities[memory->player_uid].team_uid 
 		){
 			
@@ -194,23 +193,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	// if(input->R == 1)
 	// 	memory->creating_unit = ((memory->creating_unit+1) % (1+AVAILABLE_UNITS));
 	if(input->L)
-		memory->creating_unit = (UNIT_TYPE)0;
+		memory->creating_unit = 0;
 	else if(input->k1 == 1)
-		memory->creating_unit = (UNIT_TYPE)1;
+		memory->creating_unit = 1;
 	else if(input->k2 == 1)
-		memory->creating_unit = (UNIT_TYPE)2;
+		memory->creating_unit = 2;
 	else if(input->k3 == 1)
-		memory->creating_unit = (UNIT_TYPE)3;
-	// else if(input->k4 == 1)
-	// 	memory->creating_unit = 4;
-	// else if(input->k5 == 1)
-	// 	memory->creating_unit = 5;
-	
-	if(memory->creating_unit == UNIT_SHOOTER) { // SELECTED UNIT TO CREATE
+		memory->creating_unit = 3;
+
+	memory->possible_entities[0] = UNIT_NOT_A_UNIT;
+	memory->possible_entities[1] = UNIT_SHOOTER;
+	memory->possible_entities[2] = UNIT_TANK;
+	memory->possible_entities[3] = UNIT_MELEE;
+		
+	UNIT_TYPE new_unit_type = memory->possible_entities[memory->creating_unit];
+	if(new_unit_type == UNIT_SHOOTER) { // SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
 			// CREATING SHOOTER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[memory->creating_unit]){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[memory->creating_unit];
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[new_unit_type]){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				default_shooter(new_unit, memory);
@@ -220,14 +221,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
-				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+				new_unit->target_pos = entities[BOSS_INDEX].pos;
 			}
 		}
-	} else if ( memory->creating_unit == UNIT_SPAWNER){
+	} else if ( new_unit_type == UNIT_SPAWNER){
 		if(input->cursor_primary == -1){
 			// CREATING SPAWNER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[memory->creating_unit]){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[memory->creating_unit];
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[new_unit_type]){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				default_spawner(new_unit, memory);
@@ -237,14 +238,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
-				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
+				new_unit->target_pos = entities[BOSS_INDEX].pos;
 			}
 		}
-	} else if ( memory->creating_unit == UNIT_TANK){
+	} else if ( new_unit_type == UNIT_TANK){
 		if(input->cursor_primary == -1){
 			// CREATING TANK
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[memory->creating_unit]){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[memory->creating_unit];
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
 				default_tank(new_unit, memory);
@@ -254,11 +255,33 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
-				new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 1.0f});
+				new_unit->target_pos = entities[BOSS_INDEX].pos;
+				new_unit->looking_at = v3_normalize(new_unit->target_pos - new_unit->pos) + new_unit->pos;
 				
 				Audio_playback* new_playback = find_next_available_playback(playback_list);
 				new_playback->initial_sample_t = sample_t;
 				new_playback->sound_uid = memory->sounds.wa_uid;
+			}
+		}
+	} else if( new_unit_type == UNIT_MELEE) {
+		if(input->cursor_primary == -1){
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
+				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
+				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+				Entity* new_unit = &entities[new_entity_index];
+				
+				default_melee(new_unit, memory);
+
+				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
+				new_unit->target_move_pos = new_unit->pos;
+
+				new_unit->team_uid = entities[memory->player_uid].team_uid;
+				new_unit->target_pos = entities[BOSS_INDEX].pos;
+
+				Audio_playback* new_playback = find_next_available_playback(playback_list);
+				new_playback->initial_sample_t = sample_t;
+				new_playback->sound_uid = memory->sounds.wa_uid;
+
 			}
 		}
 	} else {  // NO SELECTED UNIT TO CREATE
@@ -289,19 +312,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	// UPDATING ENTITIES
 	UNTIL(i, MAX_ENTITIES){
 		Entity* entity = &entities[i]; 
-		if(!entity->visible) continue;
-		if(entity->type == ENTITY_OBSTACLE) 
-			continue;
+		if(!(entity->flags & VISIBLE)) continue;
+		if(entity->type == ENTITY_OBSTACLE) continue;
 
 		if(entity->team_uid != 0)
 			entity->color = {0.7f,0,0,1};
 			
-		if( !entity->active){
+		if( !(entity->flags & ACTIVE)){
 			if(entity->current_scale < 1.0f){
 				entity->current_scale += delta_time;
+				continue;
 			}else{
 				entity->current_scale = 1.0f;
-				entity->active = true;
+				entity->flags |= ACTIVE;
 				if(entity->unit_type == UNIT_TANK){
 					//TODO: create shield
 					u32 new_entity_index = last_inactive_entity(entities);
@@ -315,6 +338,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 					new_shield->target_move_pos = parent->looking_at;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
 					new_shield->target_pos = new_shield->pos + (parent->looking_at - parent->pos);
+					new_shield->looking_at = new_shield->target_pos;
+					V3 looking_direction = (new_shield->looking_at - new_shield->pos);
+					new_shield->rotation.y = v2_angle({looking_direction.x, looking_direction.z}) + PI32/2;
 				}
 			}
 
@@ -330,7 +356,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						case 6:{
 							entity->state = 1;
 							entity->shooting_cd_time_left += 3.0f;
-							entity->target_move_pos = {20, 0, 10};
+							// entity->target_move_pos = {20, 0, 10};
 						}break; 
 						case 1:
 						case 4:{
@@ -339,12 +365,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 					
 							V3 target_direction = v3_normalize(entity->target_pos - entity->pos);
 							u32 shoots_count = 24;
-							UNTIL(shot, shoots_count){
+							UNTIL(shot, shoots_count)
+							{
 								u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
 								Entity* new_bullet = &entities[new_entity_index];
 								default_projectile(new_bullet, memory);
-								//TODO: for now this is just so it doesn't disappear
-								// actually it could be a feature :)
+
 								new_bullet->health = 1; 
 								new_bullet->speed = 50;
 
@@ -353,7 +379,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 								new_bullet->parent_handle.generation = generations[i];
 								new_bullet->team_uid = parent->team_uid;
 								new_bullet->pos = parent->pos;
-								// TODO: go in the direction that parent is looking (the parent's rotation);
+								
 								new_bullet->target_pos = parent->looking_at;
 
 								new_bullet->velocity =  new_bullet->speed * target_direction;
@@ -390,7 +416,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						case 3:{
 							entity->state++;
 							entity->shooting_cd_time_left += 4.0f;
-							entity->target_move_pos = {-20, 0, 10};
+							// entity->target_move_pos = {-20, 0, 10};
 						}break;
 						default:
 							ASSERT(false);
@@ -405,7 +431,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						case 24:{
 							entity->state = 11;
 							entity->shooting_cd_time_left += 1.0f;
-							entity->target_move_pos = {20, 0, 11};
+							// entity->target_move_pos = {20, 0, 11};
 
 						}break;
 						case 11:
@@ -441,7 +467,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						case 19:{
 							entity->state++;
 							entity->shooting_cd_time_left += 1;
-							entity->target_move_pos = {0, 0, 9};
+							// entity->target_move_pos = {0, 0, 9};
 
 						}break;
 						case 13:
@@ -486,7 +512,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						case 17:{
 							entity->state++;
 							entity->shooting_cd_time_left += 1.0f;
-							entity->target_move_pos = {-20, 0, 11};
+							// entity->target_move_pos = {-20, 0, 11};
 						}break;
 						default:
 							ASSERT(false);
@@ -500,9 +526,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				}
 			}
 		// END OF BOSS CODE
-		}else if (entity->type == ENTITY_SHIELD){
+		}
+		else if (entity->type == ENTITY_SHIELD)
+		{
 			Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
-			if(parent->active){
+			if(parent->flags & ACTIVE){
 				entity->target_move_pos = (0.1f*parent->velocity)+parent->pos + v3_normalize((parent->target_pos)- parent->pos);
 				entity->target_pos = entity->pos + (entity->pos - parent->pos);
 				entity->looking_at = entity->target_pos;
@@ -510,7 +538,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				*entity = {0};
 			}
 
-		}else if ( entity->type == ENTITY_UNIT ) {
+		}
+		else if ( entity->type == ENTITY_UNIT ) 
+		{
 			if(entity->team_uid != 0){
 				entity->color = {0.7f,0,0,1};
 				entity->target_pos = entities[memory->player_uid].pos;
@@ -585,7 +615,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 					new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
 				}
 			}
-		}{// DYNAMICS
+		}
+		
+		{// DYNAMICS
 			entity->pos.y = 0;//TODO: clamping height position
 			if(i == memory->player_uid){
 				entity->target_move_pos = v3_addition(entity->pos, {input_vector.x*entity->speed, 0, input_vector.y*entity->speed});
@@ -652,7 +684,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				// PROJECTILE
 			if(entity->type == ENTITY_PROJECTILE){
 				UNTIL(j, MAX_ENTITIES){
-					if(!entities[j].visible) continue;
+					if(!(entities[j].flags & VISIBLE)) continue;
 					Entity* entity2 = &entities[j];
 					if(entity2->type == ENTITY_OBSTACLE){
 						V3 distance = sphere_vs_box(entity->pos, entity2->pos, entity2->pos+entity2->scale);
@@ -686,7 +718,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				// UNIT
 			}else if (entity->type == ENTITY_UNIT){
 				UNTIL(j, MAX_ENTITIES){
-					if( i!=j && entities[j].visible ){
+					if( i!=j && (entities[j].flags & VISIBLE) ){
 						Entity* entity2 = &entities[j];
 						if(entity2->type == ENTITY_UNIT){
 							V3 pos_difference = entity2->pos-entity->pos;
@@ -735,7 +767,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	UNTIL(i, MAX_ENTITIES)
 	{
-		if(memory->entities[i].visible)
+		if(memory->entities[i].flags & VISIBLE)
 		{
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
@@ -743,16 +775,16 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->object3d.scale = memory->entities[i].current_scale * request->object3d.scale;
 		}
 	}
-	if(memory->player_uid != memory->selected_uid){
-
-	PUSH_BACK(render_list, memory->temp_arena, request);
-		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-		Entity* selected_entity = &memory->entities[memory->selected_uid];
-		request->object3d.scale = {1,1,1};
-		request->object3d.pos = selected_entity->looking_at;
-		request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
-		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
-		request->object3d.color = {1,0,0,0.1f};
+	if(memory->player_uid != memory->selected_uid)
+	{
+		PUSH_BACK(render_list, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+			Entity* selected_entity = &memory->entities[memory->selected_uid];
+			request->object3d.scale = {1,1,1};
+			request->object3d.pos = selected_entity->looking_at;
+			request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+			request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+			request->object3d.color = {1,0,0,0.1f};
 	}
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
@@ -762,8 +794,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	request->pshader_uid = memory->pshaders.ui_pshader_uid;
 	
 
-	UNTIL(i, MAX_ENTITIES){
-		if(memory->entities[i].visible && memory->entities[i].type != ENTITY_PROJECTILE && memory->entities[i].type != ENTITY_OBSTACLE){
+	UNTIL(i, MAX_ENTITIES)
+	{
+		if((memory->entities[i].flags & VISIBLE) && 
+			(memory->entities[i].type != ENTITY_PROJECTILE) && 
+			(memory->entities[i].type != ENTITY_OBSTACLE)
+		){
 			String health_string = number_to_string(memory->entities[i].health, memory->temp_arena);
 			printo_world(memory, screen_size, render_list,
 				health_string, 
@@ -809,11 +845,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		requests[0]->object3d.color = unselected_color;
 
 
-		s32 resources_value = memory->teams_resources[0];
+		u32 resources_value = memory->teams_resources[0];
 
 		current_pos.x += 0.2f;
 		String cost_string;
-		cost_string = number_to_string(memory->unit_creation_costs[1], memory->temp_arena);
+		u32 current_creation_cost = memory->unit_creation_costs[memory->possible_entities[1]];
+		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
 		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
@@ -826,14 +863,15 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		requests[1]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
 
 		requests[1]->object3d.pos = current_pos;
-		if(resources_value >= memory->unit_creation_costs[1])
+		if(resources_value >= current_creation_cost)
 			requests[1]->object3d.color = unselected_color;
 		else
 			requests[1]->object3d.color = insuficient_res_color;
 			
 
 		current_pos.x += 0.2f;
-		cost_string = number_to_string(memory->unit_creation_costs[2], memory->temp_arena);
+		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[2]];
+		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
 		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
@@ -846,13 +884,14 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		requests[2]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
 
 		requests[2]->object3d.pos = current_pos;
-		if(resources_value >= memory->unit_creation_costs[2])
+		if(resources_value >= current_creation_cost)
 			requests[2]->object3d.color = unselected_color;
 		else
 			requests[2]->object3d.color = insuficient_res_color;
 
 		current_pos.x += 0.2f;
-		cost_string = number_to_string(memory->unit_creation_costs[3], memory->temp_arena);
+		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[3]];
+		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
 		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
 
 		PUSH_BACK(render_list, memory->temp_arena, requests[3]);
@@ -865,7 +904,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		requests[3]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
 
 		requests[3]->object3d.pos = current_pos;
-		if(resources_value >= memory->unit_creation_costs[3])
+		if(resources_value >= current_creation_cost)
 			requests[3]->object3d.color = unselected_color;
 		else
 			requests[3]->object3d.color = insuficient_res_color;
@@ -1008,7 +1047,8 @@ void init(App_memory* memory, Init_data* init_data){
 			{string(":boss_mesh:"), &memory->meshes.boss_mesh_uid},
 			{string(":tank_mesh:"), &memory->meshes.tank_mesh_uid},
 			{string(":shield_mesh:"), &memory->meshes.shield_mesh_uid},
-			{string(":shooter_mesh:"), &memory->meshes.shooter_mesh_uid}
+			{string(":shooter_mesh:"), &memory->meshes.shooter_mesh_uid},
+			{string(":melee_mesh:"), &memory->meshes.melee_mesh_uid},
 		};
 
 		LIST(String, meshes_filenames) = {0};

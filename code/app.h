@@ -36,14 +36,19 @@ enum ENTITY_TYPE{
 	ENTITY_PROJECTILE,
 	ENTITY_SHIELD, // this is a type of entity and not of unit because it doesn't have collision responses
 	ENTITY_OBSTACLE,
+
+
+	ENTITY_UNKNOWN,
+	ENTITY_COUNT
 };
 enum UNIT_TYPE{
 	UNIT_NOT_A_UNIT,
 	UNIT_TANK,
 	UNIT_SHOOTER,
 	UNIT_SPAWNER,
+	UNIT_MELEE,
 
-
+	UNIT_UNKNOWN,
 	UNIT_COUNT
 };
 
@@ -53,10 +58,29 @@ struct Entity_handle
 	u32 generation; // this value updates when the entity is deleted
 };
 
+enum ENTITY_FLAGS{
+	VISIBLE = 					1<<0,
+	ACTIVE = 					1<<1,
+	SELECTABLE = 				1<<2,
+
+	USE_COOLDOWN = 			1<<3,
+	COLLISIONS = 				1<<4,
+	HITBOX = 					1<<5,
+
+	CLAMP = 						1<<6,
+	CAN_MOVE = 					1<<7,
+	AUTO_AIM_BOSS = 			1<<9,
+	AUTO_AIM_CLOSEST =		1<<10,
+
+	SKIP_PARENT_COLLISION =	1<<8,
+	FOLLOW_TARGET =			1<<11,
+
+	MELEE_FLAGS = VISIBLE|COLLISIONS|HITBOX|CAN_MOVE|USE_COOLDOWN|
+		AUTO_AIM_BOSS|AUTO_AIM_CLOSEST|FOLLOW_TARGET,
+};
+
 struct Entity{
-	b32 visible;
-	b32 active;
-	b32 selectable;
+	u32 flags;
 	ENTITY_TYPE type;
 	UNIT_TYPE unit_type;
 	u32 state;
@@ -96,7 +120,7 @@ next_inactive_entity(Entity entities[], u32* last_inactive_i){
 	for(; i != *last_inactive_i; i++){
 		if(i == MAX_ENTITIES)
 			i = 0;
-		if(!entities[i].visible) break;
+		if(!entities[i].flags) break;
 	}
 	ASSERT(i != *last_inactive_i);// there was no inactive entity
 	*last_inactive_i = i;
@@ -109,7 +133,7 @@ internal u32
 last_inactive_entity(Entity entities[]){
 	u32 i = MAX_ENTITIES-1;
 	for(; i >= 0; i--){
-		if(!entities[i].visible) break;
+		if(!entities[i].flags) break;
 	}
 	ASSERT(i>=0);
 	return i;
@@ -189,6 +213,7 @@ struct Meshes
 	u32 tank_mesh_uid;
 	u32 shield_mesh_uid;
 	u32 shooter_mesh_uid;
+	u32 melee_mesh_uid;
 };
 
 struct Textures{
@@ -271,13 +296,114 @@ struct App_memory
 
 	s32 teams_resources[2];
 	
-	UNIT_TYPE creating_unit; // this is an index of the unit being created
+	u32 creating_unit; // this is an index of the unit being created
+	UNIT_TYPE possible_entities[4];
 	s32 unit_creation_costs[UNIT_COUNT];
 
 	u32 last_inactive_entity;
 	Entity* entities;
 	u32* entity_generations;
 };
+
+internal void 
+default_object3d(Entity* out){
+	out->scale = {1,1,1};
+	out->color = {1,1,1,1};
+}
+
+internal void
+default_shooter(Entity* out, App_memory* memory){
+	default_object3d(out);
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->flags = SELECTABLE|VISIBLE;
+	out->type = ENTITY_UNIT;
+	out->unit_type = UNIT_SHOOTER;
+	out->speed = 40.0f;
+	out->max_health = 3;
+	out->health = out->max_health;
+	out->shooting_cooldown = 2.0f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.shooter_mesh_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
+}
+internal void
+default_tank(Entity* out, App_memory* memory){
+	default_object3d(out);
+	out->speed = 40.0f;
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->flags = VISIBLE|SELECTABLE;
+	out->type = ENTITY_UNIT;
+	out->unit_type = UNIT_TANK;
+	out->max_health = 4;
+	out->health = out->max_health;
+	out->shooting_cooldown = 5.0f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.tank_mesh_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
+}
+	
+internal void
+default_shield(Entity* out, App_memory* memory){
+	out->scale = {2,2,2};
+	out->color = {1,1,1,0.5f};
+	out->speed = 100.0f;
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->flags = VISIBLE;
+	out->type = ENTITY_SHIELD;
+	out->max_health = 8;
+	out->health = out->max_health;
+	out->shooting_cooldown = 0.0f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.shield_mesh_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
+}
+
+internal void
+default_spawner(Entity* out, App_memory* memory){
+	default_object3d(out);
+	out->current_scale = MIN(1.0f, memory->delta_time);
+	out->flags = VISIBLE|SELECTABLE;
+	out->type = ENTITY_UNIT;
+	out->unit_type = UNIT_SPAWNER;
+	out->speed = 10.0f;
+	out->max_health = 2;
+	out->shooting_cooldown = 7.0f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.spawner_mesh_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
+}
+
+internal void
+default_projectile(Entity* out, App_memory* memory){
+	out->lifetime = 5.0f;
+	out->flags = VISIBLE|ACTIVE;
+	out->current_scale = 1.0f;
+	out->type = ENTITY_PROJECTILE;
+	out->mesh_uid = memory->meshes.ball_mesh_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
+	out->color = {0.6f,0.6f,0.6f,1};
+	out->scale = {0.4f,0.4f,0.4f};
+}
+
+internal void
+default_melee(Entity* out, App_memory* memory){
+	out->flags = MELEE_FLAGS;
+
+	out->color = {1,1,1,1};
+	out->scale = {0.5f,0.5f,0.5f};
+
+	out->unit_type = UNIT_MELEE;
+	out->speed = 10.0f;
+	out->max_health = 4;
+	out->health = out->max_health;
+	out->shooting_cooldown = 0.5f;
+	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->mesh_uid = memory->meshes.melee_mesh_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
+
+}
+
+
 enum RENDERER_REQUEST_TYPE_FLAGS{
 	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
 	REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN		= 1 << 1,
@@ -464,93 +590,6 @@ push_asset_request(App_memory* memory, Init_data* init_data, Asset_request* asse
 	*asset_request = {0};
 }
 
-internal void 
-default_object3d(Entity* out){
-	out->scale = {1,1,1};
-	out->color = {1,1,1,1};
-}
-
-internal void
-default_entity(Entity* out){
-	out->visible = true;
-	default_object3d(out);
-}
-
-internal void
-default_shooter(Entity* out, App_memory* memory){
-	default_entity(out);
-	out->current_scale = MIN(1.0f, memory->delta_time);
-	out->selectable = true;
-	out->type = ENTITY_UNIT;
-	out->unit_type = UNIT_SHOOTER;
-	out->speed = 40.0f;
-	out->max_health = 3;
-	out->health = out->max_health;
-	out->shooting_cooldown = 2.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.shooter_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-internal void
-default_tank(Entity* out, App_memory* memory){
-	default_entity(out);
-	out->speed = 40.0f;
-	out->current_scale = MIN(1.0f, memory->delta_time);
-	out->selectable = true;
-	out->type = ENTITY_UNIT;
-	out->unit_type = UNIT_TANK;
-	out->max_health = 4;
-	out->health = out->max_health;
-	out->shooting_cooldown = 5.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.tank_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-	
-internal void
-default_shield(Entity* out, App_memory* memory){
-	default_entity(out);
-	out->scale = {2,2,2};
-	out->color = {1,1,1,0.5f};
-	out->speed = 100.0f;
-	out->current_scale = MIN(1.0f, memory->delta_time);
-	out->selectable = false;
-	out->type = ENTITY_SHIELD;
-	out->max_health = 8;
-	out->health = out->max_health;
-	out->shooting_cooldown = 0.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.shield_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-
-internal void
-default_spawner(Entity* out, App_memory* memory){
-	default_entity(out);
-	out->current_scale = MIN(1.0f, memory->delta_time);
-	out->selectable = true;
-	out->type = ENTITY_UNIT;
-	out->unit_type = UNIT_SPAWNER;
-	out->speed = 10.0f;
-	out->max_health = 2;
-	out->shooting_cooldown = 7.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
-	out->mesh_uid = memory->meshes.spawner_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-
-internal void
-default_projectile(Entity* out, App_memory* memory){
-	default_entity(out);
-	out->lifetime = 5.0f;
-	out->active = true;
-	out->current_scale = 1.0f;
-	out->type = ENTITY_PROJECTILE;
-	out->mesh_uid = memory->meshes.ball_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-	out->color = {0.6f,0.6f,0.6f,1};
-	out->scale = {0.4f,0.4f,0.4f};
-}
 
 // return value is -1 if substr is not a sub string of str, returns the pos it found the substring otherwise
 internal s32
