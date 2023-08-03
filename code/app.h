@@ -3,9 +3,9 @@
 #include "gltf_loader.h"
 
 
-#define update_type(name) void (*name)(App_memory*, Audio_playback*, u32)
-#define render_type(name) void (*name)(App_memory*, LIST(Renderer_request,), Int2 )
-#define init_type(name) void (*name)(App_memory*, Init_data* )
+#define update_type(...) void (*__VA_ARGS__)(App_memory*, Audio_playback*, u32)
+#define render_type(...) void (*__VA_ARGS__)(App_memory*, LIST(Renderer_request,), Int2 )
+#define init_type(...) void (*__VA_ARGS__)(App_memory*, Init_data* )
 
 
 // scale must be 1,1,1 by default
@@ -58,32 +58,65 @@ struct Entity_handle
 	u32 generation; // this value updates when the entity is deleted
 };
 
+enum COLLIDER_TYPE{
+	FORGOR_COLLIDER_TYPE,
+	COLLIDER_TYPE_SPHERE,
+	COLLIDER_TYPE_CUBE,
+};
+
+
+// TODO: find a way to do bigger than 64 bitfields
+
 enum ENTITY_FLAGS{
 	VISIBLE = 					1<<0,
-	ACTIVE = 					1<<1,
+	UNUSED = 					1<<1,
 	SELECTABLE = 				1<<2,
+	SKIP_UPDATING = 			1<<3,
 
-	USE_COOLDOWN = 			1<<3,
-	COLLISIONS = 				1<<4,
-	HITBOX = 					1<<5,
+	USE_COOLDOWN = 			1<<5,
 
-	CLAMP = 						1<<6,
-	CAN_MOVE = 					1<<7,
-	AUTO_AIM_BOSS = 			1<<9,
-	AUTO_AIM_CLOSEST =		1<<10,
+	HAS_COLLIDER = 			1<<6,
+	DETECT_COLLISIONS = 		1<<7,
+	RECEIVES_DAMAGE = 		1<<8,
+	DOES_DAMAGE = 				1<<9,
+	HEALTH_IS_DAMAGE = 		1<<10,
+	DIE_ON_COLLISION = 		1<<11,
 
-	SKIP_PARENT_COLLISION =	1<<8,
-	FOLLOW_TARGET =			1<<11,
 
-	MELEE_FLAGS = VISIBLE|COLLISIONS|HITBOX|CAN_MOVE|USE_COOLDOWN|
-		AUTO_AIM_BOSS|AUTO_AIM_CLOSEST|FOLLOW_TARGET,
+	UNCLAMP_Y = 					1<<16,
+	UNCLAMP_XZ = 					1<<17,
+	CAN_MOVE = 					1<<18,
+	AUTO_AIM_BOSS = 			1<<19,
+	AUTO_AIM_CLOSEST =		1<<20,
+	//HOMING
+
+	SKIP_PARENT_COLLISION =	1<<21,
+	FOLLOW_TARGET =			1<<22,
+
+	PROJECTILE_FLAGS = VISIBLE|DETECT_COLLISIONS|RECEIVES_DAMAGE|
+		DOES_DAMAGE|HEALTH_IS_DAMAGE|DIE_ON_COLLISION|UNCLAMP_XZ,//CLAMP
+
+	// if it hits at a certain rate without a care if there is an enemy
+	// then use_cooldown, if it just hits when it detects an enemy 
+	// and then can't hit until cooldown is restored, then dont use_cooldown
+	MELEE_FLAGS = VISIBLE|USE_COOLDOWN|
+		HAS_COLLIDER|DETECT_COLLISIONS|RECEIVES_DAMAGE|
+		CAN_MOVE|AUTO_AIM_BOSS|AUTO_AIM_CLOSEST|FOLLOW_TARGET,//CLAMP
+
+	SHOOTER_FLAGS = VISIBLE|SELECTABLE|USE_COOLDOWN|
+		HAS_COLLIDER|DETECT_COLLISIONS|RECEIVES_DAMAGE|
+		CAN_MOVE,
+
+	SHIELD_FLAGS = VISIBLE|RECEIVES_DAMAGE,
+
+	WALL_FLAGS = VISIBLE|HAS_COLLIDER|SKIP_UPDATING,
 };
 
 struct Entity{
 	u32 flags;
 	ENTITY_TYPE type;
 	UNIT_TYPE unit_type;
-	u32 state;
+	COLLIDER_TYPE collider_type;
 
 	f32 lifetime;
 
@@ -103,7 +136,11 @@ struct Entity{
 
 	Entity_handle parent_handle;
 	u32 team_uid;
-	f32 current_scale; //TODO: this is becoming troublesome
+	
+	f32 creation_delay_time; 
+	f32 current_creation_time; //TODO: this is becoming troublesome
+	
+	u32 state; // for now this is only used by the boss
 
 	union{
 		Object3d object3d;
@@ -314,8 +351,7 @@ default_object3d(Entity* out){
 internal void
 default_shooter(Entity* out, App_memory* memory){
 	default_object3d(out);
-	out->current_scale = MIN(1.0f, memory->delta_time);
-	out->flags = SELECTABLE|VISIBLE;
+	out->flags = SHOOTER_FLAGS;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SHOOTER;
 	out->speed = 40.0f;
@@ -330,7 +366,6 @@ internal void
 default_tank(Entity* out, App_memory* memory){
 	default_object3d(out);
 	out->speed = 40.0f;
-	out->current_scale = MIN(1.0f, memory->delta_time);
 	out->flags = VISIBLE|SELECTABLE;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_TANK;
@@ -347,7 +382,6 @@ default_shield(Entity* out, App_memory* memory){
 	out->scale = {2,2,2};
 	out->color = {1,1,1,0.5f};
 	out->speed = 100.0f;
-	out->current_scale = MIN(1.0f, memory->delta_time);
 	out->flags = VISIBLE;
 	out->type = ENTITY_SHIELD;
 	out->max_health = 8;
@@ -361,7 +395,6 @@ default_shield(Entity* out, App_memory* memory){
 internal void
 default_spawner(Entity* out, App_memory* memory){
 	default_object3d(out);
-	out->current_scale = MIN(1.0f, memory->delta_time);
 	out->flags = VISIBLE|SELECTABLE;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SPAWNER;
@@ -376,8 +409,7 @@ default_spawner(Entity* out, App_memory* memory){
 internal void
 default_projectile(Entity* out, App_memory* memory){
 	out->lifetime = 5.0f;
-	out->flags = VISIBLE|ACTIVE;
-	out->current_scale = 1.0f;
+	out->flags = VISIBLE;
 	out->type = ENTITY_PROJECTILE;
 	out->mesh_uid = memory->meshes.ball_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
@@ -400,7 +432,6 @@ default_melee(Entity* out, App_memory* memory){
 	out->shooting_cd_time_left = out->shooting_cooldown;
 	out->mesh_uid = memory->meshes.melee_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
-
 }
 
 

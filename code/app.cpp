@@ -20,12 +20,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		Entity* player = &memory->entities[memory->player_uid];
 		default_object3d(player);
 		player->pos = {-25, 0, 0};
+		player->target_move_pos = player->pos;
 		player->max_health = 10;
 		player->health = player->max_health;
 		player->team_uid = 0;
 		memory->teams_resources[player->team_uid] = 30;
-		player->flags = VISIBLE|ACTIVE;
-		player->current_scale = 1.0f;
+		player->flags = VISIBLE;
+		player->creation_delay_time = 0.2f;
 
 		player->team_uid = 0;
 		player->speed = 5.0f;
@@ -46,8 +47,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		boss->pos = {25, 0, 0};
 		boss->target_move_pos = boss->pos;
 		boss->team_uid = 1;
-		boss->current_scale = 1.0f;
 		boss->type = ENTITY_BOSS;
+		boss->creation_delay_time = 0.2f;
 
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
 		boss->texinfo_uid = memory->textures.default_tex_uid;
@@ -77,9 +78,71 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 	memory->camera_pos = v3_rotate_y(v3_rotate_x({0,0,-32}, memory->camera_rotation.x), memory->camera_rotation.y);
 
+	{
+
+		Entity* wall = 0;
+		wall = &entities[5];
+		wall->flags = WALL_FLAGS;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {1,1,45};
+		wall->pos = {-29, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
+		wall->team_uid = 0xffff;
+		
+		wall = &entities[6];
+		wall->flags = WALL_FLAGS;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {1,1,45};
+		wall->pos = {28, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
+		wall->team_uid = 0xffff;
+		
+		wall = &entities[7];
+		wall->flags = WALL_FLAGS;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {56,1,1};
+		wall->pos = {-28, 0, -23};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
+		wall->team_uid = 0xffff;
+
+		wall = &entities[8];
+		wall->flags = WALL_FLAGS;
+		wall->type = ENTITY_OBSTACLE;
+		wall->mesh_uid = memory->meshes.cube_mesh_uid;
+		wall->texinfo_uid = memory->textures.white_tex_uid;
+		wall->scale = {56,1,1};
+		wall->pos = {-28, 0, 21};
+		wall->color = {0.3f,0.3f,0.3f,1};
+		wall->rotation = {0,0,0};
+		wall->team_uid = 0xffff;
+	}
+
+	V3 cursor_pos = {
+		memory->aspect_ratio*memory->fov*input->cursor_pos.x,
+		memory->fov*input->cursor_pos.y, 0
+	};
+
+
+	// MOVE SELECTED ENTITY
+
 	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
 	input_vector = normalize(input_vector);
 	{
+		Entity* selected_entity = &entities[memory->selected_uid];
+		if(selected_entity->flags & CAN_MOVE){
+			selected_entity->target_move_pos = v3_addition(selected_entity->pos, {input_vector.x*selected_entity->speed, 0, input_vector.y*selected_entity->speed});
+		}
+	}
+
 		// MOVE CAMERA IN THE DIRECTION I AM LOOKING
 		// V2 looking_direction = {cosf(memory->camera_rotation.y), sinf(memory->camera_rotation.y)};
 		// V2 move_direction = {
@@ -92,58 +155,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
 
-		Entity* wall = 0;
-		wall = &entities[5];
-		wall->flags = VISIBLE | ACTIVE;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
-		wall->scale = {1,1,45};
-		wall->pos = {-29, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
-		
-		wall = &entities[6];
-		wall->flags = VISIBLE | ACTIVE;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
-		wall->scale = {1,1,45};
-		wall->pos = {28, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
-		
-		wall = &entities[7];
-		wall->flags = VISIBLE | ACTIVE;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
-		wall->scale = {56,1,1};
-		wall->pos = {-28, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
 
-		wall = &entities[8];
-		wall->flags = VISIBLE | ACTIVE;
-		wall->current_scale = 1.0f;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
-		wall->scale = {56,1,1};
-		wall->pos = {-28, 0, 21};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
-	}
-
-	V3 cursor_pos = {
-		memory->aspect_ratio*memory->fov*input->cursor_pos.x,
-		memory->fov*input->cursor_pos.y, 0
-	};
 
 	// RAYCAST WITH ALL ENTITIES
+
 	memory->highlighted_uid = 0;
 	V3 cursor_screen_to_world_pos = memory->camera_pos + v3_rotate_y(
 		v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
@@ -157,18 +172,23 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 	f32 closest_t = {0};
 	b32 first_intersection = false;
-	// CURSOR RAYCASTING
 	UNTIL(i, MAX_ENTITIES){
-		if((entities[i].flags & VISIBLE) && 
-			(entities[i].flags & SELECTABLE) &&
-			entities[i].team_uid == entities[memory->player_uid].team_uid 
-		){
-			
-			entities[i].color = {0.5f,0.5f,0.5f,1};
+		
+		if(!entities[i].flags) continue;
+		if(entities[i].flags & SKIP_UPDATING) continue;
+		Entity* entity = &entities[i];
+		
+
+		// CURSOR RAYCASTING
+
+		if((entity->flags & SELECTABLE) &&
+			entity->team_uid == entities[memory->player_uid].team_uid 
+		){	
+			entity->color = {0.5f,0.5f,0.5f,1};
 
 			f32 intersected_t = 0;
 			if(line_vs_sphere(cursor_world_pos, z_direction, 
-				entities[i].pos, entities[i].scale.x, 
+				entity->pos, entity->scale.x, 
 				&intersected_t)
 			){
 				if(!first_intersection){
@@ -182,8 +202,144 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				}
 			}
 		}
+
+
+		// CREATION TIME
+
+		if(entity->current_creation_time < entity->creation_delay_time){
+			entity->current_creation_time = MIN(entity->current_creation_time+delta_time, entity->creation_delay_time);
+		}
+
+
+		// MOVEMENT / DYNAMICS
+
+		if(entity->flags & FOLLOW_TARGET)
+		{
+			entity->target_move_pos = entity->looking_at;
+		}
+		
+		{
+			V3 move_direction = entity->target_move_pos - entity->pos;
+			V3 accel = 10*(move_direction - entity->velocity);
+			entity->velocity = entity->velocity + (delta_time * accel);
+			// if(entity->velocity.x || entity->velocity.z)
+			// 	entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
+		}
+		
+		
+		// ROTATION / LOOKING DIRECTION
+
+		entity->looking_at = entity->looking_at + (delta_time*(entity->target_pos - entity->looking_at));
+		
+
+		// SUB ITERATION
+
+		s32 closest_entity_uid = -1;
+		f32 closest_distance = 100000;
+		UNTIL(j, MAX_ENTITIES)
+		{
+			if(!entities[j].flags)continue;
+			if(j == i) continue;
+
+			Entity* entity2 = &entities[j];
+
+			if(entity->team_uid != entities[memory->player_uid].team_uid){
+				entity->color = {0.7f, 0,0,1};
+			}
+
+			// COLLISIONS
+			
+			if(entity->flags & DETECT_COLLISIONS &&
+				entity2->flags & HAS_COLLIDER
+			){
+				b32 they_collide = false;
+				if(they_collide)
+				{
+					if(entity->flags & DIE_ON_COLLISION){
+						*entity = {0};
+						generations[i]++;
+					}else{
+
+					}
+				} 
+			}
+
+			// HITBOXES
+			
+			if(entity->team_uid != entity2->team_uid)
+			{
+				
+				if(entity->flags & AUTO_AIM_CLOSEST)
+				{
+					f32 distance = v3_magnitude(entity2->pos - entity->pos);
+					if(closest_entity_uid < 0){
+						closest_entity_uid = j;
+						closest_distance = distance;
+					}else if(distance < closest_distance){
+						closest_entity_uid = j;
+						closest_distance = distance;
+					}
+				}
+
+				if(
+					entity->flags & DOES_DAMAGE &&
+					entity2->flags & RECEIVES_DAMAGE
+				){
+					if(entity->flags & HEALTH_IS_DAMAGE){
+						s32 damage = entity->health;
+						entity->health -= MIN(entity2->health, entity->health);
+						entity2->health -= MIN(damage, entity2->health);
+					}
+					if(entity->health <= 0) {
+						*entity = {0};
+						generations[i]++;
+					}
+					if(entity2->health <= 0) {
+						*entity2 = {0};
+						generations[j]++;
+					}
+				}
+			}
+		}
+		
+
+#define DEFAULT_AUTOAIM_RANGE 10.0f
+		if(entity->flags & AUTO_AIM_BOSS){ 
+			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
+			if((entity->flags & AUTO_AIM_CLOSEST) && (closest_distance < DEFAULT_AUTOAIM_RANGE)){
+				entity->target_pos = entities[closest_entity_uid].pos;
+			}else{
+				if(entity->team_uid == entities[memory->player_uid].team_uid){
+					entity->target_pos = entities[BOSS_INDEX].pos;
+				}else{
+					entity->target_pos = entities[memory->player_uid].pos;
+				}
+			}
+		}else{
+			if((entity->flags & AUTO_AIM_CLOSEST) && (closest_entity_uid >= 0) ){
+				entity->target_pos = entities[closest_entity_uid].pos;
+			}
+		}
+
+		entity->pos = entity->pos + (delta_time * entity->velocity);
+
+
+		// CLAMPING ENTITY POSITION
+
+		if(!(entity->flags & UNCLAMP_XZ)){
+			entity->pos.x = CLAMP(-27, entity->pos.x, 27);
+			entity->pos.z = CLAMP(-21, entity->pos.z, 21);
+		}
+		if(!(entity->flags & UNCLAMP_Y)){
+			entity->pos.y = 0;
+		}
+
+
 	}
+
+
 	// HANDLING INPUT
+	
 	entities[memory->highlighted_uid].color = {1,1,1,1};	
 	if(input->cancel == 1) memory->is_paused = !memory->is_paused;
 	if(memory->is_paused) if (input->R != 1) return;
@@ -308,7 +464,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				selected_entity->target_move_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 		}
 	}	
-
+#if 0
 	// UPDATING ENTITIES
 	UNTIL(i, MAX_ENTITIES){
 		Entity* entity = &entities[i]; 
@@ -618,7 +774,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		}
 		
 		{// DYNAMICS
-			entity->pos.y = 0;//TODO: clamping height position
+			entity->pos.y = 0; //TODO: clamping height position
 			if(i == memory->player_uid){
 				entity->target_move_pos = v3_addition(entity->pos, {input_vector.x*entity->speed, 0, input_vector.y*entity->speed});
 				V3 move_v = (entity->target_move_pos - entity->pos);
@@ -752,6 +908,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		}
 		entity->pos = entity->pos + (delta_time * entity->velocity);
 	}
+#endif
 }
 
 
@@ -772,7 +929,11 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 			request->object3d = memory->entities[i].object3d;
-			request->object3d.scale = memory->entities[i].current_scale * request->object3d.scale;
+			if(memory->entities[i].creation_delay_time)
+			{
+				f32 scale_multiplier = memory->entities[i].current_creation_time/memory->entities[i].creation_delay_time;
+				request->object3d.scale = scale_multiplier * request->object3d.scale;
+			}
 		}
 	}
 	if(memory->player_uid != memory->selected_uid)

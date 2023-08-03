@@ -307,7 +307,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 
 	LPDIRECTSOUND direct_sound;
-	hr = DirectSoundCreate(0,&direct_sound, 0);
+	hr = DirectSoundCreate(0, &direct_sound, 0);
 	ASSERTHR(hr);
 
 	hr = direct_sound->SetCooperativeLevel(global_main_window, DSSCL_PRIORITY);
@@ -374,9 +374,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		String dll_name = string("app.dll");
 		HMODULE dll = LoadLibraryA(dll_name.text);
 		ASSERT(dll);
-		app.update = (update_type())GetProcAddress(dll, "update");
-		app.render = (render_type())GetProcAddress(dll, "render");
-		app.init = (init_type())GetProcAddress(dll, "init");
+		app.update = (update_type( ))GetProcAddress(dll, "update");
+		app.render = (render_type( ))GetProcAddress(dll, "render");
+		app.init = (init_type( ))GetProcAddress(dll, "init");
 		ASSERT(app.update);
 		ASSERT(app.render);
 		ASSERT(app.init);
