@@ -136,7 +136,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	{
 		Entity* selected_entity = &entities[memory->selected_uid];
 		if(selected_entity->flags & E_CAN_MOVE){
-			selected_entity->target_move_pos = {input_vector.x, 0, input_vector.y};
+			selected_entity->target_move_pos = v3_normalize(input_vector.x, 0, input_vector.y);
 		}
 	}
 
@@ -216,12 +216,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		// MOVEMENT / DYNAMICS
 
 		{
-			entity->velocity = entity->velocity + (delta_time*((entity->speed*entity->target_move_pos)-entity->velocity));
-
+			f32 friction = 4.0f;
+			entity->velocity = entity->velocity + (delta_time*((entity->speed*entity->target_move_pos)-(friction*entity->velocity)));
 
 			// ROTATION WHILE MOVING
 
-			f32 min_threshold = 0.5f;
+			f32 min_threshold = 0.1f;
 			if((entity->flags & E_LOOK_TARGET_WHILE_MOVING) || // OR IS NOT MOVING
 				((entity->target_move_pos.x < min_threshold && entity->target_move_pos.x > -min_threshold) &&
 				(entity->target_move_pos.z < min_threshold && entity->target_move_pos.z > -min_threshold))

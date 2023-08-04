@@ -78,7 +78,7 @@ struct Entity{
 	s32 max_health;
 	s32 health;
 
-	// this is relative to the entity position
+	// this is normalized and relative to the entity position 
 	V3 target_move_pos;
 	V3 velocity;
 
@@ -347,7 +347,7 @@ default_shooter(Entity* out, App_memory* memory){
 	out->flags = SHOOTER_FLAGS;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SHOOTER;
-	out->speed = 40.0f;
+	out->speed = 50.0f;
 	out->max_health = 3;
 	out->health = out->max_health;
 	out->action_cd_total_time = 2.0f;
@@ -418,7 +418,7 @@ default_melee(Entity* out, App_memory* memory){
 	out->scale = {0.5f,0.5f,0.5f};
 
 	out->unit_type = UNIT_MELEE;
-	out->speed = 30.0f;
+	out->speed = 60.0f;
 	out->max_health = 4;
 	out->health = out->max_health;
 	out->action_cd_total_time = 0.5f;
