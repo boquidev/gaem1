@@ -68,30 +68,32 @@ enum COLLIDER_TYPE{
 // TODO: find a way to do bigger than 64 bitfields
 
 enum ENTITY_FLAGS{
-	VISIBLE = 					1<<0,
-	UNUSED = 					1<<1,
-	SELECTABLE = 				1<<2,
-	SKIP_UPDATING = 			1<<3,
+	VISIBLE = 						1<<0,
+	UNUSED = 						1<<1,
+	SELECTABLE = 					1<<2,
+	SKIP_UPDATING = 				1<<3,
 
-	USE_COOLDOWN = 			1<<5,
+	USE_COOLDOWN = 				1<<5,
 
-	HAS_COLLIDER = 			1<<6,
-	DETECT_COLLISIONS = 		1<<7,
-	RECEIVES_DAMAGE = 		1<<8,
-	DOES_DAMAGE = 				1<<9,
-	HEALTH_IS_DAMAGE = 		1<<10,
-	DIE_ON_COLLISION = 		1<<11,
+	HAS_COLLIDER = 				1<<6,
+	DETECT_COLLISIONS = 			1<<7,
+	RECEIVES_DAMAGE = 			1<<8,
+	DOES_DAMAGE = 					1<<9,
+	HEALTH_IS_DAMAGE = 			1<<10,
+	DIE_ON_COLLISION = 			1<<11,
 
 
 	UNCLAMP_Y = 					1<<16,
 	UNCLAMP_XZ = 					1<<17,
-	CAN_MOVE = 					1<<18,
-	AUTO_AIM_BOSS = 			1<<19,
-	AUTO_AIM_CLOSEST =		1<<20,
+	CAN_MOVE = 						1<<18,
 	//HOMING
+	AUTO_AIM_BOSS = 				1<<19,
+	AUTO_AIM_CLOSEST =			1<<20,
+	FOLLOW_TARGET =				1<<21,
 
-	SKIP_PARENT_COLLISION =	1<<21,
-	FOLLOW_TARGET =			1<<22,
+	LOOK_TARGET_WHILE_MOVING = 	1<<22,
+
+	SKIP_PARENT_COLLISION =		1<<25,
 
 	PROJECTILE_FLAGS = VISIBLE|DETECT_COLLISIONS|RECEIVES_DAMAGE|
 		DOES_DAMAGE|HEALTH_IS_DAMAGE|DIE_ON_COLLISION|UNCLAMP_XZ,//CLAMP
@@ -123,6 +125,7 @@ struct Entity{
 	s32 max_health;
 	s32 health;
 
+	// this is relative to the entity position
 	V3 target_move_pos;
 	V3 velocity;
 
@@ -354,7 +357,7 @@ default_shooter(Entity* out, App_memory* memory){
 	out->flags = SHOOTER_FLAGS;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SHOOTER;
-	out->speed = 40.0f;
+	out->speed = 10.0f;
 	out->max_health = 3;
 	out->health = out->max_health;
 	out->shooting_cooldown = 2.0f;

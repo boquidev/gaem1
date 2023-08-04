@@ -20,7 +20,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		Entity* player = &memory->entities[memory->player_uid];
 		default_object3d(player);
 		player->pos = {-25, 0, 0};
-		player->target_move_pos = player->pos;
 		player->max_health = 10;
 		player->health = player->max_health;
 		player->team_uid = 0;
@@ -45,7 +44,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		boss->max_health = 100;
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
-		boss->target_move_pos = boss->pos;
 		boss->team_uid = 1;
 		boss->type = ENTITY_BOSS;
 		boss->creation_delay_time = 0.2f;
@@ -139,7 +137,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	{
 		Entity* selected_entity = &entities[memory->selected_uid];
 		if(selected_entity->flags & CAN_MOVE){
-			selected_entity->target_move_pos = v3_addition(selected_entity->pos, {input_vector.x*selected_entity->speed, 0, input_vector.y*selected_entity->speed});
+			selected_entity->target_move_pos = {input_vector.x, 0, input_vector.y};
 		}
 	}
 
@@ -211,25 +209,37 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		}
 
 
-		// MOVEMENT / DYNAMICS
+		// MOVE TOWARDS TARGET
 
 		if(entity->flags & FOLLOW_TARGET)
 		{
-			entity->target_move_pos = entity->looking_at;
+			entity->target_move_pos = entity->looking_at-entity->pos;
 		}
 		
+
+		// MOVEMENT / DYNAMICS
+
 		{
-			V3 move_direction = entity->target_move_pos - entity->pos;
-			V3 accel = 10*(move_direction - entity->velocity);
-			entity->velocity = entity->velocity + (delta_time * accel);
-			// if(entity->velocity.x || entity->velocity.z)
-			// 	entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
+			entity->velocity = entity->velocity + (10*delta_time* (entity->speed*(entity->target_move_pos)-entity->velocity));
+
+			f32 min_threshold = delta_time* entity->speed;
+			if((entity->flags & LOOK_TARGET_WHILE_MOVING) ||
+				((entity->target_move_pos.x < min_threshold && entity->target_move_pos.x > -min_threshold) &&
+				(entity->target_move_pos.z < min_threshold && entity->target_move_pos.z > -min_threshold))
+			)
+			{
+				entity->looking_at = entity->looking_at + (10*delta_time*(entity->target_pos - entity->looking_at));
+			}
+			else
+			{
+				entity->looking_at = entity->looking_at + (10*delta_time*(entity->pos + entity->velocity - entity->looking_at));
+			}
 		}
 		
 		
 		// ROTATION / LOOKING DIRECTION
 
-		entity->looking_at = entity->looking_at + (delta_time*(entity->target_pos - entity->looking_at));
+		entity->rotation.y = v2_angle({entity->looking_at.x-entity->pos.x, entity->looking_at.z-entity->pos.z}) + PI32/2; 
 		
 
 		// SUB ITERATION
@@ -252,6 +262,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 			if(entity->flags & DETECT_COLLISIONS &&
 				entity2->flags & HAS_COLLIDER
 			){
+				//TODO: collision code
 				b32 they_collide = false;
 				if(they_collide)
 				{
@@ -259,7 +270,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						*entity = {0};
 						generations[i]++;
 					}else{
-
+						//TODO: not die on collision case
 					}
 				} 
 			}
@@ -373,7 +384,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				default_shooter(new_unit, memory);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
-				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
@@ -390,7 +400,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				default_spawner(new_unit, memory);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
-				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
@@ -407,7 +416,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				default_tank(new_unit, memory);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
-				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				// new_unit->rotation.y = 0;
@@ -429,7 +437,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				default_melee(new_unit, memory);
 
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
-				new_unit->target_move_pos = new_unit->pos;
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				new_unit->target_pos = entities[BOSS_INDEX].pos;
@@ -460,8 +467,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				selected_entity->target_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 			else if( input->cursor_primary > 0)
 				memory->selected_uid = memory->player_uid;
-			if( input->move > 0)
-				selected_entity->target_move_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 		}
 	}	
 #if 0
