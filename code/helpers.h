@@ -156,6 +156,67 @@ find_bigger_exponent_of_2(u32 target_value){
 
 // TEMPORARILY ORPHAN 
 
+//CUSTOM BITFIELD ENUMS
+#define FLAGS_ARRAY32(name) u32 name [32] = {\
+		1,name[0]*2,name[1]*2,name[2]*2,name[3]*2,name[4]*2,name[5]*2,\
+		name[6]*2,name[7]*2,name[8]*2,name[9]*2,name[10]*2,\
+		name[11]*2,name[12]*2,name[13]*2,name[14]*2,name[15]*2,\
+		name[16]*2,name[17]*2,name[18]*2,name[19]*2,name[20]*2,\
+		name[21]*2,name[22]*2,name[23]*2,name[24]*2,name[25]*2,\
+		name[26]*2,name[27]*2,name[28]*2,name[29]*2,name[30]*2\
+	};
+	
+#define FLAGS_ARRAY64(name) u64 name [64] = {\
+		1,name[0]*2,name[1]*2,name[2]*2,name[3]*2,name[4]*2,name[5]*2,\
+		name[6]*2,name[7]*2,name[8]*2,name[9]*2,name[10]*2,\
+		name[11]*2,name[12]*2,name[13]*2,name[14]*2,name[15]*2,\
+		name[16]*2,name[17]*2,name[18]*2,name[19]*2,name[20]*2,\
+		name[21]*2,name[22]*2,name[23]*2,name[24]*2,name[25]*2,\
+		name[26]*2,name[27]*2,name[28]*2,name[29]*2,name[30]*2,\
+		name[31]*2,name[32]*2,name[33]*2,name[34]*2,name[35]*2,\
+		name[36]*2,name[37]*2,name[38]*2,name[39]*2,name[40]*2,\
+		name[41]*2,name[42]*2,name[43]*2,name[44]*2,name[45]*2,\
+		name[46]*2,name[47]*2,name[48]*2,name[49]*2,name[50]*2,\
+		name[51]*2,name[52]*2,name[53]*2,name[54]*2,name[55]*2,\
+		name[56]*2,name[57]*2,name[58]*2,name[59]*2,name[60]*2,\
+		name[61]*2,name[62]*2\
+	}
+
+
+// TODO: find a way to do bigger than 64 bitfields
+static union {
+	FLAGS_ARRAY64(GLOBAL_BITFIELDS_64);
+	struct {
+		u64 
+		E_VISIBLE, 
+		E_SELECTABLE, 
+		E_SKIP_UPDATING,
+
+		E_HAS_COLLIDER,
+		E_DETECT_COLLISIONS,
+		E_RECEIVES_DAMAGE,
+		E_DOES_DAMAGE,
+		E_HEALTH_IS_DAMAGE,
+		E_DIE_ON_COLLISION,
+
+		E_UNCLAMP_Y,
+		E_UNCLAMP_XZ,
+		E_CAN_MOVE,
+		
+		E_AUTO_AIM_BOSS,
+		E_AUTO_AIM_CLOSEST,
+		E_FOLLOW_TARGET,
+
+		E_LOOK_TARGET_WHILE_MOVING,
+
+		E_SHOOT,
+		E_MELEE_ATTACK,
+
+		E_SKIP_PARENT_COLLISION,
+		E_LAST_FLAG;
+	};
+};
+
 // THIS APPLIES TO ANY TEXTURE NOT JUST FONTS
 struct Tex_info{
 	u32 texview_uid;

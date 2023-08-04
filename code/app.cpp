@@ -24,7 +24,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		player->health = player->max_health;
 		player->team_uid = 0;
 		memory->teams_resources[player->team_uid] = 30;
-		player->flags = VISIBLE;
+		player->flags = E_VISIBLE;
 		player->creation_delay_time = 0.2f;
 
 		player->team_uid = 0;
@@ -40,7 +40,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		boss->shooting_cooldown = 2.0f;
 		boss->shooting_cd_time_left = boss->shooting_cooldown;
 
-		boss->flags = VISIBLE;
+		boss->flags = E_VISIBLE;
 		boss->max_health = 100;
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
@@ -136,7 +136,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	input_vector = normalize(input_vector);
 	{
 		Entity* selected_entity = &entities[memory->selected_uid];
-		if(selected_entity->flags & CAN_MOVE){
+		if(selected_entity->flags & E_CAN_MOVE){
 			selected_entity->target_move_pos = {input_vector.x, 0, input_vector.y};
 		}
 	}
@@ -173,13 +173,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	UNTIL(i, MAX_ENTITIES){
 		
 		if(!entities[i].flags) continue;
-		if(entities[i].flags & SKIP_UPDATING) continue;
+		if(entities[i].flags & E_SKIP_UPDATING) continue;
 		Entity* entity = &entities[i];
 		
 
 		// CURSOR RAYCASTING
 
-		if((entity->flags & SELECTABLE) &&
+		if((entity->flags & E_SELECTABLE) &&
 			entity->team_uid == entities[memory->player_uid].team_uid 
 		){	
 			entity->color = {0.5f,0.5f,0.5f,1};
@@ -211,7 +211,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 		// MOVE TOWARDS TARGET
 
-		if(entity->flags & FOLLOW_TARGET)
+		if(entity->flags & E_FOLLOW_TARGET)
 		{
 			entity->target_move_pos = entity->looking_at-entity->pos;
 		}
@@ -222,8 +222,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		{
 			entity->velocity = entity->velocity + (10*delta_time* (entity->speed*(entity->target_move_pos)-entity->velocity));
 
+
+			// ROTATION WHILE MOVING
+
 			f32 min_threshold = delta_time* entity->speed;
-			if((entity->flags & LOOK_TARGET_WHILE_MOVING) ||
+			if((entity->flags & E_LOOK_TARGET_WHILE_MOVING) ||
 				((entity->target_move_pos.x < min_threshold && entity->target_move_pos.x > -min_threshold) &&
 				(entity->target_move_pos.z < min_threshold && entity->target_move_pos.z > -min_threshold))
 			)
@@ -259,14 +262,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 			// COLLISIONS
 			
-			if(entity->flags & DETECT_COLLISIONS &&
-				entity2->flags & HAS_COLLIDER
+			if(entity->flags & E_DETECT_COLLISIONS &&
+				entity2->flags & E_HAS_COLLIDER
 			){
 				//TODO: collision code
 				b32 they_collide = false;
 				if(they_collide)
 				{
-					if(entity->flags & DIE_ON_COLLISION){
+					if(entity->flags & E_DIE_ON_COLLISION){
 						*entity = {0};
 						generations[i]++;
 					}else{
@@ -280,7 +283,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 			if(entity->team_uid != entity2->team_uid)
 			{
 				
-				if(entity->flags & AUTO_AIM_CLOSEST)
+				if(entity->flags & E_AUTO_AIM_CLOSEST)
 				{
 					f32 distance = v3_magnitude(entity2->pos - entity->pos);
 					if(closest_entity_uid < 0){
@@ -293,10 +296,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				}
 
 				if(
-					entity->flags & DOES_DAMAGE &&
-					entity2->flags & RECEIVES_DAMAGE
+					entity->flags & E_DOES_DAMAGE &&
+					entity2->flags & E_RECEIVES_DAMAGE
 				){
-					if(entity->flags & HEALTH_IS_DAMAGE){
+					if(entity->flags & E_HEALTH_IS_DAMAGE){
 						s32 damage = entity->health;
 						entity->health -= MIN(entity2->health, entity->health);
 						entity2->health -= MIN(damage, entity2->health);
@@ -315,9 +318,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		
 
 #define DEFAULT_AUTOAIM_RANGE 10.0f
-		if(entity->flags & AUTO_AIM_BOSS){ 
+		if(entity->flags & E_AUTO_AIM_BOSS){ 
 			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
-			if((entity->flags & AUTO_AIM_CLOSEST) && (closest_distance < DEFAULT_AUTOAIM_RANGE)){
+			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_distance < DEFAULT_AUTOAIM_RANGE)){
 				entity->target_pos = entities[closest_entity_uid].pos;
 			}else{
 				if(entity->team_uid == entities[memory->player_uid].team_uid){
@@ -327,7 +330,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				}
 			}
 		}else{
-			if((entity->flags & AUTO_AIM_CLOSEST) && (closest_entity_uid >= 0) ){
+			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_entity_uid >= 0) ){
 				entity->target_pos = entities[closest_entity_uid].pos;
 			}
 		}
@@ -337,11 +340,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 		// CLAMPING ENTITY POSITION
 
-		if(!(entity->flags & UNCLAMP_XZ)){
+		if(!(entity->flags & E_UNCLAMP_XZ)){
 			entity->pos.x = CLAMP(-27, entity->pos.x, 27);
 			entity->pos.z = CLAMP(-21, entity->pos.z, 21);
 		}
-		if(!(entity->flags & UNCLAMP_Y)){
+		if(!(entity->flags & E_UNCLAMP_Y)){
 			entity->pos.y = 0;
 		}
 
@@ -473,7 +476,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	// UPDATING ENTITIES
 	UNTIL(i, MAX_ENTITIES){
 		Entity* entity = &entities[i]; 
-		if(!(entity->flags & VISIBLE)) continue;
+		if(!(entity->flags & E_VISIBLE)) continue;
 		if(entity->type == ENTITY_OBSTACLE) continue;
 
 		if(entity->team_uid != 0)
@@ -845,7 +848,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				// PROJECTILE
 			if(entity->type == ENTITY_PROJECTILE){
 				UNTIL(j, MAX_ENTITIES){
-					if(!(entities[j].flags & VISIBLE)) continue;
+					if(!(entities[j].flags & E_VISIBLE)) continue;
 					Entity* entity2 = &entities[j];
 					if(entity2->type == ENTITY_OBSTACLE){
 						V3 distance = sphere_vs_box(entity->pos, entity2->pos, entity2->pos+entity2->scale);
@@ -879,7 +882,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				// UNIT
 			}else if (entity->type == ENTITY_UNIT){
 				UNTIL(j, MAX_ENTITIES){
-					if( i!=j && (entities[j].flags & VISIBLE) ){
+					if( i!=j && (entities[j].flags & E_VISIBLE) ){
 						Entity* entity2 = &entities[j];
 						if(entity2->type == ENTITY_UNIT){
 							V3 pos_difference = entity2->pos-entity->pos;
@@ -929,7 +932,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	UNTIL(i, MAX_ENTITIES)
 	{
-		if(memory->entities[i].flags & VISIBLE)
+		if(memory->entities[i].flags & E_VISIBLE)
 		{
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
@@ -962,7 +965,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	UNTIL(i, MAX_ENTITIES)
 	{
-		if((memory->entities[i].flags & VISIBLE) && 
+		if((memory->entities[i].flags & E_VISIBLE) && 
 			(memory->entities[i].type != ENTITY_PROJECTILE) && 
 			(memory->entities[i].type != ENTITY_OBSTACLE)
 		){
@@ -1095,6 +1098,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 #define PUSH_ASSET_REQUEST push_asset_request(memory, init_data, &request)
 void init(App_memory* memory, Init_data* init_data){	
+	ASSERT(E_LAST_FLAG); // asserting there are not more than 63 flags
+	ASSERT(E_LAST_FLAG < 0Xffffffff); // asserting there are not more than 32 flags
+
 
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);

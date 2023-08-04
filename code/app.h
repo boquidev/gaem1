@@ -64,58 +64,37 @@ enum COLLIDER_TYPE{
 	COLLIDER_TYPE_CUBE,
 };
 
+// ENTITY "TYPES" 
 
-// TODO: find a way to do bigger than 64 bitfields
+global_variable u64 
+	PROJECTILE_FLAGS = 
+		E_VISIBLE|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
+		E_DOES_DAMAGE|E_HEALTH_IS_DAMAGE|E_DIE_ON_COLLISION|E_UNCLAMP_XZ,
 
-enum ENTITY_FLAGS{
-	VISIBLE = 						1<<0,
-	UNUSED = 						1<<1,
-	SELECTABLE = 					1<<2,
-	SKIP_UPDATING = 				1<<3,
-
-	USE_COOLDOWN = 				1<<5,
-
-	HAS_COLLIDER = 				1<<6,
-	DETECT_COLLISIONS = 			1<<7,
-	RECEIVES_DAMAGE = 			1<<8,
-	DOES_DAMAGE = 					1<<9,
-	HEALTH_IS_DAMAGE = 			1<<10,
-	DIE_ON_COLLISION = 			1<<11,
-
-
-	UNCLAMP_Y = 					1<<16,
-	UNCLAMP_XZ = 					1<<17,
-	CAN_MOVE = 						1<<18,
-	//HOMING
-	AUTO_AIM_BOSS = 				1<<19,
-	AUTO_AIM_CLOSEST =			1<<20,
-	FOLLOW_TARGET =				1<<21,
-
-	LOOK_TARGET_WHILE_MOVING = 	1<<22,
-
-	SKIP_PARENT_COLLISION =		1<<25,
-
-	PROJECTILE_FLAGS = VISIBLE|DETECT_COLLISIONS|RECEIVES_DAMAGE|
-		DOES_DAMAGE|HEALTH_IS_DAMAGE|DIE_ON_COLLISION|UNCLAMP_XZ,//CLAMP
-
+	MELEE_FLAGS = 
 	// if it hits at a certain rate without a care if there is an enemy
 	// then use_cooldown, if it just hits when it detects an enemy 
 	// and then can't hit until cooldown is restored, then dont use_cooldown
-	MELEE_FLAGS = VISIBLE|USE_COOLDOWN|
-		HAS_COLLIDER|DETECT_COLLISIONS|RECEIVES_DAMAGE|
-		CAN_MOVE|AUTO_AIM_BOSS|AUTO_AIM_CLOSEST|FOLLOW_TARGET,//CLAMP
+		E_VISIBLE|E_MELEE_ATTACK|
+		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
+		E_CAN_MOVE|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET,
 
-	SHOOTER_FLAGS = VISIBLE|SELECTABLE|USE_COOLDOWN|
-		HAS_COLLIDER|DETECT_COLLISIONS|RECEIVES_DAMAGE|
-		CAN_MOVE,
+	SHOOTER_FLAGS = 
+		E_VISIBLE|E_SELECTABLE|E_SHOOT|
+		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
+		E_CAN_MOVE,
 
-	SHIELD_FLAGS = VISIBLE|RECEIVES_DAMAGE,
+	SHIELD_FLAGS = 
+		E_VISIBLE|E_RECEIVES_DAMAGE,
 
-	WALL_FLAGS = VISIBLE|HAS_COLLIDER|SKIP_UPDATING,
-};
+	WALL_FLAGS = 
+		E_VISIBLE|E_HAS_COLLIDER|E_SKIP_UPDATING;
+
+
+// ENTITY MEGA-STRUCT
 
 struct Entity{
-	u32 flags;
+	u64 flags;
 	ENTITY_TYPE type;
 	UNIT_TYPE unit_type;
 	COLLIDER_TYPE collider_type;
@@ -369,7 +348,7 @@ internal void
 default_tank(Entity* out, App_memory* memory){
 	default_object3d(out);
 	out->speed = 40.0f;
-	out->flags = VISIBLE|SELECTABLE;
+	out->flags = E_VISIBLE|E_SELECTABLE;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_TANK;
 	out->max_health = 4;
@@ -385,7 +364,7 @@ default_shield(Entity* out, App_memory* memory){
 	out->scale = {2,2,2};
 	out->color = {1,1,1,0.5f};
 	out->speed = 100.0f;
-	out->flags = VISIBLE;
+	out->flags = E_VISIBLE;
 	out->type = ENTITY_SHIELD;
 	out->max_health = 8;
 	out->health = out->max_health;
@@ -398,7 +377,7 @@ default_shield(Entity* out, App_memory* memory){
 internal void
 default_spawner(Entity* out, App_memory* memory){
 	default_object3d(out);
-	out->flags = VISIBLE|SELECTABLE;
+	out->flags = E_VISIBLE|E_SELECTABLE;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SPAWNER;
 	out->speed = 10.0f;
@@ -412,7 +391,7 @@ default_spawner(Entity* out, App_memory* memory){
 internal void
 default_projectile(Entity* out, App_memory* memory){
 	out->lifetime = 5.0f;
-	out->flags = VISIBLE;
+	out->flags = E_VISIBLE;
 	out->type = ENTITY_PROJECTILE;
 	out->mesh_uid = memory->meshes.ball_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
