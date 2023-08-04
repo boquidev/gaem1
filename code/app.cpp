@@ -37,8 +37,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
 		boss->speed = 40.0f;
-		boss->shooting_cooldown = 2.0f;
-		boss->shooting_cd_time_left = boss->shooting_cooldown;
+		boss->action_cd_total_time = 2.0f;
 
 		boss->flags = E_VISIBLE;
 		boss->max_health = 100;
@@ -154,9 +153,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 
 
-
-	// RAYCAST WITH ALL ENTITIES
-
 	memory->highlighted_uid = 0;
 	V3 cursor_screen_to_world_pos = memory->camera_pos + v3_rotate_y(
 		v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
@@ -213,36 +209,36 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 		if(entity->flags & E_FOLLOW_TARGET)
 		{
-			entity->target_move_pos = entity->looking_at-entity->pos;
+			entity->target_move_pos = v3_normalize(entity->target_pos-entity->pos);
 		}
 		
 
 		// MOVEMENT / DYNAMICS
 
 		{
-			entity->velocity = entity->velocity + (10*delta_time* (entity->speed*(entity->target_move_pos)-entity->velocity));
+			entity->velocity = entity->velocity + (delta_time*((entity->speed*entity->target_move_pos)-entity->velocity));
 
 
 			// ROTATION WHILE MOVING
 
-			f32 min_threshold = delta_time* entity->speed;
-			if((entity->flags & E_LOOK_TARGET_WHILE_MOVING) ||
+			f32 min_threshold = 0.5f;
+			if((entity->flags & E_LOOK_TARGET_WHILE_MOVING) || // OR IS NOT MOVING
 				((entity->target_move_pos.x < min_threshold && entity->target_move_pos.x > -min_threshold) &&
 				(entity->target_move_pos.z < min_threshold && entity->target_move_pos.z > -min_threshold))
 			)
 			{
-				entity->looking_at = entity->looking_at + (10*delta_time*(entity->target_pos - entity->looking_at));
+				entity->looking_at = entity->looking_at + (10*delta_time*((entity->target_pos - entity->pos) - entity->looking_at));
 			}
 			else
 			{
-				entity->looking_at = entity->looking_at + (10*delta_time*(entity->pos + entity->velocity - entity->looking_at));
+				entity->looking_at = entity->looking_at + (10*delta_time*(entity->velocity - entity->looking_at));
 			}
 		}
 		
 		
 		// ROTATION / LOOKING DIRECTION
 
-		entity->rotation.y = v2_angle({entity->looking_at.x-entity->pos.x, entity->looking_at.z-entity->pos.z}) + PI32/2; 
+		entity->rotation.y = v2_angle({entity->looking_at.x, entity->looking_at.z}) + PI32/2; 
 		
 
 		// SUB ITERATION
@@ -389,8 +385,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
-				// new_unit->rotation.y = 0;
-				new_unit->target_pos = entities[BOSS_INDEX].pos;
 			}
 		}
 	} else if ( new_unit_type == UNIT_SPAWNER){
@@ -405,8 +399,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
-				// new_unit->rotation.y = 0;
-				new_unit->target_pos = entities[BOSS_INDEX].pos;
 			}
 		}
 	} else if ( new_unit_type == UNIT_TANK){
@@ -421,9 +413,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
-				// new_unit->rotation.y = 0;
-				new_unit->target_pos = entities[BOSS_INDEX].pos;
-				new_unit->looking_at = v3_normalize(new_unit->target_pos - new_unit->pos) + new_unit->pos;
 				
 				Audio_playback* new_playback = find_next_available_playback(playback_list);
 				new_playback->initial_sample_t = sample_t;
@@ -442,7 +431,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
-				new_unit->target_pos = entities[BOSS_INDEX].pos;
 
 				Audio_playback* new_playback = find_next_available_playback(playback_list);
 				new_playback->initial_sample_t = sample_t;
@@ -472,451 +460,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				memory->selected_uid = memory->player_uid;
 		}
 	}	
-#if 0
-	// UPDATING ENTITIES
-	UNTIL(i, MAX_ENTITIES){
-		Entity* entity = &entities[i]; 
-		if(!(entity->flags & E_VISIBLE)) continue;
-		if(entity->type == ENTITY_OBSTACLE) continue;
-
-		if(entity->team_uid != 0)
-			entity->color = {0.7f,0,0,1};
-			
-		if( !(entity->flags & ACTIVE)){
-			if(entity->current_scale < 1.0f){
-				entity->current_scale += delta_time;
-				continue;
-			}else{
-				entity->current_scale = 1.0f;
-				entity->flags |= ACTIVE;
-				if(entity->unit_type == UNIT_TANK){
-					//TODO: create shield
-					u32 new_entity_index = last_inactive_entity(entities);
-					Entity* new_shield= &entities[new_entity_index];
-					default_shield(new_shield, memory);
-					Entity* parent = entity;
-					new_shield->parent_handle.index = i;
-					new_shield->parent_handle.generation = generations[i];
-					new_shield->team_uid = parent->team_uid;
-					new_shield->pos = parent->looking_at;
-					new_shield->target_move_pos = parent->looking_at;
-					// TODO: go in the direction that parent is looking (the parent's rotation);
-					new_shield->target_pos = new_shield->pos + (parent->looking_at - parent->pos);
-					new_shield->looking_at = new_shield->target_pos;
-					V3 looking_direction = (new_shield->looking_at - new_shield->pos);
-					new_shield->rotation.y = v2_angle({looking_direction.x, looking_direction.z}) + PI32/2;
-				}
-			}
-
-		}else if(entity->type == ENTITY_BOSS){ // BEGINNING OF BOSS CODE 
-			entity->target_pos = entities[memory->player_uid].pos;
-			entity->color = {0.7f,0,0,1};
-
-			entity->shooting_cd_time_left -= delta_time;
-			if(entity->shooting_cd_time_left < 0){
-				if(entity->health > 75){
-					switch(entity->state){
-						case 0:
-						case 6:{
-							entity->state = 1;
-							entity->shooting_cd_time_left += 3.0f;
-							// entity->target_move_pos = {20, 0, 10};
-						}break; 
-						case 1:
-						case 4:{
-							entity->state++;
-							entity->shooting_cd_time_left += 1.0f;
-					
-							V3 target_direction = v3_normalize(entity->target_pos - entity->pos);
-							u32 shoots_count = 24;
-							UNTIL(shot, shoots_count)
-							{
-								u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
-								Entity* new_bullet = &entities[new_entity_index];
-								default_projectile(new_bullet, memory);
-
-								new_bullet->health = 1; 
-								new_bullet->speed = 50;
-
-								Entity* parent = entity;
-								new_bullet->parent_handle.index = i;
-								new_bullet->parent_handle.generation = generations[i];
-								new_bullet->team_uid = parent->team_uid;
-								new_bullet->pos = parent->pos;
-								
-								new_bullet->target_pos = parent->looking_at;
-
-								new_bullet->velocity =  new_bullet->speed * target_direction;
-
-								target_direction = v3_rotate_y(target_direction, TAU32/shoots_count);
-							}
-
-						}break; 
-						case 2:
-						case 5:{
-							entity->state++;
-							entity->shooting_cd_time_left += 2.0f;
-							// spawn entity
-							u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-							V3 target_distance = entity->target_pos - entity->pos;
-							f32 target_distance_magnitude = v3_magnitude(target_distance);
-							V3 spawn_pos;
-							if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
-								spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
-							else
-								spawn_pos = entity->target_pos;
-
-							Entity* new_unit = &entities[new_entity_index];
-							default_shooter(new_unit, memory);
-
-							new_unit->pos = spawn_pos;
-							new_unit->target_move_pos = new_unit->pos;
-
-							new_unit->team_uid = entity->team_uid;
-							// new_unit->rotation.y = 0;
-							new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
-
-						}break;
-						case 3:{
-							entity->state++;
-							entity->shooting_cd_time_left += 4.0f;
-							// entity->target_move_pos = {-20, 0, 10};
-						}break;
-						default:
-							ASSERT(false);
-						break;
-					}
-
-				} else if (entity->health > 40){
-					if(entity->state < 10) entity->state = 10; 
-
-					switch(entity->state){
-						case 10:
-						case 24:{
-							entity->state = 11;
-							entity->shooting_cd_time_left += 1.0f;
-							// entity->target_move_pos = {20, 0, 11};
-
-						}break;
-						case 11:
-						case 18:{
-							entity->state++;
-							entity->shooting_cd_time_left = delta_time;
-
-							// spawn 2 entities
-							V3 target_distance = entity->target_pos - entity->pos;
-							f32 target_distance_magnitude = v3_magnitude(target_distance);
-							V3 target_direction = v3_normalize(target_distance);
-
-							V3 spawn_direction = MIN(MAX_SPAWN_DISTANCE, target_distance_magnitude) * (target_direction);
-							spawn_direction = v3_rotate_y(spawn_direction, -TAU32/4);
-							UNTIL(e, 2){
-								u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-
-								Entity* new_unit = &entities[new_entity_index];
-								default_shooter(new_unit, memory);
-
-								new_unit->pos = entity->pos + spawn_direction;
-								new_unit->target_move_pos = new_unit->pos;
-
-								new_unit->team_uid = entity->team_uid;
-								// new_unit->rotation.y = 0;
-								new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
-								
-								spawn_direction = v3_rotate_y(spawn_direction, TAU32/2);
-							}
-							
-						}break;
-						case 12:
-						case 19:{
-							entity->state++;
-							entity->shooting_cd_time_left += 1;
-							// entity->target_move_pos = {0, 0, 9};
-
-						}break;
-						case 13:
-						case 14:
-						case 15:
-						case 20:
-						case 21:
-						case 22:{
-							entity->state++;
-							entity->shooting_cd_time_left += 0.5f;
-
-							V3 target_direction = v3_normalize(entity->looking_at - entity->pos);
-							u32 shoots_count = 48;
-							UNTIL(shot, shoots_count){
-								u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
-								Entity* new_bullet = &entities[new_entity_index];
-								default_projectile(new_bullet, memory);
-								//TODO: for now this is just so it doesn't disappear
-								// actually it could be a feature :)
-								new_bullet->health = 1; 
-								new_bullet->speed = 50;
-
-								Entity* parent = entity;
-								new_bullet->parent_handle.index = i;
-								new_bullet->parent_handle.generation = generations[i];
-								new_bullet->team_uid = parent->team_uid;
-								new_bullet->pos = parent->pos;
-								// TODO: go in the direction that parent is looking (the parent's rotation);
-								new_bullet->target_pos = parent->looking_at;
-
-								new_bullet->velocity =  new_bullet->speed * target_direction;
-
-								target_direction = v3_rotate_y(target_direction, TAU32/shoots_count);
-							}
-
-						}break;
-						case 16:
-						case 23:{
-							entity->state++;
-							entity->shooting_cd_time_left += 7;
-						}break;
-						case 17:{
-							entity->state++;
-							entity->shooting_cd_time_left += 1.0f;
-							// entity->target_move_pos = {-20, 0, 11};
-						}break;
-						default:
-							ASSERT(false);
-						break;
-					}
-
-				} else if (entity->health > 20){
-
-				} else {
-
-				}
-			}
-		// END OF BOSS CODE
-		}
-		else if (entity->type == ENTITY_SHIELD)
-		{
-			Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
-			if(parent->flags & ACTIVE){
-				entity->target_move_pos = (0.1f*parent->velocity)+parent->pos + v3_normalize((parent->target_pos)- parent->pos);
-				entity->target_pos = entity->pos + (entity->pos - parent->pos);
-				entity->looking_at = entity->target_pos;
-			}else{
-				*entity = {0};
-			}
-
-		}
-		else if ( entity->type == ENTITY_UNIT ) 
-		{
-			if(entity->team_uid != 0){
-				entity->color = {0.7f,0,0,1};
-				entity->target_pos = entities[memory->player_uid].pos;
-			}
-
-			entity->shooting_cd_time_left -= delta_time;
-			if(entity->shooting_cd_time_left < 0){
-				entity->shooting_cd_time_left = entity->shooting_cooldown;
-			
-				if( entity->unit_type == UNIT_SHOOTER ){
-					V3 target_direction = v3_rotate_y(v3_normalize( entity->looking_at - entity->pos ), -TAU32/20);
-					UNTIL(iterator, 3){
-						u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
-						Entity* new_bullet = &entities[new_entity_index];
-						default_projectile(new_bullet, memory);
-						//TODO: for now this is just so it doesn't disappear
-						// actually it could be a feature :)
-						new_bullet->health = 1; 
-						new_bullet->speed = 50;
-
-						Entity* parent = entity;
-						new_bullet->parent_handle.index = i;
-						new_bullet->parent_handle.generation = generations[i];
-						new_bullet->team_uid = parent->team_uid;
-						new_bullet->pos = parent->pos;
-						// TODO: go in the direction that parent is looking (the parent's rotation);
-						new_bullet->target_pos = parent->looking_at;
-
-						new_bullet->velocity =  new_bullet->speed * target_direction;
-						target_direction = v3_rotate_y(target_direction, TAU32/20);
-					}
-
-				}else if( entity->unit_type == UNIT_TANK ){
-					
-					V3 target_direction = v3_normalize( entity->looking_at - entity->pos );
-					u32 new_entity_index = next_inactive_entity(entities,&memory->last_inactive_entity);
-					Entity* new_bullet = &entities[new_entity_index];
-					default_projectile(new_bullet, memory);
-					//TODO: for now this is just so it doesn't disappear
-					// actually it could be a feature :)
-					new_bullet->health = 1; 
-					new_bullet->speed = 50;
-
-					Entity* parent = entity;
-					new_bullet->parent_handle.index = i;
-					new_bullet->parent_handle.generation = generations[i];
-					new_bullet->team_uid = parent->team_uid;
-					new_bullet->pos = parent->pos;
-					// TODO: go in the direction that parent is looking (the parent's rotation);
-					new_bullet->target_pos = parent->looking_at;
-
-					new_bullet->velocity =  new_bullet->speed * target_direction;
-
-				} else if( entity->unit_type == UNIT_SPAWNER){
-					u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-					V3 target_distance = entity->target_pos - entity->pos;
-					f32 target_distance_magnitude = v3_magnitude(target_distance);
-					V3 spawn_pos;
-					if(target_distance_magnitude > MAX_SPAWN_DISTANCE)
-						spawn_pos = entity->pos + (MAX_SPAWN_DISTANCE * v3_normalize(target_distance));
-					else
-						spawn_pos = entity->target_pos;
-
-					Entity* new_unit = &entities[new_entity_index];
-					default_shooter(new_unit, memory);
-
-					new_unit->pos = spawn_pos;
-					new_unit->target_move_pos = new_unit->pos;
-
-					new_unit->team_uid = entity->team_uid;
-					// new_unit->rotation.y = 0;
-					new_unit->target_pos = v3_addition(new_unit->pos, {0,0, 10.0f});
-				}
-			}
-		}
-		
-		{// DYNAMICS
-			entity->pos.y = 0; //TODO: clamping height position
-			if(i == memory->player_uid){
-				entity->target_move_pos = v3_addition(entity->pos, {input_vector.x*entity->speed, 0, input_vector.y*entity->speed});
-				V3 move_v = (entity->target_move_pos - entity->pos);
-				V3 accel = 10*(move_v - entity->velocity);
-				entity->velocity = entity->velocity + (delta_time * accel);
-				if(entity->velocity.x || entity->velocity.z)
-					entity->rotation.y = v2_angle({entity->velocity.x, entity->velocity.z}) + PI32/2;
-				entity->pos.x = CLAMP(-27, entity->pos.x, 27);
-				entity->pos.z = CLAMP(-21, entity->pos.z, 21);	
-					
-			}else if(entity->type != ENTITY_PROJECTILE){
-				entity->pos.x = CLAMP(-27, entity->pos.x, 27);
-				entity->pos.z = CLAMP(-21, entity->pos.z, 21);
-
-				V3 move_distance = (entity->target_move_pos - entity->pos);
-				// V3 accel = entity->speed*(move_v - (0.4f*entity->velocity));
-
-				// f32 temp_4log10_speed = 0.025f;
-				// f32 temp_4log10_speed = 0.1f;
-				// V3 accel = ((entity->speed)*move_distance) - ((entity->speed*temp_4log10_speed)*entity->velocity);
-				// f32 vel_magnitude = v3_magnitude(entity->velocity);
-				// f32 new_magnitude = ((1-(vel_magnitude/500)));
-				// V3 v_n = {
-				// 	entity->velocity.x*(1-(entity->velocity.x/10000)),
-				// 	entity->velocity.y*(1-(entity->velocity.y/10000)),
-				// 	entity->velocity.z*(1-(entity->velocity.z/10000))
-				// };
-				// TODO: get an ecuation that solves acceleration depending on the distance left to the target
-				V3 accel = entity->speed*( move_distance - (0.1f*entity->velocity) ) - (10*(entity->velocity));
-				entity->velocity = entity->velocity +(delta_time*( accel ));
-				// V3 accel = entity->speed*delta_time*(move_distance);
-				// entity->velocity = entity->velocity +(delta_time*( accel ));
-				// V3 accel = ((move_distance)-entity->velocity);
-				// entity->velocity = entity->velocity + (10*delta_time*( accel ));
-
-				//TODO: when unit is moving and shooting, shoots seem to come from the body
-				// and that's because it should spawn in the tip of the cannon instead of the center
-				//LERPING TARGET POS
-				entity->looking_at = entity->looking_at + (10*delta_time * (entity->target_pos - entity->looking_at));
-				V3 target_direction = entity->looking_at - entity->pos;
-				f32 target_rotation = v2_angle({target_direction.x, target_direction.z}) + PI32/2;
-				entity->rotation.y = target_rotation;
-
-				//LERPING ROTATION
-				// V3 target_direction = entity->target_pos - entity->pos;
-				// f32 target_rotation = v2_angle({target_direction.x, target_direction.z})+ PI32/2;
-
-				// f32 angle_difference = target_rotation - entity->rotation.y;
-				// if(angle_difference > TAU32/2)
-				// 	entity->rotation.y += TAU32;
-				// else if(angle_difference < -TAU32/2)
-				// 	entity->rotation.y -= TAU32;
-				// entity->rotation.y += 10*(target_rotation - entity->rotation.y) * delta_time;
-			}
-			if(entity->lifetime){
-				entity->lifetime -= delta_time;
-				if(entity->lifetime < 0){
-					*entity = {0};
-					memory->entity_generations[i]++;
-				}
-			}
-			// COLLISIONS
-				// PROJECTILE
-			if(entity->type == ENTITY_PROJECTILE){
-				UNTIL(j, MAX_ENTITIES){
-					if(!(entities[j].flags & E_VISIBLE)) continue;
-					Entity* entity2 = &entities[j];
-					if(entity2->type == ENTITY_OBSTACLE){
-						V3 distance = sphere_vs_box(entity->pos, entity2->pos, entity2->pos+entity2->scale);
-						f32 distance_value = v3_magnitude(distance);
-						if(distance_value < entity->current_scale){
-							*entity = {0};
-							memory->entity_generations[i]++;
-							break;
-						}
-					} else if (entity->team_uid != entity2->team_uid){
-						f32 intersect = sphere_vs_sphere(entity->pos, entity->scale.x, entity2->pos, entity2->scale.x);
-						if(intersect > 0){
-							entity2->health -= 1;
-							if(entity2->type == ENTITY_SHIELD)
-								memory->teams_resources[entity2->team_uid] += 2;
-							if(entity2->health <= 0){
-								if(entity2->type == ENTITY_UNIT){
-									s32 reward_value = memory->unit_creation_costs[entity2->unit_type]/2;
-									memory->teams_resources[entity->team_uid] += reward_value;
-									memory->teams_resources[entity2->team_uid] += reward_value;
-								}
-								*entity2 = {0};
-								memory->entity_generations[j]++;
-							}
-							*entity = {0}; 
-							memory->entity_generations[i]++;
-							break;
-						}
-					}
-				}
-				// UNIT
-			}else if (entity->type == ENTITY_UNIT){
-				UNTIL(j, MAX_ENTITIES){
-					if( i!=j && (entities[j].flags & E_VISIBLE) ){
-						Entity* entity2 = &entities[j];
-						if(entity2->type == ENTITY_UNIT){
-							V3 pos_difference = entity2->pos-entity->pos;
-							f32 collision_magnitude = v3_magnitude(pos_difference);
-							//sphere vs sphere simplified
-							f32 overlapping = ((entity->scale.x * entity->current_scale)+(entity2->scale.x * entity2->current_scale)) - collision_magnitude;
-							if(overlapping > 0){
-								V3 collision_direction = v3_normalize(pos_difference);
-								if(!collision_magnitude)
-									collision_direction = {1.0f,0,0};
-								overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
-								//TODO: maybe get rid of all divisions of delta time
-								entity->velocity = entity->velocity - (((overlapping/delta_time)/2) * collision_direction);
-								entity2->velocity = (entity2->velocity + (((overlapping/delta_time)/2) * collision_direction));
-							}
-						}
-						else if(entity2->type == ENTITY_OBSTACLE){
-							f32 sphere_radius = entity->current_scale;
-							V3 distance = sphere_vs_box(entity->pos, entity2->pos, entity2->pos+entity2->scale);
-							f32 distance_value = v3_magnitude(distance);
-							// checking if distance is less than the sphere radius
-							if(distance_value < sphere_radius){
-								// entity->pos = entity->pos + ((sphere_radius-distance_value)/delta_time)*v3_normalize(distance);
-								f32 vel_magnitude = v3_magnitude(entity->velocity);
-								entity->velocity = entity->velocity + (vel_magnitude * v3_normalize_with_magnitude(distance,distance_value));
-							}
-						}
-					}
-				}
-			}	
-		}
-		entity->pos = entity->pos + (delta_time * entity->velocity);
-	}
-#endif
 }
 
 
@@ -950,7 +493,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 			Entity* selected_entity = &memory->entities[memory->selected_uid];
 			request->object3d.scale = {1,1,1};
-			request->object3d.pos = selected_entity->looking_at;
+			request->object3d.pos = selected_entity->looking_at + selected_entity->pos;
 			request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
 			request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			request->object3d.color = {1,0,0,0.1f};

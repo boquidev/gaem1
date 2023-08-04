@@ -64,32 +64,6 @@ enum COLLIDER_TYPE{
 	COLLIDER_TYPE_CUBE,
 };
 
-// ENTITY "TYPES" 
-
-global_variable u64 
-	PROJECTILE_FLAGS = 
-		E_VISIBLE|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_DOES_DAMAGE|E_HEALTH_IS_DAMAGE|E_DIE_ON_COLLISION|E_UNCLAMP_XZ,
-
-	MELEE_FLAGS = 
-	// if it hits at a certain rate without a care if there is an enemy
-	// then use_cooldown, if it just hits when it detects an enemy 
-	// and then can't hit until cooldown is restored, then dont use_cooldown
-		E_VISIBLE|E_MELEE_ATTACK|
-		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_CAN_MOVE|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET,
-
-	SHOOTER_FLAGS = 
-		E_VISIBLE|E_SELECTABLE|E_SHOOT|
-		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_CAN_MOVE,
-
-	SHIELD_FLAGS = 
-		E_VISIBLE|E_RECEIVES_DAMAGE,
-
-	WALL_FLAGS = 
-		E_VISIBLE|E_HAS_COLLIDER|E_SKIP_UPDATING;
-
 
 // ENTITY MEGA-STRUCT
 
@@ -108,11 +82,22 @@ struct Entity{
 	V3 target_move_pos;
 	V3 velocity;
 
+	// this is relative to the entity position
 	V3 looking_at;
+	// this is not relative to the entity position but to world position
 	V3 target_pos;
 	
-	f32 shooting_cooldown;
-	f32 shooting_cd_time_left;
+	f32 action_cd_total_time;
+	f32 action_cd_time_passed;
+	
+	// actions properties
+	u32 action_count;//TODO:
+	f32 action_angle;//TODO:
+
+	f32 action_max_time;//TODO:
+	f32 action_max_distance;//TODO:
+
+	UNIT_TYPE spawn_unit_type;//TODO:
 
 	f32 speed;
 
@@ -120,7 +105,7 @@ struct Entity{
 	u32 team_uid;
 	
 	f32 creation_delay_time; 
-	f32 current_creation_time; //TODO: this is becoming troublesome
+	f32 current_creation_time;
 	
 	u32 state; // for now this is only used by the boss
 
@@ -330,17 +315,43 @@ default_object3d(Entity* out){
 	out->color = {1,1,1,1};
 }
 
+// ENTITY "TYPES" 
+
+global_variable u64 
+	PROJECTILE_FLAGS = 
+		E_VISIBLE|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
+		E_DOES_DAMAGE|E_HEALTH_IS_DAMAGE|E_DIE_ON_COLLISION|E_UNCLAMP_XZ,
+
+	MELEE_FLAGS = 
+	// if it hits at a certain rate without a care if there is an enemy
+	// then use_cooldown, if it just hits when it detects an enemy 
+	// and then can't hit until cooldown is restored, then dont use_cooldown
+		E_VISIBLE|E_MELEE_ATTACK|E_LOOK_TARGET_WHILE_MOVING|
+		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
+		E_CAN_MOVE|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET,
+
+	SHOOTER_FLAGS = 
+		E_VISIBLE|E_SELECTABLE|E_SHOOT|
+		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
+		E_CAN_MOVE,
+
+	SHIELD_FLAGS = 
+		E_VISIBLE|E_RECEIVES_DAMAGE,
+
+	WALL_FLAGS = 
+		E_VISIBLE|E_HAS_COLLIDER|E_SKIP_UPDATING;
+
 internal void
 default_shooter(Entity* out, App_memory* memory){
 	default_object3d(out);
 	out->flags = SHOOTER_FLAGS;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SHOOTER;
-	out->speed = 10.0f;
+	out->speed = 40.0f;
 	out->max_health = 3;
 	out->health = out->max_health;
-	out->shooting_cooldown = 2.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->action_cd_total_time = 2.0f;
+	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.shooter_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
@@ -353,8 +364,8 @@ default_tank(Entity* out, App_memory* memory){
 	out->unit_type = UNIT_TANK;
 	out->max_health = 4;
 	out->health = out->max_health;
-	out->shooting_cooldown = 5.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->action_cd_total_time = 5.0f;
+	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.tank_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
@@ -368,8 +379,8 @@ default_shield(Entity* out, App_memory* memory){
 	out->type = ENTITY_SHIELD;
 	out->max_health = 8;
 	out->health = out->max_health;
-	out->shooting_cooldown = 0.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->action_cd_total_time = 0.0f;
+	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.shield_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
@@ -382,8 +393,8 @@ default_spawner(Entity* out, App_memory* memory){
 	out->unit_type = UNIT_SPAWNER;
 	out->speed = 10.0f;
 	out->max_health = 2;
-	out->shooting_cooldown = 7.0f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->action_cd_total_time = 7.0f;
+	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.spawner_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
@@ -407,11 +418,11 @@ default_melee(Entity* out, App_memory* memory){
 	out->scale = {0.5f,0.5f,0.5f};
 
 	out->unit_type = UNIT_MELEE;
-	out->speed = 10.0f;
+	out->speed = 30.0f;
 	out->max_health = 4;
 	out->health = out->max_health;
-	out->shooting_cooldown = 0.5f;
-	out->shooting_cd_time_left = out->shooting_cooldown;
+	out->action_cd_total_time = 0.5f;
+	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.melee_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
