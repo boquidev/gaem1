@@ -59,7 +59,8 @@ struct Entity_handle
 };
 
 enum COLLIDER_TYPE{
-	FORGOR_COLLIDER_TYPE,
+	// for now it is imposible to forger about the collider type okei?
+	// FORGOR_COLLIDER_TYPE,
 	COLLIDER_TYPE_SPHERE,
 	COLLIDER_TYPE_CUBE,
 };
@@ -76,36 +77,44 @@ struct Entity{
 	f32 lifetime;
 
 	s32 max_health;
-	s32 health;
+	s32 health;//TODO:replace this with damage
+
+	s32 attack_damage;
 
 	// this is normalized and relative to the entity position 
-	V3 target_move_pos;
+	V3 normalized_accel;
 	V3 velocity;
 
 	// this is relative to the entity position
-	V3 looking_at;
-	// this is not relative to the entity position but to world position
-	V3 target_pos;
+	V3 looking_direction;
+	// this is relative to the entity position 
+	V3 target_direction;
 	
+
+	// ACTION PROPERTIES
+
 	f32 action_cd_total_time;
 	f32 action_cd_time_passed;
 	
-	// actions properties
-	u32 action_count;//TODO:
-	f32 action_angle;//TODO:
+	u32 action_count;
+	f32 action_angle;
 
-	f32 action_max_time;//TODO:
-	f32 action_max_distance;//TODO:
+	f32 action_max_time;
+	f32 action_max_distance;
 
-	UNIT_TYPE spawn_unit_type;//TODO:
+	UNIT_TYPE spawn_unit_type;
 
 	f32 speed;
+	f32 friction;
 
 	Entity_handle parent_handle;
 	u32 team_uid;
 	
-	f32 creation_delay_time; 
-	f32 current_creation_time;
+	//TODO: replace this two
+	f32 creation_size;
+	f32 creation_delay;
+	// each frame  creation_delay_time -= delta_time and
+	// increment creation_size by (1-creation_size) / (creation_delay_time/delta_time)
 	
 	u32 state; // for now this is only used by the boss
 
@@ -190,6 +199,11 @@ struct User_input
 			s32 k4;
 			s32 k5;
 			s32 k6;
+
+			s32 debug_up;
+			s32 debug_down;
+			s32 debug_left;
+			s32 debug_right;
 		};
 		s32 buttons[30];//TODO: narrow this number to the amount of posible buttons
 	};
@@ -301,7 +315,7 @@ struct App_memory
 	s32 teams_resources[2];
 	
 	u32 creating_unit; // this is an index of the unit being created
-	UNIT_TYPE possible_entities[4];
+	UNIT_TYPE possible_entities[7];
 	s32 unit_creation_costs[UNIT_COUNT];
 
 	u32 last_inactive_entity;
@@ -318,69 +332,89 @@ default_object3d(Entity* out){
 // ENTITY "TYPES" 
 
 global_variable u64 
-	PROJECTILE_FLAGS = 
-		E_VISIBLE|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_DOES_DAMAGE|E_HEALTH_IS_DAMAGE|E_DIE_ON_COLLISION|E_UNCLAMP_XZ,
+	E_CANNOT_MANUALLY_AIM = 
+		E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_CANNOT_AIM
+		,
 
-	MELEE_FLAGS = 
+	E_PROJECTILE_FLAGS = 
+		E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_RECEIVES_DAMAGE|//E_NOT_TARGETABLE|
+		E_DOES_DAMAGE|E_HEALTH_IS_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION
+		,
+
+	E_MELEE_FLAGS = 
 	// if it hits at a certain rate without a care if there is an enemy
 	// then use_cooldown, if it just hits when it detects an enemy 
 	// and then can't hit until cooldown is restored, then dont use_cooldown
 		E_VISIBLE|E_MELEE_ATTACK|E_LOOK_TARGET_WHILE_MOVING|
 		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_CAN_MOVE|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET,
+		E_CAN_MANUALLY_MOVE|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET
+		,
 
-	SHOOTER_FLAGS = 
-		E_VISIBLE|E_SELECTABLE|E_SHOOT|
-		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_CAN_MOVE,
+	E_SHOOTER_FLAGS = 
+		E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|
+		E_RECEIVES_DAMAGE|E_CAN_MANUALLY_MOVE|
+		E_SHOOT,
 
-	SHIELD_FLAGS = 
-		E_VISIBLE|E_RECEIVES_DAMAGE,
+	E_TANK_FLAGS = 
+		E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|
+		E_RECEIVES_DAMAGE|E_CAN_MANUALLY_MOVE|
+		E_LOOK_TARGET_WHILE_MOVING
+		,
 
-	WALL_FLAGS = 
-		E_VISIBLE|E_HAS_COLLIDER|E_SKIP_UPDATING;
+	E_SPAWNER_FLAGS = 
+		E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|
+		E_RECEIVES_DAMAGE|E_CAN_MANUALLY_MOVE|
+		E_LOOK_TARGET_WHILE_MOVING|E_SPAWN_ENTITIES
+
+		,
+
+	E_SHIELD_FLAGS = 
+		E_VISIBLE|E_RECEIVES_DAMAGE
+		,
+
+	E_WALL_FLAGS = 
+		E_VISIBLE|E_HAS_COLLIDER|E_SKIP_UPDATING|E_NOT_TARGETABLE;
 
 internal void
 default_shooter(Entity* out, App_memory* memory){
 	default_object3d(out);
-	out->flags = SHOOTER_FLAGS;
+	out->flags = E_SHOOTER_FLAGS;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SHOOTER;
 	out->speed = 50.0f;
+	out->friction = 4.0f;
 	out->max_health = 3;
 	out->health = out->max_health;
 	out->action_cd_total_time = 2.0f;
-	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.shooter_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 internal void
 default_tank(Entity* out, App_memory* memory){
 	default_object3d(out);
+	out->flags = E_TANK_FLAGS;
 	out->speed = 40.0f;
-	out->flags = E_VISIBLE|E_SELECTABLE;
+	out->friction = 4.0f;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_TANK;
 	out->max_health = 4;
 	out->health = out->max_health;
 	out->action_cd_total_time = 5.0f;
-	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.tank_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 	
 internal void
 default_shield(Entity* out, App_memory* memory){
+	out->flags = E_SHIELD_FLAGS;
 	out->scale = {2,2,2};
 	out->color = {1,1,1,0.5f};
 	out->speed = 100.0f;
-	out->flags = E_VISIBLE;
+	out->friction = 4.0f;
 	out->type = ENTITY_SHIELD;
 	out->max_health = 8;
 	out->health = out->max_health;
 	out->action_cd_total_time = 0.0f;
-	out->action_cd_time_passed = out->action_cd_total_time;
 	out->mesh_uid = memory->meshes.shield_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
@@ -388,21 +422,24 @@ default_shield(Entity* out, App_memory* memory){
 internal void
 default_spawner(Entity* out, App_memory* memory){
 	default_object3d(out);
-	out->flags = E_VISIBLE|E_SELECTABLE;
+	out->flags = E_SPAWNER_FLAGS;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SPAWNER;
 	out->speed = 10.0f;
+	out->friction = 4.0f;
 	out->max_health = 2;
 	out->action_cd_total_time = 7.0f;
-	out->action_cd_time_passed = out->action_cd_total_time;
+	out->spawn_unit_type = UNIT_MELEE;
 	out->mesh_uid = memory->meshes.spawner_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 
 internal void
 default_projectile(Entity* out, App_memory* memory){
+	out->flags = E_PROJECTILE_FLAGS;
+	//speed is set by the one who shoots
+	out->friction = 0.5f;
 	out->lifetime = 5.0f;
-	out->flags = E_VISIBLE;
 	out->type = ENTITY_PROJECTILE;
 	out->mesh_uid = memory->meshes.ball_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
@@ -412,18 +449,27 @@ default_projectile(Entity* out, App_memory* memory){
 
 internal void
 default_melee(Entity* out, App_memory* memory){
-	out->flags = MELEE_FLAGS;
+	out->flags = E_MELEE_FLAGS;
 
 	out->color = {1,1,1,1};
 	out->scale = {0.5f,0.5f,0.5f};
 
 	out->unit_type = UNIT_MELEE;
 	out->speed = 60.0f;
+	out->friction = 10.0f;
 	out->max_health = 4;
 	out->health = out->max_health;
-	out->action_cd_total_time = 0.5f;
-	out->action_cd_time_passed = out->action_cd_total_time;
+	out->action_cd_total_time = 1.0f;
+	out->attack_damage = 1;
 	out->mesh_uid = memory->meshes.melee_mesh_uid;
+	out->texinfo_uid = memory->textures.white_tex_uid;
+}
+
+internal void
+default_wall(Entity* out, App_memory* memory){
+	out->flags = E_WALL_FLAGS;
+	out->type = ENTITY_OBSTACLE;
+	out->mesh_uid = memory->meshes.cube_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 

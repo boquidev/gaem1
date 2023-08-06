@@ -25,7 +25,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		player->team_uid = 0;
 		memory->teams_resources[player->team_uid] = 30;
 		player->flags = E_VISIBLE;
-		player->creation_delay_time = 0.2f;
+		player->creation_delay = 0.2f;
 
 		player->team_uid = 0;
 		player->speed = 5.0f;
@@ -36,16 +36,22 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
-		boss->speed = 40.0f;
+		boss->flags = 
+			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|
+			E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_LOOK_TARGET_WHILE_MOVING|E_SPAWN_ENTITIES;
+
+		boss->speed = 60.0f;
+		boss->friction = 10.0f;
 		boss->action_cd_total_time = 2.0f;
 
-		boss->flags = E_VISIBLE;
-		boss->max_health = 100;
+		boss->max_health = 2;
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
 		boss->team_uid = 1;
 		boss->type = ENTITY_BOSS;
-		boss->creation_delay_time = 0.2f;
+		boss->creation_delay = 0.2f;
+
+		boss->action_cd_total_time = 5.0f;
 
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
 		boss->texinfo_uid = memory->textures.default_tex_uid;
@@ -79,10 +85,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 		Entity* wall = 0;
 		wall = &entities[5];
-		wall->flags = WALL_FLAGS;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
+		default_wall(wall, memory);
 		wall->scale = {1,1,45};
 		wall->pos = {-29, 0, -23};
 		wall->color = {0.3f,0.3f,0.3f,1};
@@ -90,10 +93,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		wall->team_uid = 0xffff;
 		
 		wall = &entities[6];
-		wall->flags = WALL_FLAGS;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
+		default_wall(wall, memory);
 		wall->scale = {1,1,45};
 		wall->pos = {28, 0, -23};
 		wall->color = {0.3f,0.3f,0.3f,1};
@@ -101,10 +101,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		wall->team_uid = 0xffff;
 		
 		wall = &entities[7];
-		wall->flags = WALL_FLAGS;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
+		default_wall(wall, memory);
 		wall->scale = {56,1,1};
 		wall->pos = {-28, 0, -23};
 		wall->color = {0.3f,0.3f,0.3f,1};
@@ -112,10 +109,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		wall->team_uid = 0xffff;
 
 		wall = &entities[8];
-		wall->flags = WALL_FLAGS;
-		wall->type = ENTITY_OBSTACLE;
-		wall->mesh_uid = memory->meshes.cube_mesh_uid;
-		wall->texinfo_uid = memory->textures.white_tex_uid;
+		default_wall(wall, memory);
 		wall->scale = {56,1,1};
 		wall->pos = {-28, 0, 21};
 		wall->color = {0.3f,0.3f,0.3f,1};
@@ -135,8 +129,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	input_vector = normalize(input_vector);
 	{
 		Entity* selected_entity = &entities[memory->selected_uid];
-		if(selected_entity->flags & E_CAN_MOVE){
-			selected_entity->target_move_pos = v3_normalize(input_vector.x, 0, input_vector.y);
+		if(selected_entity->flags & E_CAN_MANUALLY_MOVE){
+			selected_entity->normalized_accel = v3_normalize(input_vector.x, 0, input_vector.y);
 		}
 	}
 
@@ -164,13 +158,58 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 	V3 cursor_world_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
 
+	LIST(u32, entities_to_kill) = {0};
+	LIST(Entity, entities_to_create) = {0};
+
+
+
+// MAIN ENTITY UPDATE LOOP
+
+
+
 	f32 closest_t = {0};
 	b32 first_intersection = false;
 	UNTIL(i, MAX_ENTITIES){
 		
 		if(!entities[i].flags) continue;
+
+
+		// CREATION TIME
+		// i don't like that this must be done even with entities that skip_updating but whatevs
+
+		if(entities[i].creation_size < 1.0f){
+			if(entities[i].creation_delay <= 0){
+				entities[i].creation_size = 1.0f;
+			}else{
+				entities[i].creation_size += (1-entities[i].creation_size) / (entities[i].creation_delay/delta_time);
+				entities[i].creation_delay -= delta_time;
+			}
+		}
+
+
 		if(entities[i].flags & E_SKIP_UPDATING) continue;
 		Entity* entity = &entities[i];
+
+
+		// ENEMY COLOR
+
+		if(entity->team_uid != entities[memory->player_uid].team_uid){
+			entity->color = {0.7f, 0,0,1};
+		}
+
+
+		// ENTITY LIFETIME
+
+		if(entity->lifetime)
+		{
+			entity->lifetime -= delta_time;
+			if(entity->lifetime <= 0 )
+			{
+				u32* entity_index; PUSH_BACK(entities_to_kill, memory->temp_arena, entity_index);
+				*entity_index = i;
+				entity->flags &= (0xffffffffffffffff ^ E_SELECTABLE);
+			}
+		}
 		
 
 		// CURSOR RAYCASTING
@@ -198,140 +237,331 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		}
 
 
-		// CREATION TIME
-
-		if(entity->current_creation_time < entity->creation_delay_time){
-			entity->current_creation_time = MIN(entity->current_creation_time+delta_time, entity->creation_delay_time);
-		}
-
-
 		// MOVE TOWARDS TARGET
 
 		if(entity->flags & E_FOLLOW_TARGET)
 		{
-			entity->target_move_pos = v3_normalize(entity->target_pos-entity->pos);
+			entity->normalized_accel = v3_normalize(entity->target_direction);
 		}
 		
 
 		// MOVEMENT / DYNAMICS
 
+		if(!(entity->flags & E_SKIP_DYNAMICS))
 		{
-			f32 friction = 4.0f;
-			entity->velocity = entity->velocity + (delta_time*((entity->speed*entity->target_move_pos)-(friction*entity->velocity)));
-
-			// ROTATION WHILE MOVING
-
+			V3 acceleration = ((entity->speed*entity->normalized_accel)-(entity->friction*entity->velocity));
+			entity->velocity = entity->velocity + (delta_time*acceleration);
 			f32 min_threshold = 0.1f;
-			if((entity->flags & E_LOOK_TARGET_WHILE_MOVING) || // OR IS NOT MOVING
-				((entity->target_move_pos.x < min_threshold && entity->target_move_pos.x > -min_threshold) &&
-				(entity->target_move_pos.z < min_threshold && entity->target_move_pos.z > -min_threshold))
-			)
-			{
-				entity->looking_at = entity->looking_at + (10*delta_time*((entity->target_pos - entity->pos) - entity->looking_at));
-			}
-			else
-			{
-				entity->looking_at = entity->looking_at + (10*delta_time*(entity->velocity - entity->looking_at));
+			if( // it is not moving
+				(entity->normalized_accel.x < min_threshold && entity->normalized_accel.x > -min_threshold) &&
+				(entity->normalized_accel.z < min_threshold && entity->normalized_accel.z > -min_threshold)
+			){
+				// look at the target
+				V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
+				entity->looking_direction = entity->looking_direction + delta_looking_direction;
+				//slowing_down
+			}else{
+				if(entity->flags & E_LOOK_TARGET_WHILE_MOVING)
+				{
+					// look at the target
+					V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
+					entity->looking_direction = entity->looking_direction + delta_looking_direction;
+				}else{
+					// look in the moving direction
+					V3 delta_looking_direction = (10*delta_time*(entity->velocity - entity->looking_direction));
+					entity->looking_direction = entity->looking_direction + delta_looking_direction;
+				}
 			}
 		}
+
+		entity->normalized_accel = {0,0,0};
 		
 		
 		// ROTATION / LOOKING DIRECTION
-
-		entity->rotation.y = v2_angle({entity->looking_at.x, entity->looking_at.z}) + PI32/2; 
+		if(!(entity->flags & E_SKIP_ROTATION))
+			entity->rotation.y = v2_angle({entity->looking_direction.x, entity->looking_direction.z}) + PI32/2; 
 		
 
 		// SUB ITERATION
 
 		s32 closest_entity_uid = -1;
 		f32 closest_distance = 100000;
-		UNTIL(j, MAX_ENTITIES)
+		
+		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
+		if(entity->flags & (E_DOES_DAMAGE|E_AUTO_AIM_CLOSEST|E_DETECT_COLLISIONS))
 		{
-			if(!entities[j].flags)continue;
-			if(j == i) continue;
-
-			Entity* entity2 = &entities[j];
-
-			if(entity->team_uid != entities[memory->player_uid].team_uid){
-				entity->color = {0.7f, 0,0,1};
-			}
-
-			// COLLISIONS
-			
-			if(entity->flags & E_DETECT_COLLISIONS &&
-				entity2->flags & E_HAS_COLLIDER
-			){
-				//TODO: collision code
-				b32 they_collide = false;
-				if(they_collide)
-				{
-					if(entity->flags & E_DIE_ON_COLLISION){
-						*entity = {0};
-						generations[i]++;
-					}else{
-						//TODO: not die on collision case
-					}
-				} 
-			}
-
-			// HITBOXES
-			
-			if(entity->team_uid != entity2->team_uid)
+			UNTIL(j, MAX_ENTITIES)
 			{
-				
-				if(entity->flags & E_AUTO_AIM_CLOSEST)
+				if(!entities[j].flags)continue;
+				if(j == i) continue;
+				//TODO: walls should not be skipping this 
+				// cuz they need to be detected by the thing that collided with them
+				if(entities[j].flags & E_SKIP_UPDATING) continue;
+				if(entity->flags & E_SKIP_PARENT_COLLISION)
 				{
-					f32 distance = v3_magnitude(entity2->pos - entity->pos);
-					if(closest_entity_uid < 0){
-						closest_entity_uid = j;
-						closest_distance = distance;
-					}else if(distance < closest_distance){
-						closest_entity_uid = j;
-						closest_distance = distance;
+					if(entity->parent_handle.index == j &&
+						entity->parent_handle.generation == generations[j])
+					{
+						continue;
 					}
 				}
 
-				if(
-					entity->flags & E_DOES_DAMAGE &&
-					entity2->flags & E_RECEIVES_DAMAGE
-				){
-					if(entity->flags & E_HEALTH_IS_DAMAGE){
-						s32 damage = entity->health;
-						entity->health -= MIN(entity2->health, entity->health);
-						entity2->health -= MIN(damage, entity2->health);
+				Entity* entity2 = &entities[j];
+
+
+
+				// HITBOXES / DAMAGE 
+
+				
+				//TODO: maybe an entity also damages allies so redo this
+				if(entity->team_uid != entity2->team_uid)
+				{
+					if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
+					{
+						f32 distance = v3_magnitude(entity2->pos - entity->pos);
+						if(closest_entity_uid < 0){
+							closest_entity_uid = j;
+							closest_distance = distance;
+						}else if(distance < closest_distance){
+							closest_entity_uid = j;
+							closest_distance = distance;
+						}
 					}
-					if(entity->health <= 0) {
-						*entity = {0};
-						generations[i]++;
-					}
-					if(entity2->health <= 0) {
-						*entity2 = {0};
-						generations[j]++;
+
+					if(
+						entity->flags & E_DOES_DAMAGE &&
+						entity2->flags & E_RECEIVES_DAMAGE
+					){
+						b32 they_collide = false;
+
+						if(entity->collider_type == COLLIDER_TYPE_SPHERE){
+							if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
+								V3 centers_distance = entity2->pos - entity->pos;
+								f32 centers_distance_magnitude = v3_magnitude(centers_distance);
+								f32 r1 = entity->scale.x*entity->creation_size;
+								f32 r2 = entity2->scale.x*entity2->creation_size;
+								f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
+
+								if(overlapping > 0){
+									they_collide = true;									
+								}
+							}else{ // E1 SPHERE E2 CUBE
+								//TODO: handle sphere vs cube case
+								ASSERT(false);
+							}
+						}else{
+							if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
+								//TODO: handle cube vs sphere case
+								ASSERT(false);
+							}else{ // BOTH CUBES
+								//TODO: handle cube vs cube case
+								ASSERT(false);
+							}
+						}
+						
+						if(they_collide)
+						{
+							if(entity->flags & E_HEALTH_IS_DAMAGE)
+							{
+								s32 damage = entity->health;
+								entity->health -= MIN(entity2->health, entity->health);
+								entity2->health -= MIN(damage, entity2->health);
+								if(entity->health <= 0) {
+									*entity = {0};
+									generations[i]++;
+								}
+							}
+							else
+							{
+								entity2->health -= MIN(entity->attack_damage, entity2->health);
+							}
+
+							if(entity2->health <= 0) {
+								*entity2 = {0};
+								generations[j]++;
+							}
+						}
 					}
 				}
+
+
+
+				// COLLISIONS
+
+				
+				if(entity->flags & E_DETECT_COLLISIONS &&
+					entity2->flags & E_HAS_COLLIDER
+				){
+					//TODO: collision code
+					b32 they_collide = false;
+
+					if(entity->collider_type == COLLIDER_TYPE_SPHERE){
+						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
+							V3 centers_distance = entity2->pos - entity->pos;
+							f32 centers_distance_magnitude = v3_magnitude(centers_distance);
+							f32 r1 = entity->scale.x*entity->creation_size;
+							f32 r2 = entity2->scale.x*entity2->creation_size;
+							f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
+
+							if(overlapping > 0){
+								they_collide = true;
+
+								//TODO: maybe do this if creating entities inside another is too savage
+								// overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
+								V3 collision_direction = {overlapping,0,0};
+								if(centers_distance_magnitude)
+									//TODO: I AM ASSUMING THIS IS THE SAME AS NORMALIZING AND THEN MULTIPLYING BY OVERLAP
+									// CHECK IF I AM NOT CRAZY
+									collision_direction = (overlapping/(2*delta_time*centers_distance_magnitude))*centers_distance;
+								
+								//TODO: this will need a rework cuz it is not multithread friendly
+								entity->velocity = entity->velocity - collision_direction;
+								entity2->velocity = entity2->velocity + collision_direction;
+							}
+						}else{ // E1 SPHERE E2 CUBE
+							//TODO: handle sphere vs cube case
+							ASSERT(false);
+						}
+					}else{
+						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
+							//TODO: handle cube vs sphere case
+							ASSERT(false);
+						}else{ // BOTH CUBES
+							//TODO: handle cube vs cube case
+							ASSERT(false);
+						}
+					}
+
+
+					if(they_collide)
+					{
+						if(entity->flags & E_DIE_ON_COLLISION){
+							*entity = {0};
+							generations[i]++;
+						}
+					} 
+				}
+
+
 			}
 		}
-		
 
-#define DEFAULT_AUTOAIM_RANGE 10.0f
+		#define DEFAULT_AUTOAIM_RANGE 10.0f 
+		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
 		if(entity->flags & E_AUTO_AIM_BOSS){ 
 			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
 			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_distance < DEFAULT_AUTOAIM_RANGE)){
-				entity->target_pos = entities[closest_entity_uid].pos;
+				entity->target_direction = entities[closest_entity_uid].pos - entity->pos;
 			}else{
 				if(entity->team_uid == entities[memory->player_uid].team_uid){
-					entity->target_pos = entities[BOSS_INDEX].pos;
+					entity->target_direction = entities[BOSS_INDEX].pos - entity->pos;
 				}else{
-					entity->target_pos = entities[memory->player_uid].pos;
+					entity->target_direction = entities[memory->player_uid].pos - entity->pos;
 				}
 			}
 		}else{
 			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_entity_uid >= 0) ){
-				entity->target_pos = entities[closest_entity_uid].pos;
+				entity->target_direction = entities[closest_entity_uid].pos - entity->pos;
 			}
 		}
 
-		entity->pos = entity->pos + (delta_time * entity->velocity);
+
+		// COOLDOWN ACTIONS 
+
+		// if it is not 0
+		if(entity->action_cd_total_time){
+			entity->action_cd_time_passed += delta_time;
+			if(entity->action_cd_time_passed >= entity->action_cd_total_time){
+				entity->action_cd_time_passed -= entity->action_cd_total_time;
+
+				ASSERT(entity->action_angle >= 0 && entity->action_angle <= TAU32);
+				f32 angle_step;
+				u32 repetitions = MAX(entity->action_count, 1);
+				V3* target_directions = ARENA_PUSH_STRUCTS(memory->temp_arena, V3, repetitions);
+
+				if(repetitions > 1){
+					V3 current_target_direction = v3_rotate_y(v3_normalize(entity->looking_direction),-entity->action_angle/2);
+					angle_step = entity->action_angle / (repetitions-1);
+					UNTIL(current_angle_i, repetitions)
+					{
+						target_directions[current_angle_i] = current_target_direction;
+						current_target_direction = v3_rotate_y(current_target_direction, angle_step);
+					}
+
+				}else{
+					target_directions[0] = v3_normalize(entity->looking_direction);
+					angle_step = 0;
+				}
+
+				if((entity->flags & E_SHOOT))
+				{
+					UNTIL(current_action_i, repetitions)
+					{
+						Entity* new_bullet; PUSH_BACK(entities_to_create, memory->temp_arena, new_bullet);
+						default_projectile(new_bullet, memory);
+						//TODO: for now this is just so it doesn't disappear
+						// actually it could be a feature :)
+						new_bullet->health = 1; 
+
+						new_bullet->speed = 60;
+						Entity* parent = entity;
+						new_bullet->parent_handle.index = i;
+						new_bullet->parent_handle.generation = generations[i];
+						new_bullet->team_uid = parent->team_uid;
+						new_bullet->pos = parent->pos;
+						// TODO: go in the direction that parent is looking (the parent's rotation);
+						new_bullet->target_direction = parent->looking_direction;
+
+						new_bullet->velocity =  new_bullet->speed * target_directions[current_action_i];
+					}
+				}
+				if((entity->flags & E_MELEE_ATTACK))
+				{
+					UNTIL(current_action_i, repetitions)
+					{
+						Entity* hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, hitbox);
+						
+						hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|E_POS_IN_FRONT_OF_PARENT|E_SKIP_ROTATION|E_SKIP_DYNAMICS;
+
+						hitbox->color = {0, 0, 0, 0.3f};
+						hitbox->scale = {1,1,1};
+
+						hitbox->lifetime = delta_time;
+
+						hitbox->parent_handle.index = i;
+						hitbox->parent_handle.generation = generations[i];
+						hitbox->team_uid = entity->team_uid;
+						hitbox->attack_damage = entity->attack_damage;
+
+						f32 diameter = entity->creation_size ? 
+							2*entity->scale.x*entity->creation_size : 
+							2*entity->scale.x;
+						hitbox->pos = entity->pos + diameter*v3_normalize(entity->looking_direction);
+
+						// hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+						hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
+						hitbox->texinfo_uid = memory->textures.white_tex_uid;
+					}
+				}
+				if((entity->flags & E_SPAWN_ENTITIES))
+				{
+					
+				}
+			}
+		}
+
+
+		// UPDATE POSITION APPLYING VELOCITY
+
+		if(entity->flags & E_POS_IN_FRONT_OF_PARENT){
+			Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
+			f32 diameter = parent->creation_size ? 
+				2*parent->scale.x*parent->creation_size : 
+				2*parent->scale.x;
+			entity->pos = parent->pos + diameter*v3_normalize(parent->looking_direction);
+		}else{ // DEFAULT CASE
+			entity->pos = entity->pos + (delta_time * entity->velocity);
+		}
 
 
 		// CLAMPING ENTITY POSITION
@@ -345,6 +575,22 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		}
 
 
+	//
+	// END OF UPDATE LOOP
+	//
+	
+	}
+
+
+	FOREACH(u32, e_index, entities_to_kill){
+		entities[*e_index] = {0};
+		generations[*e_index]++;
+	}
+
+
+	FOREACH(Entity, entity_properties, entities_to_create){
+		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+		entities[e_index] = *entity_properties;
 	}
 
 
@@ -353,6 +599,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	entities[memory->highlighted_uid].color = {1,1,1,1};	
 	if(input->cancel == 1) memory->is_paused = !memory->is_paused;
 	if(memory->is_paused) if (input->R != 1) return;
+
+	if(input->debug_up) memory->teams_resources[0]++;
 
 	// if(input->L == 1)
 	// 	memory->creating_unit = (memory->creating_unit+(AVAILABLE_UNITS))%(1+AVAILABLE_UNITS);
@@ -366,17 +614,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		memory->creating_unit = 2;
 	else if(input->k3 == 1)
 		memory->creating_unit = 3;
+	else if(input->k4 == 1)
+		memory->creating_unit = 4;
+	else if(input->k5 == 1)
+		memory->creating_unit = 5;
+	else if(input->k6 == 1)
+		memory->creating_unit = 6;
 
 	memory->possible_entities[0] = UNIT_NOT_A_UNIT;
 	memory->possible_entities[1] = UNIT_SHOOTER;
 	memory->possible_entities[2] = UNIT_TANK;
 	memory->possible_entities[3] = UNIT_MELEE;
+	memory->possible_entities[4] = UNIT_SPAWNER;
 		
 	UNIT_TYPE new_unit_type = memory->possible_entities[memory->creating_unit];
 	if(new_unit_type == UNIT_SHOOTER) { // SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
 			// CREATING SHOOTER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[new_unit_type]){
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
@@ -390,7 +645,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	} else if ( new_unit_type == UNIT_SPAWNER){
 		if(input->cursor_primary == -1){
 			// CREATING SPAWNER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] > memory->unit_creation_costs[new_unit_type]){
+			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
 				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
 				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_unit = &entities[new_entity_index];
@@ -454,8 +709,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		selected_entity->color = {0,0.7f,0,1};
 
 		if( memory->selected_uid != memory->player_uid ){
-			if( input->cursor_secondary > 0)
-				selected_entity->target_pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
+			if( input->cursor_secondary > 0){
+				if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM)){
+					selected_entity->target_direction = v3_difference({cursor_world_pos.x, 0, cursor_world_pos.z}, selected_entity->pos);
+				}
+			}
 			else if( input->cursor_primary > 0)
 				memory->selected_uid = memory->player_uid;
 		}
@@ -480,23 +738,26 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 			request->object3d = memory->entities[i].object3d;
-			if(memory->entities[i].creation_delay_time)
-			{
-				f32 scale_multiplier = memory->entities[i].current_creation_time/memory->entities[i].creation_delay_time;
-				request->object3d.scale = scale_multiplier * request->object3d.scale;
-			}
+
+			f32 scale_multiplier = MAX(memory->delta_time, memory->entities[i].creation_size);
+
+			request->object3d.scale = scale_multiplier * request->object3d.scale;
 		}
 	}
 	if(memory->player_uid != memory->selected_uid)
 	{
-		PUSH_BACK(render_list, memory->temp_arena, request);
-			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-			Entity* selected_entity = &memory->entities[memory->selected_uid];
-			request->object3d.scale = {1,1,1};
-			request->object3d.pos = selected_entity->looking_at + selected_entity->pos;
-			request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
-			request->object3d.texinfo_uid = memory->textures.white_tex_uid;
-			request->object3d.color = {1,0,0,0.1f};
+		Entity* selected_entity = &memory->entities[memory->selected_uid];
+		// if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
+		{
+
+			PUSH_BACK(render_list, memory->temp_arena, request);
+				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+				request->object3d.scale = {1,1,1};
+				request->object3d.pos = selected_entity->looking_direction + selected_entity->pos;
+				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+				request->object3d.color = {1,0,0,0.1f};
+		}
 	}
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
@@ -541,8 +802,10 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		Color unselected_color = { 1.0f, 1.0f, 1.0f, unselected_alpha};
 		Color insuficient_res_color = { 1.0f, 0.5f, 0.5f, unselected_alpha};
 
+
+
 		V3 current_pos = {-0.6f, -0.8f, 0.2f};
-		Renderer_request* requests [4];
+		Renderer_request* requests [7];
 		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
 		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 		requests[0]->object3d = template_object;
@@ -558,6 +821,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 
 		u32 resources_value = memory->teams_resources[0];
+
+
+
 
 		current_pos.x += 0.2f;
 		String cost_string;
@@ -581,6 +847,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			requests[1]->object3d.color = insuficient_res_color;
 			
 
+
+
 		current_pos.x += 0.2f;
 		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[2]];
 		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
@@ -601,6 +869,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		else
 			requests[2]->object3d.color = insuficient_res_color;
 
+
+
 		current_pos.x += 0.2f;
 		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[3]];
 		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
@@ -620,6 +890,28 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			requests[3]->object3d.color = unselected_color;
 		else
 			requests[3]->object3d.color = insuficient_res_color;
+
+
+
+		current_pos.x += 0.2f;
+		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[4]];
+		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
+		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
+
+		PUSH_BACK(render_list, memory->temp_arena, requests[4]);
+		requests[4]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
+		requests[4]->object3d = template_object;
+		requests[4]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('4')];
+		
+		LIST_GET(memory->tex_infos, requests[4]->texinfo_uid, texinfo);
+		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
+		requests[4]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
+
+		requests[4]->object3d.pos = current_pos;
+		if(resources_value >= current_creation_cost)
+			requests[4]->object3d.color = unselected_color;
+		else
+			requests[4]->object3d.color = insuficient_res_color;
 
 
 		current_pos.x += 0.2f;

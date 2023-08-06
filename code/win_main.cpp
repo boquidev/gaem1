@@ -962,6 +962,18 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							case '6':
 								holding_inputs.k6 = is_down;
 							break;
+							case VK_LEFT:
+								holding_inputs.debug_left = is_down;
+							break;
+							case VK_RIGHT:
+								holding_inputs.debug_right = is_down;
+							break;
+							case VK_UP:
+								holding_inputs.debug_up = is_down;
+							break;
+							case VK_DOWN:
+								holding_inputs.debug_down = is_down;
+							break;
 							default:
 							break;
 
