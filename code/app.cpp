@@ -421,15 +421,29 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 								//TODO: maybe do this if creating entities inside another is too savage
 								// overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
-								V3 collision_direction = {overlapping,0,0};
-								if(centers_distance_magnitude)
+								V3 collision_direction = {0,0,1.0f};
+								if(centers_distance_magnitude){
 									//TODO: I AM ASSUMING THIS IS THE SAME AS NORMALIZING AND THEN MULTIPLYING BY OVERLAP
 									// CHECK IF I AM NOT CRAZY
-									collision_direction = (overlapping/(2*delta_time*centers_distance_magnitude))*centers_distance;
+									collision_direction = (overlapping/(2*centers_distance_magnitude))*centers_distance;
+									// collision_direction = centers_distance / centers_distance_magnitude;
+								}
+
 								
 								//TODO: this will need a rework cuz it is not multithread friendly
-								entity->velocity = entity->velocity - collision_direction;
-								entity2->velocity = entity2->velocity + collision_direction;
+								// f32 momentum_i = MAX(v3_magnitude(entity->velocity), delta_time);
+								// f32 momentum_j = MAX(v3_magnitude(entity2->velocity), delta_time);
+								entity->velocity = entity->velocity - (collision_direction);
+								entity2->velocity = entity2->velocity + (collision_direction);
+								ASSERT(!isnan(entity->velocity.x));
+								ASSERT(isfinite(entity->velocity.x));
+								ASSERT(isfinite(entity2->velocity.x));
+								ASSERT(!isnan(entity2->velocity.x));
+
+								ASSERT(!isnan(entity->velocity.y));
+								ASSERT(isfinite(entity->velocity.y));
+								ASSERT(isfinite(entity2->velocity.y));
+								ASSERT(!isnan(entity2->velocity.y));
 							}
 						}else{ // E1 SPHERE E2 CUBE
 							//TODO: handle sphere vs cube case
@@ -501,7 +515,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				u32 repetitions = MAX(entity->action_count, 1);
 				V3* target_directions = ARENA_PUSH_STRUCTS(memory->temp_arena, V3, repetitions);
 				f32 looking_direction_length = v3_magnitude(entity->looking_direction);
-				V3 normalized_looking_direction = entity->looking_direction / looking_direction_length;
+				V3 normalized_looking_direction = looking_direction_length ? 
+					entity->looking_direction / looking_direction_length :
+					entity->looking_direction;
 
 				if(repetitions > 1){ // if angle = 360 then two actions will happen in the same spot behind 
 					V3 current_target_direction = v3_rotate_y(normalized_looking_direction,-entity->action_angle/2);
