@@ -157,7 +157,6 @@ internal b32
 is_handle_valid(u32 entity_generations[], Entity_handle handle)
 {
 	b32 result = entity_generations[handle.index] == handle.generation;
-	ASSERT(result);
 	return result;
 }
 
@@ -386,6 +385,8 @@ default_shooter(Entity* out, App_memory* memory){
 	out->max_health = 3;
 	out->health = out->max_health;
 	out->action_cd_total_time = 2.0f;
+	out->action_count = 5;
+	out->action_angle = TAU32/8;
 	out->mesh_uid = memory->meshes.shooter_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
@@ -425,10 +426,13 @@ default_spawner(Entity* out, App_memory* memory){
 	out->flags = E_SPAWNER_FLAGS;
 	out->type = ENTITY_UNIT;
 	out->unit_type = UNIT_SPAWNER;
-	out->speed = 10.0f;
+	out->speed = 30.0f;
 	out->friction = 4.0f;
 	out->max_health = 2;
-	out->action_cd_total_time = 7.0f;
+	out->action_cd_total_time = 2.0f;
+	out->action_max_distance = 5.0f;
+	out->action_count = 2;
+	out->action_angle = TAU32/2;
 	out->spawn_unit_type = UNIT_MELEE;
 	out->mesh_uid = memory->meshes.spawner_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
@@ -609,7 +613,7 @@ struct Asset_request{
 				u32 count;
 				String* names;
 				u32* sizes;
-				//TODO: per vertex vs per instance;
+				//TODO: per vertex vs per instance
 			}ied; // input_element_desc
 		};
 

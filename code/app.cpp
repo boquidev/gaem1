@@ -2,6 +2,9 @@
 
 #define MAX_SPAWN_DISTANCE 5.0f
 #define BOSS_INDEX 1
+
+global_variable Entity_handle global_boss_handle = {0};
+global_variable Entity_handle global_player_handle = {0};
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
@@ -17,6 +20,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		memory->last_inactive_entity = 0;
 
 
+		global_player_handle.index = memory->player_uid;
+		global_player_handle.generation = memory->entity_generations[memory->player_uid];
 		Entity* player = &memory->entities[memory->player_uid];
 		default_object3d(player);
 		player->pos = {-25, 0, 0};
@@ -34,6 +39,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		player->mesh_uid = memory->meshes.player_mesh_uid;
 		player->texinfo_uid = memory->textures.white_tex_uid;
 		
+		global_boss_handle.index = BOSS_INDEX;
+		global_boss_handle.generation = memory->entity_generations[BOSS_INDEX];
+
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
 		boss->flags = 
@@ -44,7 +52,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		boss->friction = 10.0f;
 		boss->action_cd_total_time = 2.0f;
 
-		boss->max_health = 2;
+		boss->max_health = 200;
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
 		boss->team_uid = 1;
@@ -257,6 +265,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				(entity->normalized_accel.z < min_threshold && entity->normalized_accel.z > -min_threshold)
 			){
 				// look at the target
+				//TODO: handle case when entity->target_direction == 0
 				V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
 				entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				//slowing_down
@@ -264,10 +273,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				if(entity->flags & E_LOOK_TARGET_WHILE_MOVING)
 				{
 					// look at the target
+					//TODO: handle case when entity->target_direction == 0
 					V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
 					entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				}else{
 					// look in the moving direction
+					//TODO: handle case when entity->velocity == 0
 					V3 delta_looking_direction = (10*delta_time*(entity->velocity - entity->looking_direction));
 					entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				}
@@ -294,7 +305,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 			{
 				if(!entities[j].flags)continue;
 				if(j == i) continue;
-				//TODO: walls should not be skipping this 
+				//TODO: walls/obstacles should not be skipping this 
 				// cuz they need to be detected by the thing that collided with them
 				if(entities[j].flags & E_SKIP_UPDATING) continue;
 				if(entity->flags & E_SKIP_PARENT_COLLISION)
@@ -367,8 +378,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 								entity->health -= MIN(entity2->health, entity->health);
 								entity2->health -= MIN(damage, entity2->health);
 								if(entity->health <= 0) {
-									*entity = {0};
-									generations[i]++;
+									u32* index_to_kill; 
+									PUSH_BACK(entities_to_kill, memory->temp_arena,index_to_kill); 
+									*index_to_kill = i;
 								}
 							}
 							else
@@ -377,8 +389,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 							}
 
 							if(entity2->health <= 0) {
-								*entity2 = {0};
-								generations[j]++;
+								u32* index_to_kill;
+								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+								*index_to_kill = j;
 							}
 						}
 					}
@@ -453,10 +466,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_distance < DEFAULT_AUTOAIM_RANGE)){
 				entity->target_direction = entities[closest_entity_uid].pos - entity->pos;
 			}else{
+				// enemy
 				if(entity->team_uid == entities[memory->player_uid].team_uid){
-					entity->target_direction = entities[BOSS_INDEX].pos - entity->pos;
-				}else{
-					entity->target_direction = entities[memory->player_uid].pos - entity->pos;
+					if(is_handle_valid(generations, global_boss_handle)){
+						entity->target_direction = entities[BOSS_INDEX].pos - entity->pos;
+					}else{
+						entity->target_direction = {0,0,0};
+					}
+				}else{ // friendly
+					if(is_handle_valid(generations, global_player_handle)){
+						entity->target_direction = entities[memory->player_uid].pos - entity->pos;
+					}else{
+						entity->target_direction = {0,0,0};
+					}
 				}
 			}
 		}else{
@@ -478,18 +500,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				f32 angle_step;
 				u32 repetitions = MAX(entity->action_count, 1);
 				V3* target_directions = ARENA_PUSH_STRUCTS(memory->temp_arena, V3, repetitions);
+				f32 looking_direction_length = v3_magnitude(entity->looking_direction);
+				V3 normalized_looking_direction = entity->looking_direction / looking_direction_length;
 
-				if(repetitions > 1){
-					V3 current_target_direction = v3_rotate_y(v3_normalize(entity->looking_direction),-entity->action_angle/2);
+				if(repetitions > 1){ // if angle = 360 then two actions will happen in the same spot behind 
+					V3 current_target_direction = v3_rotate_y(normalized_looking_direction,-entity->action_angle/2);
 					angle_step = entity->action_angle / (repetitions-1);
 					UNTIL(current_angle_i, repetitions)
 					{
 						target_directions[current_angle_i] = current_target_direction;
 						current_target_direction = v3_rotate_y(current_target_direction, angle_step);
 					}
-
 				}else{
-					target_directions[0] = v3_normalize(entity->looking_direction);
+					target_directions[0] = normalized_looking_direction;
 					angle_step = 0;
 				}
 
@@ -501,7 +524,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						default_projectile(new_bullet, memory);
 						//TODO: for now this is just so it doesn't disappear
 						// actually it could be a feature :)
-						new_bullet->health = 1; 
+						new_bullet->health = 1;
 
 						new_bullet->speed = 60;
 						Entity* parent = entity;
@@ -517,6 +540,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				}
 				if((entity->flags & E_MELEE_ATTACK))
 				{
+					f32 diameter = entity->creation_size ? 
+						2*entity->scale.x*entity->creation_size : 
+						2*entity->scale.x;
 					UNTIL(current_action_i, repetitions)
 					{
 						Entity* hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, hitbox);
@@ -526,17 +552,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						hitbox->color = {0, 0, 0, 0.3f};
 						hitbox->scale = {1,1,1};
 
-						hitbox->lifetime = delta_time;
+						hitbox->lifetime = 0.3f;
 
 						hitbox->parent_handle.index = i;
 						hitbox->parent_handle.generation = generations[i];
 						hitbox->team_uid = entity->team_uid;
 						hitbox->attack_damage = entity->attack_damage;
 
-						f32 diameter = entity->creation_size ? 
-							2*entity->scale.x*entity->creation_size : 
-							2*entity->scale.x;
-						hitbox->pos = entity->pos + diameter*v3_normalize(entity->looking_direction);
+						hitbox->pos = entity->pos + diameter*target_directions[current_action_i];
 
 						// hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 						hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
@@ -545,7 +568,26 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				}
 				if((entity->flags & E_SPAWN_ENTITIES))
 				{
-					
+					UNTIL(current_action_i, repetitions)
+					{
+						Entity* new_entity; PUSH_BACK(entities_to_create, memory->temp_arena, new_entity);
+
+						default_melee(new_entity, memory);
+
+						new_entity->parent_handle.index = i;
+						new_entity->parent_handle.generation = generations[i];
+						new_entity->team_uid = entity->team_uid;
+						new_entity->attack_damage = 1;
+
+						V3 spawn_direction;
+						if(looking_direction_length > entity->action_max_distance){
+							f32 temp_multiplier = entity->action_max_distance / looking_direction_length;
+							spawn_direction =  (temp_multiplier * entity->looking_direction);
+						}else{
+							spawn_direction = entity->looking_direction;
+						}
+						new_entity->pos = spawn_direction + entity->pos;
+					}
 				}
 			}
 		}
@@ -554,11 +596,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		// UPDATE POSITION APPLYING VELOCITY
 
 		if(entity->flags & E_POS_IN_FRONT_OF_PARENT){
-			Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
-			f32 diameter = parent->creation_size ? 
-				2*parent->scale.x*parent->creation_size : 
-				2*parent->scale.x;
-			entity->pos = parent->pos + diameter*v3_normalize(parent->looking_direction);
+			if(is_handle_valid(generations, entity->parent_handle)){
+				Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
+				f32 diameter = parent->creation_size ? 
+					2*parent->scale.x*parent->creation_size : 
+					2*parent->scale.x;
+				entity->pos = parent->pos + diameter*v3_normalize(parent->looking_direction);
+			}
 		}else{ // DEFAULT CASE
 			entity->pos = entity->pos + (delta_time * entity->velocity);
 		}
@@ -581,12 +625,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	
 	}
 
+	// KILLING ENTITIES
 
 	FOREACH(u32, e_index, entities_to_kill){
 		entities[*e_index] = {0};
 		generations[*e_index]++;
 	}
 
+
+	// CREATING ENTITIES
 
 	FOREACH(Entity, entity_properties, entities_to_create){
 		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
