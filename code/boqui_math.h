@@ -67,7 +67,7 @@ math_sqrt(f32 n)
     ASSERT(n >= 0);
     f32 r = n/2;
     f32 precision = n/1000;
-    while(ABS(n-(r*r)) > precision)
+    for(u32 i=0; i < 10 && (ABS(n-(r*r)) > precision); i++)
     {
         r = (r+(n/r))/2;
     }
