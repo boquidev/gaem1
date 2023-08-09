@@ -1,5 +1,7 @@
 
-#include "pch.h"
+// #define COBJMACROS
+#include <windows.h>
+#include <dsound.h>
 
 #include "app.h"
 

@@ -24,16 +24,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		global_player_handle.generation = memory->entity_generations[memory->player_uid];
 		Entity* player = &memory->entities[memory->player_uid];
 		default_object3d(player);
+		player->flags = E_VISIBLE|E_SELECTABLE|E_SPAWN_ENTITIES|E_AUTO_AIM_BOSS|
+			E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE;
 		player->pos = {-25, 0, 0};
 		player->max_health = 10;
 		player->health = player->max_health;
 		player->team_uid = 0;
-		memory->teams_resources[player->team_uid] = 30;
-		player->flags = E_VISIBLE;
+
+		player->action_count = 1;
+		player->action_angle = TAU32/4;
+		player->action_cd_total_time = 5.0f;
+		player->action_max_distance = 5.0f;
+
+		memory->teams_resources[player->team_uid] = 50;
 		player->creation_delay = 0.2f;
 
 		player->team_uid = 0;
 		player->speed = 5.0f;
+		player->friction = 4.0f;
 		player->type = ENTITY_UNIT;
 
 		player->mesh_uid = memory->meshes.player_mesh_uid;
@@ -45,7 +53,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
 		boss->flags = 
-			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|
+			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|E_NOT_MOVE|
 			E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_LOOK_TARGET_WHILE_MOVING|E_SPAWN_ENTITIES;
 
 		boss->speed = 60.0f;
@@ -59,7 +67,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		boss->type = ENTITY_BOSS;
 		boss->creation_delay = 0.2f;
 
+		boss->action_count = 1;
+		boss->action_angle = TAU32/4;
 		boss->action_cd_total_time = 5.0f;
+		boss->action_max_distance = 5.0f;
 
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
 		boss->texinfo_uid = memory->textures.default_tex_uid;
@@ -423,27 +434,27 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 								// overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
 								V3 collision_direction = {0,0,1.0f};
 								if(centers_distance_magnitude){
-									//TODO: I AM ASSUMING THIS IS THE SAME AS NORMALIZING AND THEN MULTIPLYING BY OVERLAP
-									// CHECK IF I AM NOT CRAZY
 									collision_direction = (overlapping/(2*centers_distance_magnitude))*centers_distance;
 									// collision_direction = centers_distance / centers_distance_magnitude;
 								}
 
 								
 								//TODO: this will need a rework cuz it is not multithread friendly
+								// i should not modify other entities while processing another one
 								// f32 momentum_i = MAX(v3_magnitude(entity->velocity), delta_time);
 								// f32 momentum_j = MAX(v3_magnitude(entity2->velocity), delta_time);
 								entity->velocity = entity->velocity - (collision_direction);
 								entity2->velocity = entity2->velocity + (collision_direction);
+
 								ASSERT(!isnan(entity->velocity.x));
 								ASSERT(isfinite(entity->velocity.x));
 								ASSERT(isfinite(entity2->velocity.x));
 								ASSERT(!isnan(entity2->velocity.x));
 
-								ASSERT(!isnan(entity->velocity.y));
-								ASSERT(isfinite(entity->velocity.y));
-								ASSERT(isfinite(entity2->velocity.y));
-								ASSERT(!isnan(entity2->velocity.y));
+								ASSERT(!isnan(entity->velocity.z));
+								ASSERT(isfinite(entity->velocity.z));
+								ASSERT(isfinite(entity2->velocity.z));
+								ASSERT(!isnan(entity2->velocity.z));
 							}
 						}else{ // E1 SPHERE E2 CUBE
 							//TODO: handle sphere vs cube case
@@ -568,7 +579,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 						hitbox->color = {0, 0, 0, 0.3f};
 						hitbox->scale = {1,1,1};
 
-						hitbox->lifetime = 0.3f;
+						hitbox->lifetime = delta_time;
 
 						hitbox->parent_handle.index = i;
 						hitbox->parent_handle.generation = generations[i];
@@ -588,7 +599,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 					{
 						Entity* new_entity; PUSH_BACK(entities_to_create, memory->temp_arena, new_entity);
 
-						default_melee(new_entity, memory);
+						// default_melee(new_entity, memory);
+						new_entity->flags = 
+							E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE;
+
+						new_entity->color = {1,1,1,1};
+						new_entity->scale = {1.0f,1.0f,1.0f};
+
+						new_entity->speed = 40.0f;
+						new_entity->friction = 5.0f;
+						new_entity->max_health = 4;
+						new_entity->health = new_entity->max_health;
+						new_entity->action_cd_total_time = 1.0f;
+						new_entity->attack_damage = 1;
 
 						new_entity->parent_handle.index = i;
 						new_entity->parent_handle.generation = generations[i];
@@ -603,6 +626,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 							spawn_direction = entity->looking_direction;
 						}
 						new_entity->pos = spawn_direction + entity->pos;
+						
+						new_entity->mesh_uid = memory->meshes.icosphere_mesh_uid;
+						new_entity->texinfo_uid = memory->textures.white_tex_uid;
 					}
 				}
 			}
@@ -620,7 +646,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				entity->pos = parent->pos + diameter*v3_normalize(parent->looking_direction);
 			}
 		}else{ // DEFAULT CASE
-			entity->pos = entity->pos + (delta_time * entity->velocity);
+			if(!(entity->flags & E_NOT_MOVE)){
+				entity->pos = entity->pos + (delta_time * entity->velocity);
+			}
 		}
 
 
@@ -807,7 +835,6 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->object3d.scale = scale_multiplier * request->object3d.scale;
 		}
 	}
-	if(memory->player_uid != memory->selected_uid)
 	{
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
 		// if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))

@@ -77,7 +77,7 @@ struct Entity{
 	f32 lifetime;
 
 	s32 max_health;
-	s32 health;//TODO:replace this with damage
+	s32 health;// replace this with damage (maybe not), when health is damage it's tedious
 
 	s32 attack_damage;
 
@@ -346,7 +346,7 @@ global_variable u64
 	// and then can't hit until cooldown is restored, then dont use_cooldown
 		E_VISIBLE|E_MELEE_ATTACK|E_LOOK_TARGET_WHILE_MOVING|
 		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_CAN_MANUALLY_MOVE|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET
+		E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET
 		,
 
 	E_SHOOTER_FLAGS = 

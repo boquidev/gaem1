@@ -202,6 +202,7 @@ static union {
 		E_UNCLAMP_Y,
 		E_UNCLAMP_XZ,
 		E_CAN_MANUALLY_MOVE,
+		E_NOT_MOVE,
 		
 		E_AUTO_AIM_BOSS,
 		E_AUTO_AIM_CLOSEST,
@@ -222,6 +223,12 @@ static union {
 		E_SHOOT,
 		E_MELEE_ATTACK,
 		E_SPAWN_ENTITIES,
+		
+		
+		E_TOXIC,
+		E_TOXIC_DAMAGE_INMUNE,
+
+		
 
 		E_LAST_FLAG;
 	};
