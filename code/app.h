@@ -29,6 +29,7 @@ struct  Object3d{
 };
 
 #define MAX_ENTITIES 5000
+#define MAX_UI 1000
 enum ENTITY_TYPE{
 	ENTITY_FORGOR_TO_ASSIGN_TYPE,
 	ENTITY_UNIT,
@@ -171,8 +172,23 @@ entity_from_handle(Entity* entities, u32* entity_generations, Element_handle han
 struct Ui_element{
 	Element_handle parent_handle;
 
+	Rect rect;
+	Color color;
+
 	u64 flags;
 };
+
+internal b32
+ui_is_point_inside(Ui_element* ui, V2 p){
+	b32 x_inside = IS_VALUE_BETWEEN(ui->rect.xf, p.x, ui->rect.xf + ui->rect.wf);
+	b32 y_inside = IS_VALUE_BETWEEN(ui->rect.yf - ui->rect.hf, p.y, ui->rect.yf);
+	return x_inside && y_inside;
+	
+	// return (
+	// 		IS_VALUE_BETWEEN(ui->rect.x, p.x, ui->rect.x + ui->rect.w) &&
+	// 		IS_VALUE_BETWEEN(ui->rect.y - ui->rect.h, p.y, ui->rect.y)
+	// 	);
+} 
 
 struct User_input
 {
@@ -326,6 +342,9 @@ struct App_memory
 	u32 last_inactive_entity;
 	Entity* entities;
 	u32* entity_generations;
+
+	Ui_element* ui_elements;
+	u32* ui_generations;
 };
 
 internal void 

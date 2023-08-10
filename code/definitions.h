@@ -64,6 +64,8 @@ typedef double r64;
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+#define IS_VALUE_BETWEEN(min_value, value, max_value) (min_value) < (value) && (value) < (max_value)
+
 #define CLAMP(a,x,b)    (((x)<(a))?(a):\
                         ((b)<(x))?(b):(x))
 

@@ -108,6 +108,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	};
 
 
+	// UI
+
+
+	Ui_element* main_panel = &memory->ui_elements[0];
+	main_panel->flags = UI_ACTIVE|UI_DETECT_CURSOR;
+	main_panel->rect.pos = {0.5f, 1};
+	main_panel->rect.size = {0.5f, 2};
+
+	if(input->cursor_pos.x){
+		ASSERT(true);
+	}
+	if(ui_is_point_inside(main_panel, input->cursor_pos)){
+		main_panel->color = {1,1,1,1};
+	}else{
+		main_panel->color = {0,0,0,1};
+	}
+
+
 	// MOVE SELECTED ENTITY
 
 	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
@@ -1064,6 +1082,24 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	request->pos = { -1, -0.9f, 0.01f};
 
 	// draw(render_list, memory->temp_arena, &test_plane);
+
+
+	// RENDERING UI ELEMENTS
+
+	UNTIL(i, MAX_UI){
+		if(!memory->ui_elements[i].flags) continue;
+		Ui_element* current = &memory->ui_elements[i];
+
+		PUSH_BACK(render_list, memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
+		
+		request->scale = {current->rect.wf, current->rect.hf, 1};
+		request->pos = {current->rect.xf, current->rect.yf};
+
+		request->color = current->color;
+		request->texinfo_uid = memory->textures.gradient_tex_uid;
+		request->mesh_uid = memory->meshes.plane_mesh_uid;
+	}
 }
 
 #define PUSH_ASSET_REQUEST push_asset_request(memory, init_data, &request)
@@ -1074,6 +1110,9 @@ void init(App_memory* memory, Init_data* init_data){
 
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
+
+	memory->ui_elements = ARENA_PUSH_STRUCTS(memory->permanent_arena, Ui_element, MAX_UI);
+	memory->ui_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_UI);
 
 	Asset_request request = {0};
 	{

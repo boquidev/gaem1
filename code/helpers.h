@@ -186,7 +186,7 @@ find_bigger_exponent_of_2(u32 target_value){
 // TODO: find a way to do bigger than 64 bitfields
 static union {
 	FLAGS_ARRAY64(GLOBAL_BITFIELDS_64);
-	struct {
+	struct { // ENTITY FLAGS
 		u64 
 		E_VISIBLE, 
 		E_SELECTABLE, 
@@ -231,11 +231,11 @@ static union {
 		E_LAST_FLAG;
 	};
 
-	struct {
+	struct { // UI FLAGS
 		u64
 		UI_ACTIVE,
 
-		UI_DETECTS_CURSOR,
+		UI_DETECT_CURSOR,
 
 		UI_LAST_FLAG;
 	};
