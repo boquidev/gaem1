@@ -52,7 +52,7 @@ enum UNIT_TYPE{
 	UNIT_COUNT
 };
 
-struct Entity_handle
+struct Element_handle
 {
 	u32 index;
 	u32 generation; // this value updates when the entity is deleted
@@ -107,7 +107,7 @@ struct Entity{
 	f32 speed;
 	f32 friction;
 
-	Entity_handle parent_handle;
+	Element_handle parent_handle;
 	u32 team_uid;
 	
 	//TODO: replace this two
@@ -154,19 +154,25 @@ last_inactive_entity(Entity entities[]){
 
 //TODO: use this
 internal b32
-is_handle_valid(u32 entity_generations[], Entity_handle handle)
+is_handle_valid(u32 entity_generations[], Element_handle handle)
 {
 	b32 result = entity_generations[handle.index] == handle.generation;
 	return result;
 }
 
 internal Entity*
-entity_from_handle(Entity* entities, u32* entity_generations, Entity_handle handle){
+entity_from_handle(Entity* entities, u32* entity_generations, Element_handle handle){
 	if(entity_generations[handle.index] == handle.generation)
 		return &entities[handle.index];
 	else
 		return &nil_entity;
 }
+
+struct Ui_element{
+	Element_handle parent_handle;
+
+	u64 flags;
+};
 
 struct User_input
 {

@@ -216,9 +216,8 @@ static union {
 		E_SKIP_ROTATION,
 
 		E_POS_IN_FRONT_OF_PARENT,
-		E_SKIP_PARENT_COLLISION,
 		// E_IGNORES_TEAMS,
-
+		E_SKIP_PARENT_COLLISION,
 		// ACTIONS
 		E_SHOOT,
 		E_MELEE_ATTACK,
@@ -227,10 +226,18 @@ static union {
 		
 		E_TOXIC,
 		E_TOXIC_DAMAGE_INMUNE,
-
 		
 
 		E_LAST_FLAG;
+	};
+
+	struct {
+		u64
+		UI_ACTIVE,
+
+		UI_DETECTS_CURSOR,
+
+		UI_LAST_FLAG;
 	};
 };
 

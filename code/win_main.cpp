@@ -868,10 +868,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				input.cursor_speed.x = px - input.cursor_pos.x;
 				input.cursor_speed.y = py - input.cursor_pos.y;
 				input.cursor_pos = {0,0};
-			}else
+			}else{
 				input.cursor_pos = {
-					(f32)(mousep.x - client_center_pos.x)/global_client_size.x, 
-					-(f32)(mousep.y - client_center_pos.y)/global_client_size.y};
+					(f32)2*(mousep.x - client_center_pos.x)/global_client_size.x, 
+					-(f32)2*(mousep.y - client_center_pos.y)/global_client_size.y
+					};
+			}
 				
 		}else{
 			holding_inputs = {0};
@@ -1231,16 +1233,17 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));
 			V4 camera_pos = {memory.camera_pos.x, memory.camera_pos.y, memory.camera_pos.z, (f32)perspective_on};	
 			dx11_modify_resource(dx, camera_pos_buffer.buffer, &camera_pos, sizeof(V4));
-			
+
 			// WORLD PROJECTION
-			if(perspective_on)
+			if(perspective_on){ // 32 because currently the camera is floating on position y = 32
 				projection_matrix = XMMatrixPerspectiveLH(memory.fov*memory.aspect_ratio/32, memory.fov/32, fov, 100.0f);
-			else
+			}else{
 				projection_matrix = XMMatrixOrthographicLH(memory.fov*memory.aspect_ratio, memory.fov, fov, 100.0f);
+			}
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
 
 			// OBJECT TRANSFORM
-			//TODO: make a GENERAL RENDER REQUEST QUEUE 
+			//TODO: make a GENERAL RENDER REQUEST QUEUE
 			FOREACH(Renderer_request, request, render_list){
 				ASSERT(request->type_flags); //assert at least one flag is set
 

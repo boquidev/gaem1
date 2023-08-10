@@ -3,8 +3,8 @@
 #define MAX_SPAWN_DISTANCE 5.0f
 #define BOSS_INDEX 1
 
-global_variable Entity_handle global_boss_handle = {0};
-global_variable Entity_handle global_player_handle = {0};
+global_variable Element_handle global_boss_handle = {0};
+global_variable Element_handle global_player_handle = {0};
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
@@ -41,7 +41,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 		player->team_uid = 0;
 		player->speed = 5.0f;
-		player->friction = 4.0f;
+		player->friction = 1.0f;
 		player->type = ENTITY_UNIT;
 
 		player->mesh_uid = memory->meshes.player_mesh_uid;
@@ -100,8 +100,54 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 	memory->camera_pos = v3_rotate_y(v3_rotate_x({0,0,-32}, memory->camera_rotation.x), memory->camera_rotation.y);
 
-	{
 
+	V3 screen_cursor_pos = { // fov is from side to side of the screen, not from center to side
+		memory->aspect_ratio*(memory->fov/2)*input->cursor_pos.x,
+		(memory->fov/2)*input->cursor_pos.y, 
+		0
+	};
+
+
+	// MOVE SELECTED ENTITY
+
+	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
+	input_vector = normalize(input_vector);
+	{
+		Entity* selected_entity = &entities[memory->selected_uid];
+		if(selected_entity->flags & E_CAN_MANUALLY_MOVE)
+		{
+			selected_entity->normalized_accel = v3_normalize(input_vector.x, 0, input_vector.y);
+		}
+	}
+
+	// MOVE CAMERA IN THE DIRECTION I AM LOOKING
+	// V2 looking_direction = {cosf(memory->camera_rotation.y), sinf(memory->camera_rotation.y)};
+	// V2 move_direction = {
+	// 	input_vector.x*looking_direction.x + input_vector.y*looking_direction.y ,
+	// 	-input_vector.x*looking_direction.y + input_vector.y*looking_direction.x
+	// };
+	// memory->camera_pos.x += move_direction.x * delta_time * camera_speed;
+	// memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
+
+	// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
+
+
+	memory->highlighted_uid = 0;
+	V3 cursor_screen_to_world_pos = memory->camera_pos + v3_rotate_y(
+		v3_rotate_x(screen_cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
+	);
+
+	V3 z_direction = v3_rotate_y(
+		v3_rotate_x({0,0,1}, memory->camera_rotation.x),memory->camera_rotation.y
+	);
+
+	V3 cursor_world_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
+
+	LIST(u32, entities_to_kill) = {0};
+	LIST(Entity, entities_to_create) = {0};
+
+	
+	{
 		Entity* wall = 0;
 		wall = &entities[5];
 		default_wall(wall, memory);
@@ -136,55 +182,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		wall->team_uid = 0xffff;
 	}
 
-	V3 cursor_pos = {
-		memory->aspect_ratio*memory->fov*input->cursor_pos.x,
-		memory->fov*input->cursor_pos.y, 0
-	};
-
-
-	// MOVE SELECTED ENTITY
-
-	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
-	input_vector = normalize(input_vector);
-	{
-		Entity* selected_entity = &entities[memory->selected_uid];
-		if(selected_entity->flags & E_CAN_MANUALLY_MOVE){
-			selected_entity->normalized_accel = v3_normalize(input_vector.x, 0, input_vector.y);
-		}
-	}
-
-		// MOVE CAMERA IN THE DIRECTION I AM LOOKING
-		// V2 looking_direction = {cosf(memory->camera_rotation.y), sinf(memory->camera_rotation.y)};
-		// V2 move_direction = {
-		// 	input_vector.x*looking_direction.x + input_vector.y*looking_direction.y ,
-		// 	-input_vector.x*looking_direction.y + input_vector.y*looking_direction.x
-		// };
-		// memory->camera_pos.x += move_direction.x * delta_time * camera_speed;
-		// memory->camera_pos.z += move_direction.y * delta_time * camera_speed;
-
-		// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
-
-
-
-	memory->highlighted_uid = 0;
-	V3 cursor_screen_to_world_pos = memory->camera_pos + v3_rotate_y(
-		v3_rotate_x(cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
-	);
-
-	V3 z_direction = v3_rotate_y(
-		v3_rotate_x({0,0,1}, memory->camera_rotation.x),memory->camera_rotation.y
-	);
-
-	V3 cursor_world_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
-
-	LIST(u32, entities_to_kill) = {0};
-	LIST(Entity, entities_to_create) = {0};
-
-
-
 // MAIN ENTITY UPDATE LOOP
 
-
+	if(input->d_right == 1){
+		ASSERT(true);
+	}
 
 	f32 closest_t = {0};
 	b32 first_intersection = false;
@@ -196,7 +198,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		// CREATION TIME
 		// i don't like that this must be done even with entities that skip_updating but whatevs
 
-		if(entities[i].creation_size < 1.0f){
+		if(entities[i].creation_size < 1.0f)
+		{
 			if(entities[i].creation_delay <= 0){
 				entities[i].creation_size = 1.0f;
 			}else{
@@ -712,12 +715,56 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	else if(input->k6 == 1)
 		memory->creating_unit = 6;
 
+
 	memory->possible_entities[0] = UNIT_NOT_A_UNIT;
 	memory->possible_entities[1] = UNIT_SHOOTER;
 	memory->possible_entities[2] = UNIT_TANK;
 	memory->possible_entities[3] = UNIT_MELEE;
 	memory->possible_entities[4] = UNIT_SPAWNER;
-		
+	
+	if(input->cursor_primary == 1)
+		memory->clicked_uid = memory->highlighted_uid;
+	else if( input->cursor_primary == -1 ){
+		if(memory->clicked_uid){
+			if(memory->highlighted_uid == memory->clicked_uid){
+				memory->selected_uid = memory->clicked_uid;
+				
+				Audio_playback* new_playback = find_next_available_playback(playback_list);
+				new_playback->initial_sample_t = sample_t;
+				new_playback->sound_uid = memory->sounds.wa_uid;
+			}
+			memory->clicked_uid = 0;
+		}
+	}
+
+	Entity* selected_entity = &entities[memory->selected_uid];
+	selected_entity->color = {0,0.7f,0,1};
+	
+	if(input->L == 1)
+		selected_entity->flags |= E_SHOOT;
+	else if(input->k1 == 1)
+		selected_entity->flags |= E_MELEE_ATTACK;
+	else if(input->k2 == 1)
+		selected_entity->flags |= E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST;
+	else if(input->k3 == 1)
+		selected_entity->flags |= E_CAN_MANUALLY_MOVE;
+	else if(input->k4 == 1)
+		selected_entity->flags |= E_SHOOT;
+	else if(input->k5 == 1)
+		selected_entity->flags |= E_SHOOT;
+	else if(input->k6 == 1)
+		selected_entity->flags |= E_SHOOT;
+
+	if( input->cursor_secondary > 0){
+		if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
+		{
+			selected_entity->target_direction = v3_difference({cursor_world_pos.x, 0, cursor_world_pos.z}, selected_entity->pos);
+		}
+	}
+	else if( input->cursor_primary > 0)
+		memory->selected_uid = memory->player_uid;
+	
+#if 0
 	UNIT_TYPE new_unit_type = memory->possible_entities[memory->creating_unit];
 	if(new_unit_type == UNIT_SHOOTER) { // SELECTED UNIT TO CREATE
 		if(input->cursor_primary == -1){
@@ -809,6 +856,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				memory->selected_uid = memory->player_uid;
 		}
 	}	
+#endif
 }
 
 
@@ -816,7 +864,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_size){
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
-	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
+	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|
+		REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
 	request->vshader_uid = memory->vshaders.default_vshader_uid;
 	request->pshader_uid = memory->pshaders.default_pshader_uid;
 	request->blend_state_uid = memory->blend_states.default_blend_state_uid;
@@ -909,11 +958,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		requests[0]->object3d.pos = current_pos;
 		requests[0]->object3d.color = unselected_color;
 
-
 		u32 resources_value = memory->teams_resources[0];
-
-
-
 
 		current_pos.x += 0.2f;
 		String cost_string;
