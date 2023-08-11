@@ -213,11 +213,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			
 			V2 current_position = v2_rotate(initial_position, i*angle_step);
 
-			ui_element->rect.x = (s32)(memory->radial_menu_pos.x + current_position.x);
-			ui_element->rect.y = (s32)(memory->radial_menu_pos.y + current_position.y);
+			ui_element->rect.w = 100;
+			ui_element->rect.h = 50;
 
-			ui_element->rect.w = 200;
-			ui_element->rect.h = 100;
+			ui_element->rect.x = (s32)(memory->radial_menu_pos.x + current_position.x)-(ui_element->rect.w/2);
+			ui_element->rect.y = (s32)(memory->radial_menu_pos.y + current_position.y)-(ui_element->rect.h/2);
 
 		}
 
@@ -1295,6 +1295,27 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// RENDERING UI ELEMENTS
 
+
+	// FIRST PASS TO DRAW RECTANGLES
+
+	UNTIL(i, MAX_UI){
+		if(!memory->ui_elements[i].flags) continue;
+		Ui_element* current = &memory->ui_elements[i];
+
+			PUSH_BACK(render_list, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
+
+			request->scale = {2.0f*current->rect.w/screen_size.x, 2.0f*current->rect.h/screen_size.y, 1};
+			request->pos = {2.0f*current->rect.x/screen_size.x -1, -(2.0f*current->rect.y/screen_size.y -1)};
+
+			request->color = 0.5f*current->color;
+			request->texinfo_uid = memory->textures.gradient_tex_uid;
+			request->mesh_uid = memory->meshes.plane_mesh_uid;
+	}
+
+
+	// SECOND PASS TO DRAW TEXT
+
 	UNTIL(i, MAX_UI){
 		if(!memory->ui_elements[i].flags) continue;
 		Ui_element* current = &memory->ui_elements[i];
@@ -1310,8 +1331,10 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->texinfo_uid = memory->textures.gradient_tex_uid;
 			request->mesh_uid = memory->meshes.plane_mesh_uid;
 		}else{
+			s32 xpixel_pos = current->rect.x+(current->rect.w/2) - (current->text.length*8/2);
+			s32 ypixel_pos = current->rect.y+(current->rect.h-18)/2;
 			printo_screen(memory, screen_size, render_list, current->text, 
-				{2.0f*current->rect.x/screen_size.x -1, 1- 2.0f*current->rect.y/screen_size.y},
+				{2.0f*xpixel_pos/screen_size.x -1, 1- 2.0f*ypixel_pos/screen_size.y},
 				// {2.0f*current->rect.x/screen_size.x -1, -2.0f*current->rect.y/screen_size.y -1}, 
 				current->color);
 		}

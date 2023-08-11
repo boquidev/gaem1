@@ -258,12 +258,17 @@ union Color
 		f32 b;
 		f32 a;
 	};
-	struct RGB_accessor{
-		f32 r;
-		f32 g;
-		f32 b;
-	} rgb;
+	// struct RGB_accessor{
+	// 	f32 r;
+	// 	f32 g;
+	// 	f32 b;
+	// } rgb;
 };
+internal Color
+operator *(f32 scalar, Color color){
+	return {scalar*color.r, scalar*color.g, scalar*color.b, scalar*color.a};
+}
+
 
 struct Color32
 {
