@@ -347,6 +347,8 @@ struct App_memory
 
 	u32* entity_generations;
 
+	Int2 radial_menu_pos;
+
 	Ui_element* ui_elements;
 	u32* ui_generations;
 

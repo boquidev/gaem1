@@ -6,6 +6,7 @@
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size){
+	client_size;
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
 		
@@ -79,6 +80,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->unit_creation_costs[UNIT_TANK] = 15;
 		memory->unit_creation_costs[UNIT_SPAWNER] = 40;
 		memory->unit_creation_costs[UNIT_MELEE] = 5;
+
+		memory->selected_uid = -1;
 	}
 
 	User_input* input = memory->input;
@@ -121,7 +124,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	
 	s32 hot_element_uid = -1;
-	UNTIL(i, MAX_UI){
+	UNTIL(i, MAX_UI)
+	{
 		if(!ui_elements[i].flags) continue;
 		
 		if(ui_is_point_inside(&ui_elements[i], input->cursor_pixels_pos))
@@ -130,43 +134,42 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 	}
 
-	if(input->cursor_primary == 1){
+	if(input->cursor_primary == 1)
+	{
 		memory->ui_selected_uid = hot_element_uid;
 	}
 	
-	if(input->cursor_primary == -1){
+	if(input->cursor_primary == -1)
+	{
 		if(memory->ui_selected_uid == hot_element_uid){
 			memory->ui_clicked_uid = hot_element_uid;
 		}else{
 			memory->ui_clicked_uid = -1;
 		}
+		memory->ui_selected_uid = -1;
 	}else{
 		memory->ui_clicked_uid = -1;
 	}
 	b32 is_cursor_in_ui = hot_element_uid >= 0;
+
+
+	// CLEANING LAST FRAME UI_ELEMENTS
 	
+	UNTIL(i, MAX_UI){
+		ui_elements[i] = {0};
+	}
 	
 
 
 	// CREATING UI_ELEMENTS
 
-
-	s32 ui_last = 0;
-
-	Ui_element* main_panel = &ui_elements[ui_last++];
-
-	main_panel->flags = 1;
-
-	main_panel->rect.x = 3*client_size.x/4;
-	main_panel->rect.y = 0;
-	main_panel->rect.w = client_size.x/4;
-	main_panel->rect.h = client_size.y;
-	main_panel->color = {0,0,0,1};
-
-	if(input->cursor_pos.x){
-		ASSERT(true);
+	if(input->L == 1){
+		memory->radial_menu_pos = input->cursor_pixels_pos;
 	}
-	{
+
+	if(input->L > 0){
+		s32 ui_last = 0;
+
 		u64 possible_flags_to_set[4] = {
 			E_SHOOT,
 			E_MELEE_ATTACK,
@@ -181,33 +184,30 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"manually move"
 		};
 
-		u32 current_x = 0;
-		u32 current_y = 0;
+		f32 angle_step = TAU32 / 4;
+		V2 initial_position = {0,-200};
 		UNTIL(i, 4){
+
 			// order in a gridlike manner
 			if(ui_last == memory->ui_clicked_uid){
-				entities[memory->selected_uid].flags ^= possible_flags_to_set[i];
+				if(memory->selected_uid >= 0){
+					entities[memory->selected_uid].flags ^= possible_flags_to_set[i];
+				}
 			}
+
 			Ui_element* ui_element = &ui_elements[ui_last++];
-			ui_element->parent_uid = 0;
 			ui_element->color = {0.5f,0.5f,0.5f,1};
 			ui_element->flags = 1;
 			ui_element->text = string(button_text[i]); 
+			
+			V2 current_position = v2_rotate(initial_position, i*angle_step);
 
-			Ui_element* parent = &ui_elements[ui_element->parent_uid];
-			ui_element->rect.x = parent->rect.x + (current_x * parent->rect.w/3);
-			ui_element->rect.w = parent->rect.w/3;
-			ui_element->rect.y = (current_y * parent->rect.w/3);
-			ui_element->rect.h = (parent->rect.w/3);
+			ui_element->rect.x = (s32)(memory->radial_menu_pos.x + current_position.x);
+			ui_element->rect.y = (s32)(memory->radial_menu_pos.y + current_position.y);
 
+			ui_element->rect.w = 200;
+			ui_element->rect.h = 100;
 
-
-			current_x++;
-			if(current_x >= 3)
-			{
-				current_x = 0;
-				current_y++;
-			}
 		}
 
 	}
@@ -540,8 +540,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					//TODO: collision code
 					b32 they_collide = false;
 
-					if(entity->collider_type == COLLIDER_TYPE_SPHERE){
-						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
+					if(entity->collider_type == COLLIDER_TYPE_SPHERE)
+					{
+						if(entity2->collider_type == COLLIDER_TYPE_SPHERE) // BOTH SPHERES
+						{ 
 							V3 centers_distance = entity2->pos - entity->pos;
 							f32 centers_distance_magnitude = v3_magnitude(centers_distance);
 							f32 r1 = entity->scale.x*entity->creation_size;
@@ -842,22 +844,31 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	memory->possible_entities[4] = UNIT_SPAWNER;
 	
 	if(!is_cursor_in_ui){
-		if(input->cursor_primary == 1)
+		if(input->cursor_primary == 1){
 			memory->clicked_uid = hot_entity_uid;
-		else if( input->cursor_primary == -1 ){
+			memory->selected_uid = -1;
+		}else if( input->cursor_primary == -1 ){
 			if(memory->clicked_uid >= 0){
 				if(hot_entity_uid == memory->clicked_uid){
 					memory->selected_uid = memory->clicked_uid;
 					
 					Audio_playback* new_playback = find_next_available_playback(playback_list);
 					new_playback->initial_sample_t = sample_t;
-					new_playback->sound_uid = memory->sounds.wa_uid;
+					new_playback->sound_uid = memory->sounds.pa_uid;
+				}else{
+					memory->selected_uid = -1;
 				}
 				memory->clicked_uid = 0;
 			}
 		}
 	}
 	
+	if(memory->selected_uid >= 0){
+		entities[memory->selected_uid].color = {0,0.7f,0,1};
+	}
+	
+#if 0
+
 	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &entities[memory->selected_uid];
 		
@@ -885,7 +896,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}
 	}
+#endif
 	
+	// OLD WAY OF CREATING UNITS / SETTING FLAGS WITH KEY PRESSES
 #if 0
 	UNIT_TYPE new_unit_type = memory->possible_entities[memory->creating_unit];
 	if(new_unit_type == UNIT_SHOOTER) { // SELECTED UNIT TO CREATE
@@ -1006,9 +1019,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->object3d.scale = scale_multiplier * request->object3d.scale;
 		}
 	}
-	{
+	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
-		// if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
 		{
 
 			PUSH_BACK(render_list, memory->temp_arena, request);

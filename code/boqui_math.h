@@ -414,6 +414,17 @@ sphere_vs_sphere(V3 c1,f32 r1, V3 c2, f32 r2){
     return ((r1+r2) - v3_magnitude(c1-c2));
 }
 
+internal V2
+v2_rotate(V2 vector, f32 angle){
+    f32 cos_angle = COSF(angle);
+    f32 sin_angle = SINF(angle);
+
+    return {
+        vector.x * cos_angle - vector.y * sin_angle,
+        vector.x * sin_angle + vector.y * cos_angle
+    };
+}
+
 // Function to rotate a vector using a rotation matrix
 internal V3 
 v3_rotate_x(V3 vector, f32 angle) 
