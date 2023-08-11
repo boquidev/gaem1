@@ -162,8 +162,12 @@ operator -(V3 v1, V3 v2){
     return v3_difference(v1, v2);
 }
 internal V3
-operator *(f32 e, V3 v){
+v3_multiply(f32 e, V3 v){
     return {e * v.x, e * v.y, e*v.z};
+}
+internal V3
+operator *(f32 e, V3 v){
+    return v3_multiply(e, v);
 }
 internal V3
 operator /(V3 v, f32 x){

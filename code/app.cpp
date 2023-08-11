@@ -34,7 +34,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		player->action_count = 1;
 		player->action_angle = TAU32/4;
-		player->action_cd_total_time = 5.0f;
+		player->action_cd_total_time = 10.0f;
+		player->action_cd_time_passed = 9.0f;
 		player->action_max_distance = 5.0f;
 
 		memory->teams_resources[player->team_uid] = 50;
@@ -70,7 +71,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		boss->action_count = 1;
 		boss->action_angle = TAU32/4;
-		boss->action_cd_total_time = 5.0f;
+		boss->action_cd_total_time = 7.0f;
 		boss->action_max_distance = 5.0f;
 
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
@@ -172,28 +173,36 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->L > 0){
 		s32 ui_last = 0;
 
-		u64 possible_flags_to_set[4] = {
+		u64 possible_flags_to_set[] = {
 			E_SHOOT,
 			E_MELEE_ATTACK,
 			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
-			E_CAN_MANUALLY_MOVE
+			E_CAN_MANUALLY_MOVE,
+			E_TOXIC|E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
 		};
 
-		char* button_text[4] = {
+		char* button_text[] = {
 			"shoot",
 			"melee attack",
 			"homing",
-			"manually move"
+			"manually move",
+			"toxic"
 		};
 
-		f32 angle_step = TAU32 / 4;
+		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
 		V2 initial_position = {0,-200};
-		UNTIL(i, 4){
-
-			// order in a gridlike manner
+		UNTIL(i, ARRAYCOUNT(button_text)){
 			if(ui_last == memory->ui_clicked_uid){
 				if(memory->selected_uid >= 0){
-					entities[memory->selected_uid].flags ^= possible_flags_to_set[i];
+					if(possible_flags_to_set[i] & E_TOXIC){
+						if(entities[memory->selected_uid].flags & E_TOXIC_EMITTER){
+							entities[memory->selected_uid].flags &= possible_flags_to_set[i] ^ 0xffffffffffffffff;
+						}else{
+							entities[memory->selected_uid].flags |= possible_flags_to_set[i];
+						}
+					}else{
+						entities[memory->selected_uid].flags ^= possible_flags_to_set[i];
+					}
 				}
 			}
 
@@ -336,14 +345,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		Entity* entity = &entities[i];
 
 
-		// ENEMY COLOR
+		// ENEMY_COLOR
 
 		if(entity->team_uid != entities[memory->player_uid].team_uid){
 			entity->color = {0.7f, 0,0,1};
 		}
 
 
-		// ENTITY LIFETIME
+		// LIFETIME
 
 		if(entity->lifetime)
 		{
@@ -355,6 +364,46 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				entity->flags &= (0xffffffffffffffff ^ E_SELECTABLE);
 			}
 		}
+
+
+		// TOXIC RADIUS
+
+		//TODO: i think this should be done when assigning the flag
+		// but my current ui system is kinda tedious
+		if(entity->flags & E_TOXIC_EMITTER){
+			entity->toxic_time_left = 0;
+			entity->toxic_radius = 4.0f;
+		}else if(entity->flags & E_TOXIC){
+			if(!(entity->flags & E_TOXIC_DAMAGE_INMUNE)){
+				entity->toxic_radius = 2.0f;
+				entity->toxic_tick_damage_cd -= delta_time;
+				if(entity->toxic_tick_damage_cd <= 0){
+					entity->toxic_tick_damage_cd += 2.0f;
+
+					entity->health -= 1;
+					if(entity->health <= 0){
+						u32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+						*index_to_kill = i;
+					}
+				}
+			}
+		}
+
+		// TOXIC LIFETIME
+
+		if(entity->toxic_time_left)
+		{
+
+			entity->toxic_time_left -= delta_time;
+			if(entity->toxic_time_left <= 0)
+			{
+				entity->toxic_time_left = 0;
+				entity->flags ^= E_TOXIC;
+			}
+		}
+		// TOXIC TICK DAMAGE
+
+
 		
 
 		// CURSOR RAYCASTING
@@ -524,7 +573,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							}
 							else
 							{
-								entity2->health -= MIN(entity->attack_damage, entity2->health);
+								entity2->health -= MIN(entity->action_power, entity2->health);
 							}
 
 							if(entity2->health <= 0) {
@@ -533,6 +582,23 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								*index_to_kill = j;
 							}
 						}
+					}
+				}
+
+
+				
+				// TOXIC ENTITIES INFECTING
+
+
+				if(entity->flags & E_TOXIC && 
+					!(entity2->flags & E_TOXIC_EMITTER) &&
+					(entity2->flags & E_RECEIVES_DAMAGE)
+				){
+					f32 distance = v3_magnitude(entity2->pos - entity->pos);
+					if(distance < entity->toxic_radius){
+						entity2->toxic_radius = entity->toxic_radius/2;
+						entity2->toxic_time_left = 6.0f;
+						entity2->flags |= E_TOXIC;
 					}
 				}
 
@@ -697,9 +763,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 				if((entity->flags & E_MELEE_ATTACK))
 				{
-					f32 diameter = entity->creation_size ? 
-						2*entity->scale.x*entity->creation_size : 
-						2*entity->scale.x;
 					UNTIL(current_action_i, repetitions)
 					{
 						Entity* hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, hitbox);
@@ -714,9 +777,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						hitbox->parent_handle.index = i;
 						hitbox->parent_handle.generation = generations[i];
 						hitbox->team_uid = entity->team_uid;
-						hitbox->attack_damage = entity->attack_damage;
+						hitbox->action_power = entity->action_power;
+						hitbox->distance_from_parent = entity->creation_size*entity->scale.x;
 
-						hitbox->pos = entity->pos + diameter*target_directions[current_action_i];
+						hitbox->pos = entity->pos + hitbox->distance_from_parent*target_directions[current_action_i];
 
 						// hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 						hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
@@ -741,12 +805,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->max_health = 4;
 						new_entity->health = new_entity->max_health;
 						new_entity->action_cd_total_time = 1.0f;
-						new_entity->attack_damage = 1;
 
 						new_entity->parent_handle.index = i;
 						new_entity->parent_handle.generation = generations[i];
 						new_entity->team_uid = entity->team_uid;
-						new_entity->attack_damage = 1;
+						new_entity->action_power = 1;
 
 						V3 spawn_direction;
 						if(looking_direction_length > entity->action_max_distance){
@@ -778,10 +841,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(entity->flags & E_POS_IN_FRONT_OF_PARENT){
 			if(is_handle_valid(generations, entity->parent_handle)){
 				Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
-				f32 diameter = parent->creation_size ? 
-					2*parent->scale.x*parent->creation_size : 
-					2*parent->scale.x;
-				entity->pos = parent->pos + diameter*v3_normalize(parent->looking_direction);
+				entity->pos = parent->pos + entity->distance_from_parent*v3_normalize(parent->looking_direction);
 			}
 		}else{ // DEFAULT CASE
 			if(!(entity->flags & E_NOT_MOVE)){
@@ -836,6 +896,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// 	memory->creating_unit = (memory->creating_unit+(AVAILABLE_UNITS))%(1+AVAILABLE_UNITS);
 	// if(input->R == 1)
 	// 	memory->creating_unit = ((memory->creating_unit+1) % (1+AVAILABLE_UNITS));
+#if 0
 	if(input->L)
 		memory->creating_unit = 0;
 	else if(input->k1 == 1)
@@ -857,7 +918,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	memory->possible_entities[2] = UNIT_TANK;
 	memory->possible_entities[3] = UNIT_MELEE;
 	memory->possible_entities[4] = UNIT_SPAWNER;
-	
+#endif 
+
+	// DECIDE WHOS THE SELECTED ENTITY 
+
 	if(!is_cursor_in_ui){
 		if(input->cursor_primary == 1){
 			memory->clicked_uid = hot_entity_uid;
@@ -877,6 +941,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}
 	}
+
+	// COLOR AND LOOKING DIRECTION OF SELECTED ENTITY
 	
 	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &entities[memory->selected_uid];
@@ -1031,6 +1097,19 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			f32 scale_multiplier = MAX(memory->delta_time, memory->entities[i].creation_size);
 
 			request->object3d.scale = scale_multiplier * request->object3d.scale;
+
+			if(memory->entities[i].flags & E_TOXIC)
+			{
+				PUSH_BACK(render_list, memory->temp_arena, request);
+				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+				request->object3d.color = {0,1,0,1};
+				request->object3d.pos = memory->entities[i].pos;
+				request->object3d.scale = v3_multiply(memory->entities[i].toxic_radius, {1,1,1});
+				request->object3d.rotation = {PI32/2,0,0};
+				
+				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
+				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+			}
 		}
 	}
 	if(memory->selected_uid >= 0){

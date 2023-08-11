@@ -78,13 +78,14 @@ struct Entity{
 	f32 lifetime;
 
 	s32 max_health;
-	s32 health;// replace this with damage (maybe not), when health is damage it's tedious
-
-	s32 attack_damage;
+	s32 health;// replace this with damage (maybe not), when health is damage it's tedious, or maybe i am dumb i will try it again
 
 	// this is normalized and relative to the entity position 
 	V3 normalized_accel;
 	V3 velocity;
+
+	f32 speed;
+	f32 friction;
 
 	// this is relative to the entity position
 	V3 looking_direction;
@@ -96,28 +97,33 @@ struct Entity{
 
 	f32 action_cd_total_time;
 	f32 action_cd_time_passed;
-	
+
+	s32 action_power;	
 	u32 action_count;
 	f32 action_angle;
 
 	f32 action_max_time;
 	f32 action_max_distance;
 
+		f32 damage_redness;
+
+		f32 toxic_radius;
+		f32 toxic_time_left;
+		f32 toxic_tick_damage_cd;
+
 	UNIT_TYPE spawn_unit_type;
 
-	f32 speed;
-	f32 friction;
 
 	Element_handle parent_handle;
 	u32 team_uid;
+	f32 distance_from_parent;
 	
-	//TODO: replace this two
 	f32 creation_size;
 	f32 creation_delay;
 	// each frame  creation_delay_time -= delta_time and
 	// increment creation_size by (1-creation_size) / (creation_delay_time/delta_time)
 	
-	u32 state; // for now this is only used by the boss
+	u32 state; // this WAS only used by the boss to handle phases
 
 	union{
 		Object3d object3d;
@@ -371,7 +377,7 @@ global_variable u64
 
 	E_PROJECTILE_FLAGS = 
 		E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_RECEIVES_DAMAGE|//E_NOT_TARGETABLE|
-		E_DOES_DAMAGE|E_HEALTH_IS_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION
+		E_DOES_DAMAGE|E_HEALTH_IS_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|E_TOXIC_DAMAGE_INMUNE
 		,
 
 	E_MELEE_FLAGS = 
@@ -498,7 +504,7 @@ default_melee(Entity* out, App_memory* memory){
 	out->max_health = 4;
 	out->health = out->max_health;
 	out->action_cd_total_time = 1.0f;
-	out->attack_damage = 1;
+	out->action_power = 1;
 	out->mesh_uid = memory->meshes.melee_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
