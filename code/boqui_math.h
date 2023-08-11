@@ -74,19 +74,12 @@ math_sqrt(f32 n)
     return r;
 }
 
-union V2
+struct V2
 {
-    struct
-    {
-        f32 x;
-        f32 y;
-    };
-    struct
-    {
-        f32 u;
-        f32 v;
-    };
+    f32 x;
+    f32 y;
 };
+
 struct Int2
 {
     s32 x;
@@ -134,7 +127,7 @@ union V3
         f32 g;
         f32 b;
     };
-    Int3 i;
+    Int3 i3;
     V2 v2;
 };
 internal f32

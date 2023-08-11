@@ -860,6 +860,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			ClientToScreen(global_main_window, &center_point);
 
 			input.cursor_speed = {0};
+			input.cursor_pixels_pos = {mousep.x, mousep.y};
 			if(memory.lock_mouse)
 			{
 				SetCursorPos(center_point.x, center_point.y);
@@ -1089,7 +1090,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		// APP UPDATE
 
 
-		app.update(&memory, playback_list, sample_t);
+		app.update(&memory, playback_list, sample_t, global_client_size);
 
 
 		// SOUND RENDERING

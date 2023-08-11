@@ -3,7 +3,7 @@
 #include "gltf_loader.h"
 
 
-#define update_type(...) void (*__VA_ARGS__)(App_memory*, Audio_playback*, u32)
+#define update_type(...) void (*__VA_ARGS__)(App_memory*, Audio_playback*, u32, Int2)
 #define render_type(...) void (*__VA_ARGS__)(App_memory*, LIST(Renderer_request,), Int2 )
 #define init_type(...) void (*__VA_ARGS__)(App_memory*, Init_data* )
 
@@ -170,7 +170,9 @@ entity_from_handle(Entity* entities, u32* entity_generations, Element_handle han
 }
 
 struct Ui_element{
-	Element_handle parent_handle;
+	u32 parent_uid;
+
+	String text;
 
 	Rect rect;
 	Color color;
@@ -179,9 +181,9 @@ struct Ui_element{
 };
 
 internal b32
-ui_is_point_inside(Ui_element* ui, V2 p){
-	b32 x_inside = IS_VALUE_BETWEEN(ui->rect.xf, p.x, ui->rect.xf + ui->rect.wf);
-	b32 y_inside = IS_VALUE_BETWEEN(ui->rect.yf - ui->rect.hf, p.y, ui->rect.yf);
+ui_is_point_inside(Ui_element* ui, Int2 p){
+	b32 x_inside = IS_VALUE_BETWEEN(ui->rect.x, p.x, ui->rect.x + ui->rect.w);
+	b32 y_inside = IS_VALUE_BETWEEN(ui->rect.y, p.y, ui->rect.y + ui->rect.h);
 	return x_inside && y_inside;
 	
 	// return (
@@ -194,6 +196,8 @@ struct User_input
 {
 	V2 cursor_pos;
 	V2 cursor_speed;
+
+	Int2 cursor_pixels_pos;
 
 	union{
 		struct {
@@ -319,10 +323,6 @@ struct App_memory
 	b32 is_window_in_focus;
 	b32 lock_mouse;
 
-	u32 highlighted_uid;
-	u32 clicked_uid;
-	u32 selected_uid;
-
 	f32 update_hz;
 	f32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
@@ -339,12 +339,19 @@ struct App_memory
 	UNIT_TYPE possible_entities[7];
 	s32 unit_creation_costs[UNIT_COUNT];
 
-	u32 last_inactive_entity;
 	Entity* entities;
+
+	s32 clicked_uid;
+	s32 selected_uid;
+	u32 last_inactive_entity;
+
 	u32* entity_generations;
 
 	Ui_element* ui_elements;
 	u32* ui_generations;
+
+	s32 ui_selected_uid;
+	s32 ui_clicked_uid;
 };
 
 internal void 

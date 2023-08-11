@@ -5,7 +5,7 @@
 
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
-void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
+void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size){
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
 		
@@ -85,6 +85,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	User_input* holding_inputs = memory->holding_inputs;
 	Entity* entities = memory->entities;
 	u32* generations = memory->entity_generations;
+	Ui_element* ui_elements = memory->ui_elements;
 	f32 delta_time = memory->delta_time;
 
 	//TODO: this
@@ -110,27 +111,124 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 	// UI
 
+	// CALCULATE UI_ELEMENT RECTANGLES
 
-	Ui_element* main_panel = &memory->ui_elements[0];
-	main_panel->flags = UI_ACTIVE|UI_DETECT_CURSOR;
-	main_panel->rect.pos = {0.5f, 1};
-	main_panel->rect.size = {0.5f, 2};
+
+
+
+
+	// FIND OUT WHOS THE ACTIVE ONE
+
+	
+	s32 hot_element_uid = -1;
+	UNTIL(i, MAX_UI){
+		if(!ui_elements[i].flags) continue;
+		
+		if(ui_is_point_inside(&ui_elements[i], input->cursor_pixels_pos))
+		{
+			hot_element_uid = i;
+		}
+	}
+
+	if(input->cursor_primary == 1){
+		memory->ui_selected_uid = hot_element_uid;
+	}
+	
+	if(input->cursor_primary == -1){
+		if(memory->ui_selected_uid == hot_element_uid){
+			memory->ui_clicked_uid = hot_element_uid;
+		}else{
+			memory->ui_clicked_uid = -1;
+		}
+	}else{
+		memory->ui_clicked_uid = -1;
+	}
+	b32 is_cursor_in_ui = hot_element_uid >= 0;
+	
+	
+
+
+	// CREATING UI_ELEMENTS
+
+
+	s32 ui_last = 0;
+
+	Ui_element* main_panel = &ui_elements[ui_last++];
+
+	main_panel->flags = 1;
+
+	main_panel->rect.x = 3*client_size.x/4;
+	main_panel->rect.y = 0;
+	main_panel->rect.w = client_size.x/4;
+	main_panel->rect.h = client_size.y;
+	main_panel->color = {0,0,0,1};
 
 	if(input->cursor_pos.x){
 		ASSERT(true);
 	}
-	if(ui_is_point_inside(main_panel, input->cursor_pos)){
-		main_panel->color = {1,1,1,1};
-	}else{
-		main_panel->color = {0,0,0,1};
+	{
+		u64 possible_flags_to_set[4] = {
+			E_SHOOT,
+			E_MELEE_ATTACK,
+			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
+			E_CAN_MANUALLY_MOVE
+		};
+
+		char* button_text[4] = {
+			"shoot",
+			"melee attack",
+			"homing",
+			"manually move"
+		};
+
+		u32 current_x = 0;
+		u32 current_y = 0;
+		UNTIL(i, 4){
+			// order in a gridlike manner
+			if(ui_last == memory->ui_clicked_uid){
+				entities[memory->selected_uid].flags ^= possible_flags_to_set[i];
+			}
+			Ui_element* ui_element = &ui_elements[ui_last++];
+			ui_element->parent_uid = 0;
+			ui_element->color = {0.5f,0.5f,0.5f,1};
+			ui_element->flags = 1;
+			ui_element->text = string(button_text[i]); 
+
+			Ui_element* parent = &ui_elements[ui_element->parent_uid];
+			ui_element->rect.x = parent->rect.x + (current_x * parent->rect.w/3);
+			ui_element->rect.w = parent->rect.w/3;
+			ui_element->rect.y = (current_y * parent->rect.w/3);
+			ui_element->rect.h = (parent->rect.w/3);
+
+
+
+			current_x++;
+			if(current_x >= 3)
+			{
+				current_x = 0;
+				current_y++;
+			}
+		}
+
 	}
+	
+	
+	// 
+	
+	ui_elements[hot_element_uid].color = {1,1,1,1};
+
+
+
+	//
+	// END OF UI_CODE
+	//
 
 
 	// MOVE SELECTED ENTITY
 
 	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
 	input_vector = normalize(input_vector);
-	{
+	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &entities[memory->selected_uid];
 		if(selected_entity->flags & E_CAN_MANUALLY_MOVE)
 		{
@@ -150,7 +248,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	// memory->camera_pos.y += (input->up - input->down) * delta_time * camera_speed;
 
 
-	memory->highlighted_uid = 0;
+	s32 hot_entity_uid = -1;
 	V3 cursor_screen_to_world_pos = memory->camera_pos + v3_rotate_y(
 		v3_rotate_x(screen_cursor_pos, memory->camera_rotation.x),memory->camera_rotation.y
 	);
@@ -159,7 +257,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		v3_rotate_x({0,0,1}, memory->camera_rotation.x),memory->camera_rotation.y
 	);
 
-	V3 cursor_world_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
+	V3 cursor_y0_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
 
 	LIST(u32, entities_to_kill) = {0};
 	LIST(Entity, entities_to_create) = {0};
@@ -254,24 +352,26 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 		// CURSOR RAYCASTING
 
-		if((entity->flags & E_SELECTABLE) &&
-			entity->team_uid == entities[memory->player_uid].team_uid 
-		){	
-			entity->color = {0.5f,0.5f,0.5f,1};
+		if(!is_cursor_in_ui){
+			if((entity->flags & E_SELECTABLE) &&
+				entity->team_uid == entities[memory->player_uid].team_uid 
+			){	
+				entity->color = {0.5f,0.5f,0.5f,1};
 
-			f32 intersected_t = 0;
-			if(line_vs_sphere(cursor_world_pos, z_direction, 
-				entity->pos, entity->scale.x, 
-				&intersected_t)
-			){
-				if(!first_intersection){
-					first_intersection = true;
-					closest_t = intersected_t;
-					memory->highlighted_uid = i;
-				}
-				if(intersected_t < closest_t){
-					closest_t = intersected_t;
-					memory->highlighted_uid = i;
+				f32 intersected_t = 0;
+				if(line_vs_sphere(cursor_screen_to_world_pos, z_direction, 
+					entity->pos, entity->scale.x, 
+					&intersected_t)
+				){
+					if(!first_intersection){
+						first_intersection = true;
+						closest_t = intersected_t;
+						hot_entity_uid = i;
+					}
+					if(intersected_t < closest_t){
+						closest_t = intersected_t;
+						hot_entity_uid = i;
+					}
 				}
 			}
 		}
@@ -707,8 +807,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 
 
 	// HANDLING INPUT
-	
-	entities[memory->highlighted_uid].color = {1,1,1,1};	
+	if(hot_entity_uid >= 0)
+		entities[hot_entity_uid].color = {1,1,1,1};	
+
 	if(input->cancel == 1) memory->is_paused = !memory->is_paused;
 	if(memory->is_paused) if (input->R != 1) return;
 
@@ -740,47 +841,50 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 	memory->possible_entities[3] = UNIT_MELEE;
 	memory->possible_entities[4] = UNIT_SPAWNER;
 	
-	if(input->cursor_primary == 1)
-		memory->clicked_uid = memory->highlighted_uid;
-	else if( input->cursor_primary == -1 ){
-		if(memory->clicked_uid){
-			if(memory->highlighted_uid == memory->clicked_uid){
-				memory->selected_uid = memory->clicked_uid;
-				
-				Audio_playback* new_playback = find_next_available_playback(playback_list);
-				new_playback->initial_sample_t = sample_t;
-				new_playback->sound_uid = memory->sounds.wa_uid;
+	if(!is_cursor_in_ui){
+		if(input->cursor_primary == 1)
+			memory->clicked_uid = hot_entity_uid;
+		else if( input->cursor_primary == -1 ){
+			if(memory->clicked_uid >= 0){
+				if(hot_entity_uid == memory->clicked_uid){
+					memory->selected_uid = memory->clicked_uid;
+					
+					Audio_playback* new_playback = find_next_available_playback(playback_list);
+					new_playback->initial_sample_t = sample_t;
+					new_playback->sound_uid = memory->sounds.wa_uid;
+				}
+				memory->clicked_uid = 0;
 			}
-			memory->clicked_uid = 0;
 		}
 	}
-
-	Entity* selected_entity = &entities[memory->selected_uid];
-	selected_entity->color = {0,0.7f,0,1};
 	
-	if(input->L == 1)
-		selected_entity->flags |= E_SHOOT;
-	else if(input->k1 == 1)
-		selected_entity->flags |= E_MELEE_ATTACK;
-	else if(input->k2 == 1)
-		selected_entity->flags |= E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST;
-	else if(input->k3 == 1)
-		selected_entity->flags |= E_CAN_MANUALLY_MOVE;
-	else if(input->k4 == 1)
-		selected_entity->flags |= E_SHOOT;
-	else if(input->k5 == 1)
-		selected_entity->flags |= E_SHOOT;
-	else if(input->k6 == 1)
-		selected_entity->flags |= E_SHOOT;
+	if(memory->selected_uid >= 0){
+		Entity* selected_entity = &entities[memory->selected_uid];
+		
+		selected_entity->color = {0,0.7f,0,1};
+		
+		if(input->L == 1)
+			selected_entity->flags |= E_SHOOT;
+		else if(input->k1 == 1)
+			selected_entity->flags |= E_MELEE_ATTACK;
+		else if(input->k2 == 1)
+			selected_entity->flags |= E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST;
+		else if(input->k3 == 1)
+			selected_entity->flags |= E_CAN_MANUALLY_MOVE;
+		else if(input->k4 == 1)
+			selected_entity->flags |= E_SHOOT;
+		else if(input->k5 == 1)
+			selected_entity->flags |= E_SHOOT;
+		else if(input->k6 == 1)
+			selected_entity->flags |= E_SHOOT;
 
-	if( input->cursor_secondary > 0){
-		if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
-		{
-			selected_entity->target_direction = v3_difference({cursor_world_pos.x, 0, cursor_world_pos.z}, selected_entity->pos);
+		if( input->cursor_secondary > 0){
+			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
+			{
+				selected_entity->target_direction = v3_difference({cursor_y0_pos.x, 0, cursor_y0_pos.z}, selected_entity->pos);
+			}
 		}
 	}
-	else if( input->cursor_primary > 0)
-		memory->selected_uid = memory->player_uid;
 	
 #if 0
 	UNIT_TYPE new_unit_type = memory->possible_entities[memory->creating_unit];
@@ -793,7 +897,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				Entity* new_unit = &entities[new_entity_index];
 				default_shooter(new_unit, memory);
 
-				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
+				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 			}
@@ -807,7 +911,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				Entity* new_unit = &entities[new_entity_index];
 				default_spawner(new_unit, memory);
 
-				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
+				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 			}
@@ -821,7 +925,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				Entity* new_unit = &entities[new_entity_index];
 				default_tank(new_unit, memory);
 
-				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
+				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 				
@@ -839,7 +943,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 				
 				default_melee(new_unit, memory);
 
-				new_unit->pos = {cursor_world_pos.x, 0, cursor_world_pos.z};
+				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
 
 				new_unit->team_uid = entities[memory->player_uid].team_uid;
 
@@ -851,10 +955,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		}
 	} else {  // NO SELECTED UNIT TO CREATE
 		if(input->cursor_primary == 1)
-			memory->clicked_uid = memory->highlighted_uid;
+			memory->clicked_uid = hot_entity_uid;
 		else if( input->cursor_primary == -1 ){
 			if(memory->clicked_uid){
-				if(memory->highlighted_uid == memory->clicked_uid){
+				if(hot_entity_uid == memory->clicked_uid){
 					memory->selected_uid = memory->clicked_uid;
 				}
 				memory->clicked_uid = 0;
@@ -867,7 +971,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t){
 		if( memory->selected_uid != memory->player_uid ){
 			if( input->cursor_secondary > 0){
 				if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM)){
-					selected_entity->target_direction = v3_difference({cursor_world_pos.x, 0, cursor_world_pos.z}, selected_entity->pos);
+					selected_entity->target_direction = v3_difference({cursor_y0_pos.x, 0, cursor_y0_pos.z}, selected_entity->pos);
 				}
 			}
 			else if( input->cursor_primary > 0)
@@ -1090,15 +1194,22 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		if(!memory->ui_elements[i].flags) continue;
 		Ui_element* current = &memory->ui_elements[i];
 
-		PUSH_BACK(render_list, memory->temp_arena, request);
-		request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
-		
-		request->scale = {current->rect.wf, current->rect.hf, 1};
-		request->pos = {current->rect.xf, current->rect.yf};
+		if(!current->text.length){
+			PUSH_BACK(render_list, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 
-		request->color = current->color;
-		request->texinfo_uid = memory->textures.gradient_tex_uid;
-		request->mesh_uid = memory->meshes.plane_mesh_uid;
+			request->scale = {2.0f*current->rect.w/screen_size.x, 2.0f*current->rect.h/screen_size.y, 1};
+			request->pos = {2.0f*current->rect.x/screen_size.x -1, -(2.0f*current->rect.y/screen_size.y -1)};
+
+			request->color = current->color;
+			request->texinfo_uid = memory->textures.gradient_tex_uid;
+			request->mesh_uid = memory->meshes.plane_mesh_uid;
+		}else{
+			printo_screen(memory, screen_size, render_list, current->text, 
+				{2.0f*current->rect.x/screen_size.x -1, 1- 2.0f*current->rect.y/screen_size.y},
+				// {2.0f*current->rect.x/screen_size.x -1, -2.0f*current->rect.y/screen_size.y -1}, 
+				current->color);
+		}
 	}
 }
 
@@ -1178,7 +1289,7 @@ void init(App_memory* memory, Init_data* init_data){
 
 		request.type = CREATE_DEPTH_STENCIL_REQUEST;
 		request.p_uid = &memory->depth_stencils.ui_depth_stencil_uid;
-		request.enable_depth = true;
+		request.enable_depth = false;
 		PUSH_ASSET_REQUEST;
 	}
 

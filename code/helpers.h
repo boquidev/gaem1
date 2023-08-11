@@ -235,8 +235,6 @@ static union {
 		u64
 		UI_ACTIVE,
 
-		UI_DETECT_CURSOR,
-
 		UI_LAST_FLAG;
 	};
 };
