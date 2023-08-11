@@ -137,6 +137,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 	}
 
+
 	if(input->cursor_primary == 1)
 	{
 		memory->ui_selected_uid = hot_element_uid;
@@ -207,7 +208,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 
 			Ui_element* ui_element = &ui_elements[ui_last++];
-			ui_element->color = {1.0f,1.0f,1.0f,1};
+			
+			
+			if(memory->selected_uid >= 0){
+				if(!((entities[memory->selected_uid].flags & possible_flags_to_set[i]) ^ possible_flags_to_set[i])){
+					ui_element->color = {1.0f,1.0f,1.0f,1};
+				}else{
+					ui_element->color = {0.6f,0.6f,0.6f,1};
+				}
+			}else{
+				ui_element->color = {0.2f,0.2f,0.2f,1};
+			}
+
 			ui_element->flags = 1;
 			ui_element->text = string(button_text[i]); 
 			
@@ -226,7 +238,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	
 	// 
 	if(hot_element_uid >= 0){
-		ui_elements[hot_element_uid].color = {0.5f,0.5f,1.0f,1};
+		ui_elements[hot_element_uid].color = colors_product(ui_elements[hot_element_uid].color, {0.7f,0.7f,1.0f,1.0f});
 	}
 	if(memory->ui_selected_uid >= 0){
 		ui_elements[memory->ui_selected_uid].color = {1,1, 0.5f, 1};
@@ -922,7 +934,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// DECIDE WHOS THE SELECTED ENTITY 
 
-	if(!is_cursor_in_ui){
+	if(!is_cursor_in_ui && !input->L){
 		if(input->cursor_primary == 1){
 			memory->clicked_uid = hot_entity_uid;
 			memory->selected_uid = -1;
@@ -1302,15 +1314,15 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		if(!memory->ui_elements[i].flags) continue;
 		Ui_element* current = &memory->ui_elements[i];
 
-			PUSH_BACK(render_list, memory->temp_arena, request);
-			request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
+		PUSH_BACK(render_list, memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 
-			request->scale = {2.0f*current->rect.w/screen_size.x, 2.0f*current->rect.h/screen_size.y, 1};
-			request->pos = {2.0f*current->rect.x/screen_size.x -1, -(2.0f*current->rect.y/screen_size.y -1)};
+		request->scale = {2.0f*current->rect.w/screen_size.x, 2.0f*current->rect.h/screen_size.y, 1};
+		request->pos = {2.0f*current->rect.x/screen_size.x -1, -(2.0f*current->rect.y/screen_size.y -1)};
 
-			request->color = 0.5f*current->color;
-			request->texinfo_uid = memory->textures.gradient_tex_uid;
-			request->mesh_uid = memory->meshes.plane_mesh_uid;
+		request->color = 0.5f*current->color;
+		request->texinfo_uid = memory->textures.gradient_tex_uid;
+		request->mesh_uid = memory->meshes.plane_mesh_uid;
 	}
 
 
