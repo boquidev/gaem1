@@ -621,16 +621,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_distance < DEFAULT_AUTOAIM_RANGE)){
 				entity->target_direction = entities[closest_entity_uid].pos - entity->pos;
 			}else{
-				// enemy
+				// friendly
 				if(entity->team_uid == entities[memory->player_uid].team_uid){
 					if(is_handle_valid(generations, global_boss_handle)){
-						entity->target_direction = entities[BOSS_INDEX].pos - entity->pos;
+						entity->target_direction = entities[global_boss_handle.index].pos - entity->pos;
 					}else{
 						entity->target_direction = {0,0,0};
 					}
-				}else{ // friendly
+				}else{ // enemy
 					if(is_handle_valid(generations, global_player_handle)){
-						entity->target_direction = entities[memory->player_uid].pos - entity->pos;
+						entity->target_direction = entities[global_player_handle.index].pos - entity->pos;
 					}else{
 						entity->target_direction = {0,0,0};
 					}
@@ -757,6 +757,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 						new_entity->pos = spawn_direction + entity->pos;
 						
+						if(entity->team_uid == entities[memory->player_uid].team_uid){//friendly
+							V3 boss_pos = entity_from_handle(entities, generations, global_boss_handle)->pos;
+							new_entity->target_direction = boss_pos - new_entity->pos;
+						}else{//enemy
+							V3 player_pos = entity_from_handle(entities, generations, global_player_handle)->pos;
+							new_entity->target_direction = player_pos - new_entity->pos;
+						}
+						
 						new_entity->mesh_uid = memory->meshes.icosphere_mesh_uid;
 						new_entity->texinfo_uid = memory->textures.white_tex_uid;
 					}
@@ -871,15 +879,21 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	}
 	
 	if(memory->selected_uid >= 0){
-		entities[memory->selected_uid].color = {0,0.7f,0,1};
+		Entity* selected_entity = &entities[memory->selected_uid];
+		selected_entity->color = {0,0.7f,0,1};
+
+		if( input->cursor_secondary > 0){
+			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
+			{
+				selected_entity->target_direction = v3_difference({cursor_y0_pos.x, 0, cursor_y0_pos.z}, selected_entity->pos);
+			}
+		}
 	}
 	
 #if 0
 
 	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &entities[memory->selected_uid];
-		
-		selected_entity->color = {0,0.7f,0,1};
 		
 		if(input->L == 1)
 			selected_entity->flags |= E_SHOOT;
@@ -895,13 +909,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			selected_entity->flags |= E_SHOOT;
 		else if(input->k6 == 1)
 			selected_entity->flags |= E_SHOOT;
-
-		if( input->cursor_secondary > 0){
-			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
-			{
-				selected_entity->target_direction = v3_difference({cursor_y0_pos.x, 0, cursor_y0_pos.z}, selected_entity->pos);
-			}
-		}
 	}
 #endif
 	
