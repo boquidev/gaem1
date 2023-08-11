@@ -82,6 +82,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->unit_creation_costs[UNIT_MELEE] = 5;
 
 		memory->selected_uid = -1;
+		memory->ui_selected_uid = -1;
+		memory->ui_clicked_uid = -1;
 	}
 
 	User_input* input = memory->input;
@@ -196,7 +198,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 
 			Ui_element* ui_element = &ui_elements[ui_last++];
-			ui_element->color = {0.5f,0.5f,0.5f,1};
+			ui_element->color = {1.0f,1.0f,1.0f,1};
 			ui_element->flags = 1;
 			ui_element->text = string(button_text[i]); 
 			
@@ -214,8 +216,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	
 	
 	// 
+	if(hot_element_uid >= 0){
+		ui_elements[hot_element_uid].color = {0.5f,0.5f,1.0f,1};
+	}
+	if(memory->ui_selected_uid >= 0){
+		ui_elements[memory->ui_selected_uid].color = {1,1, 0.5f, 1};
+	}
 	
-	ui_elements[hot_element_uid].color = {1,1,1,1};
 
 
 
