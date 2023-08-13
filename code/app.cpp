@@ -6,7 +6,6 @@
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size){
-	client_size;
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
 		
@@ -166,11 +165,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	}
 	
 
+	// CREATING RADIAL MENU
 
-	// CREATING UI_ELEMENTS
+	#define MENU_RADIUS 200
 
 	if(input->L == 1){
-		memory->radial_menu_pos = input->cursor_pixels_pos;
+		// memory->radial_menu_pos = input->cursor_pixels_pos;
+		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS+50, input->cursor_pixels_pos.x, client_size.x -(50+MENU_RADIUS));
+		memory->radial_menu_pos.y = CLAMP(MENU_RADIUS, input->cursor_pixels_pos.y, client_size.y -MENU_RADIUS);
 	}
 
 	if(input->L > 0){
@@ -182,7 +184,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
 			E_CAN_MANUALLY_MOVE,
 			E_TOXIC|E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
-			E_HEALER
+			E_HEALER,
+			E_GENERATE_RESOURCE
 		};
 
 		char* button_text[] = {
@@ -191,11 +194,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"homing",
 			"manually move",
 			"toxic",
-			"healer"
+			"healer",
+			"resource farm"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
-		V2 initial_position = {0,-200};
+		V2 initial_position = {0,-MENU_RADIUS};
 		UNTIL(i, ARRAYCOUNT(button_text)){
 			if(ui_last == memory->ui_clicked_uid)
 			{
@@ -400,6 +404,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(entity->healing_cd <= 0){
 			entity->healing_cd = 0;
 		}
+		
 
 
 		// PROCESSING TOXIC ENTITIES
@@ -856,6 +861,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
 						hitbox->texinfo_uid = memory->textures.white_tex_uid;
 					}
+				}
+				if(entity->flags & E_GENERATE_RESOURCE){// RESOURCE GENERATOR
+					memory->teams_resources[entity->team_uid]++;
 				}
 				if((entity->flags & E_SPAWN_ENTITIES))
 				{
