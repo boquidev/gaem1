@@ -351,12 +351,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->d_right == 1){
 		ASSERT(true);
 	}
-
+	memory->debug_active_entities_count = 0;
 	f32 closest_t = {0};
 	b32 first_intersection = false;
 	UNTIL(i, MAX_ENTITIES){
 		
 		if(!entities[i].flags) continue;
+
+		memory->debug_active_entities_count++;
 
 
 		// CREATION TIME
@@ -528,211 +530,209 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		f32 closest_distance = 100000;
 		
 		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
-		if(entity->flags & (E_DOES_DAMAGE|E_AUTO_AIM_CLOSEST|E_DETECT_COLLISIONS))
+		// if(entity->flags & (E_DOES_DAMAGE|E_AUTO_AIM_CLOSEST|E_DETECT_COLLISIONS))
+		UNTIL(j, MAX_ENTITIES)
 		{
-			UNTIL(j, MAX_ENTITIES)
-			{
-				if(!entities[j].flags)continue;
-				if(j == i) continue;
-				//TODO: walls/obstacles should not be skipping this 
-				// cuz they need to be detected by the thing that collided with them
-				if(entities[j].flags & E_SKIP_UPDATING) continue;
-				//TODO:maybe not skip the whole iteration but just certain parts?
-				// or then make specific flags to handle each case when necessary
-				if(entity->flags & E_SKIP_PARENT_COLLISION)
-				{
-					if(entity->parent_handle.index == j &&
-						entity->parent_handle.generation == generations[j])
-					{
-						continue;
-					}
-				}
-
-				Entity* entity2 = &entities[j];
-
-
-				//AUTOAIM 
-
-				
-				if(entity->team_uid != entity2->team_uid)
-				{
-					if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
-					{
-						f32 distance = v3_magnitude(entity2->pos - entity->pos);
-						if(closest_entity_uid < 0){
-							closest_entity_uid = j;
-							closest_distance = distance;
-						}else if(distance < closest_distance){
-							closest_entity_uid = j;
-							closest_distance = distance;
-						}
-					}
-				}
-
-
-				// HITBOX / DAMAGE 
-
-
-				if(
-					entity->flags & E_DOES_DAMAGE &&
-					entity2->flags & E_RECEIVES_DAMAGE &&
-					entity->parent_handle != entity2->parent_handle
-				){
-					b32 they_collide = false;
-
-					if(entity->collider_type == COLLIDER_TYPE_SPHERE){
-						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
-							V3 centers_distance = entity2->pos - entity->pos;
-							f32 centers_distance_magnitude = v3_magnitude(centers_distance);
-							f32 r1 = entity->scale.x*entity->creation_size;
-							f32 r2 = entity2->scale.x*entity2->creation_size;
-							f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
-
-							if(overlapping > 0){
-								they_collide = true;									
-							}
-						}else{ // E1 SPHERE E2 CUBE
-							//TODO: handle sphere vs cube case
-							ASSERT(false);
-						}
-					}else{
-						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
-							//TODO: handle cube vs sphere case
-							ASSERT(false);
-						}else{ // BOTH CUBES
-							//TODO: handle cube vs cube case
-							ASSERT(false);
-						}
-					}
-					
-					if(they_collide)
-					{
-						entity2->health = CLAMP(0, entity2->health - entity->action_power, entity2->max_health);
-
-						if(entity2->health <= 0)
-						{
-							u32* index_to_kill;
-							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-							*index_to_kill = j;
-						}
-						if(entity->flags & E_DIE_ON_COLLISION)
-						{
-							u32* index_to_kill;
-							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-							*index_to_kill = i;
-						}
-					}
-				}
-
-				
-				// TOXIC ENTITIES INFECTING
-
-
-				if(entity->flags & E_TOXIC && 
-					!(entity2->flags & E_TOXIC_EMITTER) &&
-					(entity2->flags & E_RECEIVES_DAMAGE)
-				){
-					f32 distance = v3_magnitude(entity2->pos - entity->pos);
-					if(distance < entity->aura_radius){
-						entity2->toxic_time_left = 6.0f;
-						entity2->flags |= E_TOXIC;
-					}
-				}
-
-
-				// HEALING
-
-				if(entity->flags & E_HEALER &&
-					entity2->flags & E_RECEIVES_DAMAGE
-				){
-					f32 distance = v3_magnitude(entity2->pos - entity->pos);
-					if(distance < entity->aura_radius){
-						if(entity2->healing_cd <= 0){
-							if(entity2->health < entity2->max_health){
-								entity2->health = MIN(entity2->health+1, entity2->max_health);
-								entity2->healing_cd += 2.0f;
-							}
-						}
-					}
-				}
-
-
-
-				// COLLISIONS
-
-				
-				if(entity->flags & E_DETECT_COLLISIONS &&
-					entity2->flags & E_HAS_COLLIDER
-				){
-					//TODO: collision code
-					b32 they_collide = false;
-
-					if(entity->collider_type == COLLIDER_TYPE_SPHERE)
-					{
-						if(entity2->collider_type == COLLIDER_TYPE_SPHERE) // BOTH SPHERES
-						{ 
-							V3 centers_distance = entity2->pos - entity->pos;
-							f32 centers_distance_magnitude = v3_magnitude(centers_distance);
-							f32 r1 = entity->scale.x*entity->creation_size;
-							f32 r2 = entity2->scale.x*entity2->creation_size;
-							f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
-
-							if(overlapping > 0){
-								they_collide = true;
-
-								//TODO: maybe do this if creating entities inside another is too savage
-								// overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
-								V3 collision_direction = {0,0,1.0f};
-								if(centers_distance_magnitude){
-									collision_direction = (overlapping/(1.0f*centers_distance_magnitude))*centers_distance;
-									// collision_direction = centers_distance / centers_distance_magnitude;
-								}
-
-								
-								//TODO: this will need a rework cuz it is not multithread friendly
-								// i should not modify other entities while processing another one
-								// f32 momentum_i = MAX(v3_magnitude(entity->velocity), delta_time);
-								// f32 momentum_j = MAX(v3_magnitude(entity2->velocity), delta_time);
-								entity->velocity = entity->velocity - (collision_direction);
-								// entity2->velocity = entity2->velocity + (collision_direction);
-
-								ASSERT(!isnan(entity->velocity.x));
-								ASSERT(isfinite(entity->velocity.x));
-								ASSERT(isfinite(entity2->velocity.x));
-								ASSERT(!isnan(entity2->velocity.x));
-
-								ASSERT(!isnan(entity->velocity.z));
-								ASSERT(isfinite(entity->velocity.z));
-								ASSERT(isfinite(entity2->velocity.z));
-								ASSERT(!isnan(entity2->velocity.z));
-							}
-						}else{ // E1 SPHERE E2 CUBE
-							//TODO: handle sphere vs cube case
-							ASSERT(false);
-						}
-					}else{
-						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
-							//TODO: handle cube vs sphere case
-							ASSERT(false);
-						}else{ // BOTH CUBES
-							//TODO: handle cube vs cube case
-							ASSERT(false);
-						}
-					}
-
-
-					if(they_collide)
-					{
-						if(entity->flags & E_DIE_ON_COLLISION){
-							*entity = {0};
-							generations[i]++;
-						}
-					} 
-				}
-
-
+			if(!entities[j].flags)continue;
+			if(j == i) continue;
+			//TODO: walls/obstacles should not be skipping this 
+			// cuz they need to be detected by the thing that collided with them
+			if(entities[j].flags & E_SKIP_UPDATING) continue;
+			//TODO:maybe not skip the whole iteration but just certain parts?
+			// or then make specific flags to handle each case when necessary
+			if(entity->flags & E_SKIP_PARENT_COLLISION && 
+				entity->parent_handle.index == j &&
+				entity->parent_handle.generation == generations[j]
+			){
+				continue;
 			}
-		}
+			if(entities[j].flags & E_SKIP_PARENT_COLLISION &&
+				entities[j].parent_handle.index == i &&
+				entities[j].parent_handle.generation == generations[i]
+			){
+				continue;
+			}
+
+			Entity* entity2 = &entities[j];
+
+
+			//AUTOAIM 
+
+			
+			if(entity->team_uid != entity2->team_uid)
+			{
+				if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
+				{
+					f32 distance = v3_magnitude(entity2->pos - entity->pos);
+					if(closest_entity_uid < 0){
+						closest_entity_uid = j;
+						closest_distance = distance;
+					}else if(distance < closest_distance){
+						closest_entity_uid = j;
+						closest_distance = distance;
+					}
+				}
+			}
+
+
+			// HITBOX / DAMAGE 
+
+
+			if(
+				entity2->flags & E_DOES_DAMAGE &&
+				entity->flags & E_RECEIVES_DAMAGE &&
+				entity->parent_handle != entity2->parent_handle
+			){
+				b32 they_collide = false;
+
+				if(entity->collider_type == COLLIDER_TYPE_SPHERE){
+					if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
+						V3 centers_distance = entity2->pos - entity->pos;
+						f32 centers_distance_magnitude = v3_magnitude(centers_distance);
+						f32 r1 = entity->scale.x*entity->creation_size;
+						f32 r2 = entity2->scale.x*entity2->creation_size;
+						f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
+
+						if(overlapping > 0){
+							they_collide = true;									
+						}
+					}else{ // E1 SPHERE E2 CUBE
+						//TODO: handle sphere vs cube case
+						ASSERT(false);
+					}
+				}else{
+					if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
+						//TODO: handle cube vs sphere case
+						ASSERT(false);
+					}else{ // BOTH CUBES
+						//TODO: handle cube vs cube case
+						ASSERT(false);
+					}
+				}
+				
+				if(they_collide)
+				{
+					entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
+
+					if(entity->health <= 0)
+					{
+						u32* index_to_kill;
+						PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+						*index_to_kill = i;
+					}
+				}
+			}
+
+			
+			// TOXIC ENTITIES INFECTING
+
+
+			if(entity2->flags & E_TOXIC && 
+				!(entity->flags & E_TOXIC_EMITTER) &&
+				(entity->flags & E_RECEIVES_DAMAGE)
+			){
+				f32 distance = v3_magnitude(entity2->pos - entity->pos);
+				if(distance < entity->aura_radius){
+					entity->toxic_time_left = 6.0f;
+					entity->flags |= E_TOXIC;
+				}
+			}
+
+
+			// HEALING
+
+			if(entity2->flags & E_HEALER &&
+				entity->flags & E_RECEIVES_DAMAGE
+			){
+				f32 distance = v3_magnitude(entity2->pos - entity->pos);
+				if(distance < entity->aura_radius){
+					if(entity->healing_cd <= 0){
+						if(entity->health < entity->max_health){
+							entity->health = MIN(entity->health+entity2->action_power, entity->max_health);
+							entity->healing_cd += 2.0f;
+						}
+					}
+				}
+			}
+
+
+
+			// COLLISIONS
+
+			
+			if(entity->flags & E_DETECT_COLLISIONS &&
+				entity2->flags & E_HAS_COLLIDER
+			){
+				//TODO: collision code
+				b32 they_collide = false;
+
+				if(entity->collider_type == COLLIDER_TYPE_SPHERE)
+				{
+					if(entity2->collider_type == COLLIDER_TYPE_SPHERE) // BOTH SPHERES
+					{ 
+						V3 centers_distance = entity2->pos - entity->pos;
+						f32 centers_distance_magnitude = v3_magnitude(centers_distance);
+						f32 r1 = entity->scale.x*entity->creation_size;
+						f32 r2 = entity2->scale.x*entity2->creation_size;
+						f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
+
+						if(overlapping > 0){
+							they_collide = true;
+
+							//TODO: maybe do this if creating entities inside another is too savage
+							// overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
+							V3 collision_direction = {0,0,1.0f};
+							if(centers_distance_magnitude){
+								collision_direction = (overlapping/(1.0f*centers_distance_magnitude))*centers_distance;
+								// collision_direction = centers_distance / centers_distance_magnitude;
+							}
+
+							
+							//TODO: this will need a rework cuz it is not multithread friendly
+							// i should not modify other entities while processing another one
+							// f32 momentum_i = MAX(v3_magnitude(entity->velocity), delta_time);
+							// f32 momentum_j = MAX(v3_magnitude(entity2->velocity), delta_time);
+							entity->velocity = entity->velocity - (collision_direction);
+							// entity2->velocity = entity2->velocity + (collision_direction);
+
+							ASSERT(!isnan(entity->velocity.x));
+							ASSERT(isfinite(entity->velocity.x));
+							ASSERT(isfinite(entity2->velocity.x));
+							ASSERT(!isnan(entity2->velocity.x));
+
+							ASSERT(!isnan(entity->velocity.z));
+							ASSERT(isfinite(entity->velocity.z));
+							ASSERT(isfinite(entity2->velocity.z));
+							ASSERT(!isnan(entity2->velocity.z));
+						}
+					}else{ // E1 SPHERE E2 CUBE
+						//TODO: handle sphere vs cube case
+						ASSERT(false);
+					}
+				}else{
+					if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
+						//TODO: handle cube vs sphere case
+						ASSERT(false);
+					}else{ // BOTH CUBES
+						//TODO: handle cube vs cube case
+						ASSERT(false);
+					}
+				}
+
+
+				if(they_collide)
+				{
+					if(entity->flags & E_DIE_ON_COLLISION){
+						u32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+						*index_to_kill = i;
+					}
+				} 
+			}
+
+			
+		}	// END OF SUB ITERATION
+
+
 
 		#define DEFAULT_AUTOAIM_RANGE 10.0f 
 		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
@@ -1105,8 +1105,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 
 	printo_screen(memory, screen_size, render_list,
-		string("here i will show the fps (probably): 69 fps"), {-1,1}, {1,1,1,1});
-	
+		string("here i will show the fps (probably): 666 fps"), {-1,1}, {1,1,0,1});
+
+	String entities_count = number_to_string(memory->debug_active_entities_count, memory->temp_arena);
+	printo_screen(memory, screen_size, render_list,
+		concat_strings(string("active entities: "), entities_count, memory->temp_arena), {-1, .95f}, {1,1,0,1});
+
 	String resources_string = number_to_string(memory->teams_resources[memory->entities[memory->player_uid].team_uid], memory->temp_arena);
 	printo_screen(memory, screen_size, render_list,
 		concat_strings(string("resources: "), resources_string, memory->temp_arena), {-1,.9f}, {1,1,0,1});
