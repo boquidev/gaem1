@@ -67,6 +67,10 @@ internal b32
 operator !=(Element_handle h1, Element_handle h2){
 	return h1.index != h2.index || h1.generation != h2.generation;
 }
+internal b32 
+compare_entity_handles(Element_handle h1, Element_handle h2){
+	return h1 == h2;
+}
 
 enum COLLIDER_TYPE{
 	// for now it is imposible to forger about the collider type okei?
@@ -176,8 +180,8 @@ last_inactive_entity(Entity entities[]){
 internal b32
 is_handle_valid(u32 entity_generations[], Element_handle handle)
 {
-	b32 result = entity_generations[handle.index] == handle.generation;
-	return result;
+	if(!handle.index && !handle.generation) return false;
+	else return entity_generations[handle.index] == handle.generation;
 }
 
 internal Entity*
@@ -392,11 +396,6 @@ global_variable u64
 		E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_CANNOT_AIM
 		,
 
-	E_PROJECTILE_FLAGS = 
-		E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_RECEIVES_DAMAGE|E_NOT_TARGETABLE|
-		E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|E_TOXIC_DAMAGE_INMUNE
-		,
-
 	E_MELEE_FLAGS = 
 	// if it hits at a certain rate without a care if there is an enemy
 	// then use_cooldown, if it just hits when it detects an enemy 
@@ -495,18 +494,6 @@ default_spawner(Entity* out, App_memory* memory){
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
 
-internal void
-default_projectile(Entity* out, App_memory* memory){
-	out->flags = E_PROJECTILE_FLAGS;
-	//speed is set by the one who shoots
-	out->friction = 0.5f;
-	out->lifetime = 5.0f;
-	out->type = ENTITY_PROJECTILE;
-	out->mesh_uid = memory->meshes.ball_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-	out->color = {0.6f,0.6f,0.6f,1};
-	out->scale = {0.4f,0.4f,0.4f};
-}
 
 internal void
 default_melee(Entity* out, App_memory* memory){

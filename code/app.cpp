@@ -19,7 +19,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		memory->last_inactive_entity = 0;
 
-
+		memory->entity_generations[0] = 1;
 		global_player_handle.index = memory->player_uid;
 		global_player_handle.generation = memory->entity_generations[memory->player_uid];
 		Entity* player = &memory->entities[memory->player_uid];
@@ -525,8 +525,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// SUB ITERATION
 
 		s32 closest_entity_uid = -1;
-		// TODO: this is for when i decide to do projectiles that jump from enemy to enemy
-		// s32 second_closest_entity_uid;
 		f32 closest_distance = 100000;
 		
 		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
@@ -609,20 +607,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					
 					if(they_collide)
 					{
-						// if(entity->flags & E_HEALTH_IS_DAMAGE)
-						// {
-						// 	entity->health = CLAMP(0,entity->health - entity2->action_power, entity->max_health);
-						// 	entity2->health = CLAMP(0, entity2->health entity->action_power, entity2->max_health);
-						// 	if(entity->health <= 0) {
-						// 		u32* index_to_kill; 
-						// 		PUSH_BACK(entities_to_kill, memory->temp_arena,index_to_kill); 
-						// 		*index_to_kill = i;
-						// 	}
-						// }
-						// else
-						// {
-							entity2->health = CLAMP(0, entity2->health - entity->action_power, entity2->max_health);
-						// }
+						entity2->health = CLAMP(0, entity2->health - entity->action_power, entity2->max_health);
 
 						if(entity2->health <= 0)
 						{
@@ -638,7 +623,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 					}
 				}
-
 
 				
 				// TOXIC ENTITIES INFECTING
@@ -814,16 +798,32 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					UNTIL(current_action_i, repetitions)
 					{
 						Entity* new_bullet; PUSH_BACK(entities_to_create, memory->temp_arena, new_bullet);
-						default_projectile(new_bullet, memory);
-						//TODO: for now this is just so it doesn't disappear
-						// actually it could be a feature :)
+
+						new_bullet->flags = 
+							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE|
+							E_RECEIVES_DAMAGE|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
+							E_TOXIC_DAMAGE_INMUNE|E_FOLLOW_TARGET
+						;
+
+						//speed could be by the one who shoots
+						new_bullet->speed = 150;
+						new_bullet->friction = 4.0f;
+						new_bullet->lifetime = 5.0f;
+						// this is obsolete but useful for debug
+						new_bullet->type = ENTITY_PROJECTILE;
+						new_bullet->mesh_uid = memory->meshes.ball_mesh_uid;
+						new_bullet->texinfo_uid = memory->textures.white_tex_uid;
+						new_bullet->color = {0.6f,0.6f,0.6f,1};
+						new_bullet->scale = {0.4f,0.4f,0.4f};
+
+						// health is how many hits can it get before dying
 						new_bullet->max_health = 1;
 						new_bullet->health = new_bullet->max_health;
 
 						new_bullet->action_power = entity->action_power;
 
-						new_bullet->speed = 60;
 						new_bullet->aura_radius = 2.0f;
+
 						Entity* parent = entity;
 						new_bullet->parent_handle.index = i;
 						new_bullet->parent_handle.generation = generations[i];
@@ -832,7 +832,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						// TODO: go in the direction that parent is looking (the parent's rotation);
 						new_bullet->target_direction = parent->looking_direction;
 
-						new_bullet->velocity =  new_bullet->speed * target_directions[current_action_i];
+						new_bullet->velocity =  (new_bullet->speed/2) * target_directions[current_action_i];
 					}
 				}
 				if((entity->flags & E_MELEE_ATTACK))
@@ -975,29 +975,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// 	memory->creating_unit = (memory->creating_unit+(AVAILABLE_UNITS))%(1+AVAILABLE_UNITS);
 	// if(input->R == 1)
 	// 	memory->creating_unit = ((memory->creating_unit+1) % (1+AVAILABLE_UNITS));
-#if 0
-	if(input->L)
-		memory->creating_unit = 0;
-	else if(input->k1 == 1)
-		memory->creating_unit = 1;
-	else if(input->k2 == 1)
-		memory->creating_unit = 2;
-	else if(input->k3 == 1)
-		memory->creating_unit = 3;
-	else if(input->k4 == 1)
-		memory->creating_unit = 4;
-	else if(input->k5 == 1)
-		memory->creating_unit = 5;
-	else if(input->k6 == 1)
-		memory->creating_unit = 6;
-
-
-	memory->possible_entities[0] = UNIT_NOT_A_UNIT;
-	memory->possible_entities[1] = UNIT_SHOOTER;
-	memory->possible_entities[2] = UNIT_TANK;
-	memory->possible_entities[3] = UNIT_MELEE;
-	memory->possible_entities[4] = UNIT_SPAWNER;
-#endif 
 
 	// DECIDE WHOS THE SELECTED ENTITY 
 
@@ -1035,122 +1012,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 	}
 	
-#if 0
-
-	if(memory->selected_uid >= 0){
-		Entity* selected_entity = &entities[memory->selected_uid];
-		
-		if(input->L == 1)
-			selected_entity->flags |= E_SHOOT;
-		else if(input->k1 == 1)
-			selected_entity->flags |= E_MELEE_ATTACK;
-		else if(input->k2 == 1)
-			selected_entity->flags |= E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST;
-		else if(input->k3 == 1)
-			selected_entity->flags |= E_CAN_MANUALLY_MOVE;
-		else if(input->k4 == 1)
-			selected_entity->flags |= E_SHOOT;
-		else if(input->k5 == 1)
-			selected_entity->flags |= E_SHOOT;
-		else if(input->k6 == 1)
-			selected_entity->flags |= E_SHOOT;
-	}
-#endif
-	
-	// OLD WAY OF CREATING UNITS / SETTING FLAGS WITH KEY PRESSES
-#if 0
-	UNIT_TYPE new_unit_type = memory->possible_entities[memory->creating_unit];
-	if(new_unit_type == UNIT_SHOOTER) { // SELECTED UNIT TO CREATE
-		if(input->cursor_primary == -1){
-			// CREATING SHOOTER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
-				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-				Entity* new_unit = &entities[new_entity_index];
-				default_shooter(new_unit, memory);
-
-				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
-
-				new_unit->team_uid = entities[memory->player_uid].team_uid;
-			}
-		}
-	} else if ( new_unit_type == UNIT_SPAWNER){
-		if(input->cursor_primary == -1){
-			// CREATING SPAWNER
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
-				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-				Entity* new_unit = &entities[new_entity_index];
-				default_spawner(new_unit, memory);
-
-				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
-
-				new_unit->team_uid = entities[memory->player_uid].team_uid;
-			}
-		}
-	} else if ( new_unit_type == UNIT_TANK){
-		if(input->cursor_primary == -1){
-			// CREATING TANK
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
-				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-				Entity* new_unit = &entities[new_entity_index];
-				default_tank(new_unit, memory);
-
-				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
-
-				new_unit->team_uid = entities[memory->player_uid].team_uid;
-				
-				Audio_playback* new_playback = find_next_available_playback(playback_list);
-				new_playback->initial_sample_t = sample_t;
-				new_playback->sound_uid = memory->sounds.wa_uid;
-			}
-		}
-	} else if( new_unit_type == UNIT_MELEE) {
-		if(input->cursor_primary == -1){
-			if(memory->teams_resources[entities[memory->player_uid].team_uid] >= memory->unit_creation_costs[new_unit_type]){
-				memory->teams_resources[entities[memory->player_uid].team_uid] -= memory->unit_creation_costs[new_unit_type];
-				u32 new_entity_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-				Entity* new_unit = &entities[new_entity_index];
-				
-				default_melee(new_unit, memory);
-
-				new_unit->pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
-
-				new_unit->team_uid = entities[memory->player_uid].team_uid;
-
-				Audio_playback* new_playback = find_next_available_playback(playback_list);
-				new_playback->initial_sample_t = sample_t;
-				new_playback->sound_uid = memory->sounds.wa_uid;
-
-			}
-		}
-	} else {  // NO SELECTED UNIT TO CREATE
-		if(input->cursor_primary == 1)
-			memory->clicked_uid = hot_entity_uid;
-		else if( input->cursor_primary == -1 ){
-			if(memory->clicked_uid){
-				if(hot_entity_uid == memory->clicked_uid){
-					memory->selected_uid = memory->clicked_uid;
-				}
-				memory->clicked_uid = 0;
-			}
-		}
-
-		Entity* selected_entity = &entities[memory->selected_uid];
-		selected_entity->color = {0,0.7f,0,1};
-
-		if( memory->selected_uid != memory->player_uid ){
-			if( input->cursor_secondary > 0){
-				if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM)){
-					selected_entity->target_direction = v3_difference({cursor_y0_pos.x, 0, cursor_y0_pos.z}, selected_entity->pos);
-				}
-			}
-			else if( input->cursor_primary > 0)
-				memory->selected_uid = memory->player_uid;
-		}
-	}	
-#endif
 }
 
 
@@ -1376,16 +1237,6 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		selected->object3d.color.a = 1.0f;
 	}
 
-	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
-	request->scale = {2, 0.1f,1};
-	request->color = {1,1,1,1};
-	request->texinfo_uid = memory->textures.gradient_tex_uid;
-	request->mesh_uid = memory->meshes.plane_mesh_uid;
-	request->pos = { -1, -0.9f, 0.01f};
-
-	// draw(render_list, memory->temp_arena, &test_plane);
-
 
 	// RENDERING UI ELEMENTS
 
@@ -1480,8 +1331,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 #define PUSH_ASSET_REQUEST push_asset_request(memory, init_data, &request)
 void init(App_memory* memory, Init_data* init_data){	
-	ASSERT(E_LAST_FLAG); // asserting there are not more than 63 flags
-	ASSERT(E_LAST_FLAG < 0Xffffffff); // asserting there are not more than 32 flags
+	// TODO: when this happens, lift the assert and implement bigger bitwise flags
+	ASSERT(E_LAST_FLAG < (0xfffffffffffffff)); // asserting there are not more than 60 flags
+	// ASSERT(E_LAST_FLAG < 0Xffffffff); // asserting there are not more than 32 flags
 
 
 	memory->entities = ARENA_PUSH_STRUCTS(memory->permanent_arena, Entity, MAX_ENTITIES);
