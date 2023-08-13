@@ -188,18 +188,20 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_GENERATE_RESOURCE,
 			E_PROJECTILE_JUMPS_BETWEEN_TARGETS,
 			E_PROJECTILE_PIERCE_TARGETS,
+			E_HOMING_PROJECTILES
 		};
 
 		char* button_text[] = {
 			"shoot",
 			"melee attack",
-			"homing",
+			"go after enemies",
 			"manually move",
 			"toxic",
 			"healer",
 			"resource farm",
 			"projectile jump between targets",
-			"piercing projectiles"
+			"piercing projectiles",
+			"homing projectiles"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -864,6 +866,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							E_RECEIVES_DAMAGE|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
 							E_TOXIC_DAMAGE_INMUNE|E_FOLLOW_TARGET
 						;
+						
+						if(entity->flags & E_HOMING_PROJECTILES){
+							new_bullet->flags |= E_AUTO_AIM_CLOSEST;
+						}
 						
 						new_bullet->max_health = 1;
 						if(entity->flags & E_PROJECTILE_JUMPS_BETWEEN_TARGETS){
