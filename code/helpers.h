@@ -223,8 +223,9 @@ static union {
 		E_SHOOT,
 		E_MELEE_ATTACK,
 		E_SPAWN_ENTITIES,
+		E_HEALER,
 		
-		E_TOXIC,
+		E_TOXIC, // TODO: maybe this should not be a flag but a boolean or a separate flag state
 		E_TOXIC_EMITTER,
 		E_TOXIC_DAMAGE_INMUNE,
 		

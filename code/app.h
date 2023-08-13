@@ -107,9 +107,12 @@ struct Entity{
 
 		f32 damage_redness;
 
-		f32 toxic_radius;
-		f32 toxic_time_left;
-		f32 toxic_tick_damage_cd;
+	f32 aura_radius;
+
+	f32 healing_cd;
+
+	f32 toxic_time_left;
+	f32 toxic_tick_damage_cd;
 
 	UNIT_TYPE spawn_unit_type;
 
@@ -180,16 +183,20 @@ struct Ui_element{
 
 	String text;
 
-	Rect rect;
+	Int2 pos;
+	Int2 size;
+
 	Color color;
+
+	f32 rotation;
 
 	u64 flags;
 };
 
 internal b32
 ui_is_point_inside(Ui_element* ui, Int2 p){
-	b32 x_inside = IS_VALUE_BETWEEN(ui->rect.x, p.x, ui->rect.x + ui->rect.w);
-	b32 y_inside = IS_VALUE_BETWEEN(ui->rect.y, p.y, ui->rect.y + ui->rect.h);
+	b32 x_inside = IS_VALUE_BETWEEN(ui->pos.x, p.x, ui->pos.x + ui->size.x);
+	b32 y_inside = IS_VALUE_BETWEEN(ui->pos.y, p.y, ui->pos.y + ui->size.y);
 	return x_inside && y_inside;
 	
 	// return (

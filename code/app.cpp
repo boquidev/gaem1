@@ -38,6 +38,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->action_cd_time_passed = 9.0f;
 		player->action_max_distance = 5.0f;
 
+		player->aura_radius = 3.0f;
+
 		memory->teams_resources[player->team_uid] = 50;
 		player->creation_delay = 0.2f;
 
@@ -73,6 +75,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->action_angle = TAU32/4;
 		boss->action_cd_total_time = 7.0f;
 		boss->action_max_distance = 5.0f;
+		boss->aura_radius = 3.0f;
 
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
 		boss->texinfo_uid = memory->textures.default_tex_uid;
@@ -180,6 +183,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
 			E_CAN_MANUALLY_MOVE,
 			E_TOXIC|E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
+			E_HEALER
 		};
 
 		char* button_text[] = {
@@ -187,7 +191,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"melee attack",
 			"homing",
 			"manually move",
-			"toxic"
+			"toxic",
+			"healer"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -225,15 +230,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			
 			V2 current_position = v2_rotate(initial_position, i*angle_step);
 
-			ui_element->rect.w = 100;
-			ui_element->rect.h = 50;
+			ui_element->size.x = 100;
+			ui_element->size.y = 50;
 
-			ui_element->rect.x = (s32)(memory->radial_menu_pos.x + current_position.x)-(ui_element->rect.w/2);
-			ui_element->rect.y = (s32)(memory->radial_menu_pos.y + current_position.y)-(ui_element->rect.h/2);
-
+			ui_element->pos.x = (s32)(memory->radial_menu_pos.x + current_position.x)-(ui_element->size.x/2);
+			ui_element->pos.y = (s32)(memory->radial_menu_pos.y + current_position.y)-(ui_element->size.y/2);
 		}
 
 	}
+	
 	
 	
 	// 
@@ -255,7 +260,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// MOVE SELECTED ENTITY
 
 	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
-	input_vector = normalize(input_vector);
+	input_vector = v2_normalize(input_vector);
 	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &entities[memory->selected_uid];
 		if(selected_entity->flags & E_CAN_MANUALLY_MOVE)
@@ -378,16 +383,22 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 
-		// TOXIC RADIUS
+		// HEALING COOLDOWN
 
-		//TODO: i think this should be done when assigning the flag
+		entity->healing_cd -= delta_time;
+		if(entity->healing_cd <= 0){
+			entity->healing_cd = 0;
+		}
+
+
+		// PROCESSING TOXIC ENTITIES
+
+		// TODO: i think this should be done when assigning the flag
 		// but my current ui system is kinda tedious
 		if(entity->flags & E_TOXIC_EMITTER){
 			entity->toxic_time_left = 0;
-			entity->toxic_radius = 4.0f;
 		}else if(entity->flags & E_TOXIC){
 			if(!(entity->flags & E_TOXIC_DAMAGE_INMUNE)){
-				entity->toxic_radius = 2.0f;
 				entity->toxic_tick_damage_cd -= delta_time;
 				if(entity->toxic_tick_damage_cd <= 0){
 					entity->toxic_tick_damage_cd += 2.0f;
@@ -489,8 +500,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		
 		
 		// ROTATION / LOOKING DIRECTION
-		if(!(entity->flags & E_SKIP_ROTATION))
-			entity->rotation.y = v2_angle({entity->looking_direction.x, entity->looking_direction.z}) + PI32/2; 
+		if(!(entity->flags & E_SKIP_ROTATION)){
+			// this is negative cuz +y is up while we are looking down
+			entity->rotation.y = - (v2_angle({entity->looking_direction.x, entity->looking_direction.z}) + PI32/2); 
+		}
 		
 
 		// SUB ITERATION
@@ -607,10 +620,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					(entity2->flags & E_RECEIVES_DAMAGE)
 				){
 					f32 distance = v3_magnitude(entity2->pos - entity->pos);
-					if(distance < entity->toxic_radius){
-						entity2->toxic_radius = entity->toxic_radius/2;
+					if(distance < entity->aura_radius){
 						entity2->toxic_time_left = 6.0f;
 						entity2->flags |= E_TOXIC;
+					}
+				}
+
+
+				// HEALING
+
+				if(entity->flags & E_HEALER &&
+					entity2->flags & E_RECEIVES_DAMAGE &&
+					!(entity2->flags & E_HEALTH_IS_DAMAGE)
+				){
+					f32 distance = v3_magnitude(entity2->pos - entity->pos);
+					if(distance < entity->aura_radius){
+						if(entity2->healing_cd <= 0){
+							entity2->health = MIN(entity2->health+1, entity2->max_health);
+							entity2->healing_cd += 5.0f;
+						}
 					}
 				}
 
@@ -759,9 +787,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						default_projectile(new_bullet, memory);
 						//TODO: for now this is just so it doesn't disappear
 						// actually it could be a feature :)
-						new_bullet->health = 1;
+						new_bullet->max_health = 1;
+						new_bullet->health = new_bullet->max_health;
+
+						new_bullet->action_power = entity->action_power;
 
 						new_bullet->speed = 60;
+						new_bullet->aura_radius = 2.0f;
 						Entity* parent = entity;
 						new_bullet->parent_handle.index = i;
 						new_bullet->parent_handle.generation = generations[i];
@@ -817,6 +849,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->max_health = 4;
 						new_entity->health = new_entity->max_health;
 						new_entity->action_cd_total_time = 1.0f;
+						new_entity->aura_radius = 3.0f;
 
 						new_entity->parent_handle.index = i;
 						new_entity->parent_handle.generation = generations[i];
@@ -1088,7 +1121,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 
 
-void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_size){
+void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_size)
+{
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
 	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|
@@ -1114,11 +1148,25 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			{
 				PUSH_BACK(render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-				request->object3d.color = {0,1,0,1};
-				request->object3d.pos = memory->entities[i].pos;
-				request->object3d.scale = v3_multiply(memory->entities[i].toxic_radius, {1,1,1});
+				request->object3d.color = {0.2f, 0.0f , 0.4f, 1.0f};
+				V3 yoffset = {0,-1,0};
+				request->object3d.pos = memory->entities[i].pos + yoffset;
+				request->object3d.scale = v3_multiply(memory->entities[i].aura_radius, {1,1,1});
 				request->object3d.rotation = {PI32/2,0,0};
 				
+				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
+				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+			}
+			if(memory->entities[i].flags & E_HEALER)
+			{
+				PUSH_BACK(render_list, memory->temp_arena, request);
+				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+				request->object3d.color = {0.0f, 0.5f, 0.1f, 1.0f};
+				V3 yoffset = {0, -1, 0};
+				request->object3d.pos = memory->entities[i].pos + yoffset;
+				request->object3d.scale = v3_multiply(memory->entities[i].aura_radius, {1,1,1});
+				request->object3d.rotation = {PI32/2, 0, 0};
+
 				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
@@ -1312,16 +1360,57 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	UNTIL(i, MAX_UI){
 		if(!memory->ui_elements[i].flags) continue;
-		Ui_element* current = &memory->ui_elements[i];
+		{
+			Ui_element* current = &memory->ui_elements[i];
 
+			PUSH_BACK(render_list, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
+
+			request->scale = {2.0f*current->size.x/screen_size.x, 2.0f*current->size.y/screen_size.y, 1};
+			request->pos = {2.0f*current->pos.x/screen_size.x -1, -(2.0f*current->pos.y/screen_size.y -1)};
+			request->rotation.z = current->rotation;
+
+			request->color = 0.5f*current->color;
+			request->texinfo_uid = memory->textures.gradient_tex_uid;
+			request->mesh_uid = memory->meshes.plane_mesh_uid;
+		}
+	}
+
+	// LINE DRAWING
+
+	User_input* input = memory->input;
+	if(
+		input->L && (
+			input->cursor_pixels_pos.x != memory->radial_menu_pos.x ||
+			input->cursor_pixels_pos.y != memory->radial_menu_pos.y
+		)
+	){
 		PUSH_BACK(render_list, memory->temp_arena, request);
 		request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 
-		request->scale = {2.0f*current->rect.w/screen_size.x, 2.0f*current->rect.h/screen_size.y, 1};
-		request->pos = {2.0f*current->rect.x/screen_size.x -1, -(2.0f*current->rect.y/screen_size.y -1)};
+		V2 screen_radial_menu_pos = {
+			2.0f*memory->radial_menu_pos.x/screen_size.x -1, 
+			-2.0f*memory->radial_menu_pos.y/screen_size.y +1
+		};
 
-		request->color = 0.5f*current->color;
-		request->texinfo_uid = memory->textures.gradient_tex_uid;
+		V2 m_distance = input->cursor_pos - screen_radial_menu_pos;
+
+		f32 m_distance_magnitude = v2_magnitude(m_distance);
+
+		request->rotation.z = v2_angle({(f32)m_distance.x, (f32)m_distance.y});
+
+		V2 pos_offset = {0};
+
+
+		f32 line_width = 2;
+		request->scale = {m_distance_magnitude, line_width/screen_size.y, 1};
+		request->pos = {
+			screen_radial_menu_pos.x, 
+			screen_radial_menu_pos.y
+		};
+
+		request->color = {1,1,1,0.5f};
+		request->texinfo_uid = memory->textures.white_tex_uid;
 		request->mesh_uid = memory->meshes.plane_mesh_uid;
 	}
 
@@ -1336,18 +1425,20 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
 
-			request->scale = {2.0f*current->rect.w/screen_size.x, 2.0f*current->rect.h/screen_size.y, 1};
-			request->pos = {2.0f*current->rect.x/screen_size.x -1, -(2.0f*current->rect.y/screen_size.y -1)};
+			request->scale = {2.0f*current->size.x/screen_size.x, 2.0f*current->size.y/screen_size.y, 1};
+			request->pos = {2.0f*current->pos.x/screen_size.x -1, -(2.0f*current->pos.y/screen_size.y -1)};
 
 			request->color = current->color;
 			request->texinfo_uid = memory->textures.gradient_tex_uid;
 			request->mesh_uid = memory->meshes.plane_mesh_uid;
-		}else{
-			s32 xpixel_pos = current->rect.x+(current->rect.w/2) - (current->text.length*8/2);
-			s32 ypixel_pos = current->rect.y+(current->rect.h-18)/2;
+		}
+		else
+		{
+			s32 xpixel_pos = current->pos.x+(current->size.x/2) - (current->text.length*8/2);
+			s32 ypixel_pos = current->pos.y+(current->size.y-18)/2;
 			printo_screen(memory, screen_size, render_list, current->text, 
 				{2.0f*xpixel_pos/screen_size.x -1, 1- 2.0f*ypixel_pos/screen_size.y},
-				// {2.0f*current->rect.x/screen_size.x -1, -2.0f*current->rect.y/screen_size.y -1}, 
+				// {2.0f*current->pos.x/screen_size.x -1, -2.0f*current->pos.y/screen_size.y -1}, 
 				current->color);
 		}
 	}

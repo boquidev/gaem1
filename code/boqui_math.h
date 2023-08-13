@@ -79,6 +79,74 @@ struct V2
     f32 x;
     f32 y;
 };
+internal V2
+v2_addition(V2 v1, V2 v2)
+{
+    return {v1.x + v2.x, v1.y + v2.y};
+}
+
+internal V2
+v2_difference(V2 v1, V2 v2)
+{
+    return {v1.x - v2.x, v1.y - v2.y};
+}
+
+internal V2
+operator +(V2 v1, V2 v2)
+{
+    return v2_addition(v1, v2);
+}
+
+internal V2
+operator -(V2 v1, V2 v2)
+{
+    return v2_difference(v1, v2);
+}
+
+internal V2
+operator /(V2 v1, f32 a)
+{
+    return {v1.x/a, v1.y/a};
+}
+//Escalar multiplication
+internal V2
+v2_scalar_product(f32 e, V2 v){
+    return {e*v.x, e*v.y};
+}
+internal V2
+v2_scalar_product(s32 e, V2 v){
+    return {e*v.x, e*v.y};
+}
+internal V2
+operator *(f32 e, V2 v)
+{
+    return {e * v.x, e * v.y};
+}
+internal V2
+operator *(s32 e, V2 v)
+{
+    return {e * v.x, e * v.y};
+}
+internal V2
+operator *(V2 v, f32 e)
+{
+    return {e * v.x, e * v.y};
+}
+internal V2
+operator *(V2 v, u32 e)
+{
+    return {e * v.x, e * v.y};
+}
+internal b8
+operator ==(V2 v1, V2 v2)
+{
+    return(v1.x == v2.x && v1.y == v2.y);
+}
+internal b8
+operator !=(V2 v1, V2 v2)
+{
+    return(v1.x != v2.x || v1.y != v2.y);
+}
 
 struct Int2
 {
@@ -89,19 +157,24 @@ internal Int2
 operator -(Int2 i1, Int2 i2){
     return {i1.x-i2.x, i1.y-i2.y};
 }
-
-internal f32 magnitude(f32 x, f32 y){return SQRT(x*x + y*y);}
-internal f32 v2_magnitude(V2 v){return magnitude(v.x, v.y);}
-internal f32 magnitude(Int2 v){return magnitude((f32)v.x, (f32)v.y);}
-
-internal V2 normalize(f32 x, f32 y)
-{
-    f32 vlength = magnitude(x,y);
-    if(vlength) return {x/vlength, y/vlength};
-    else return {0,0};
+internal V2
+operator /(Int2 v, f32 d){
+    return {v.x/d, (s32)v.y/d};
 }
-internal V2 normalize(V2 v){return normalize(v.x, v.y);}
-internal V2 normalize(Int2 v){return normalize((f32)v.x, (f32)v.y);}
+
+internal f32 v2_magnitude(V2 v){return SQRT(v.x*v.x + v.y*v.y);}
+internal f32 v2_magnitude(f32 x, f32 y){return v2_magnitude({x,y});}
+internal f32 int2_magnitude(Int2 v){return v2_magnitude({(f32)v.x, (f32)v.y});}
+
+
+internal V2 v2_normalize(V2 v){
+    f32 vlength = v2_magnitude(v);
+    if(vlength) return v/vlength;
+    return {0,0};
+}
+
+internal V2 v2_normalize(f32 x, f32 y){return v2_normalize({x,y});}
+internal V2 int2_normalize(Int2 v){return v2_normalize((f32)v.x, (f32)v.y);}
 
 internal f32
 v2_dot(V2 v1, V2 v2){
@@ -174,24 +247,19 @@ operator /(V3 v, f32 x){
     return {v.x / x, v.y / x, v.z /x};
 }
 
-internal f32 
-v3_magnitude(f32 x, f32 y, f32 z){return SQRT(x*x + y*y + z*z);}
-internal f32 
-v3_magnitude(V3 v){return v3_magnitude(v.x, v.y, v.z);}
 
-internal V3 
-v3_normalize_with_magnitude(f32 x, f32 y, f32 z, f32 magnitude){
-    if(magnitude) return {x/magnitude, y/magnitude, z/magnitude};
-    else return {0,0,0};
+internal f32 
+v3_magnitude(V3 v){return SQRT(v.x*v.x + v.y*v.y + v.z*v.z);}
+internal f32 
+v3_magnitude(f32 x, f32 y, f32 z){return v3_magnitude({x, y, z});}
+
+internal V3 v3_normalize(V3 v){
+    f32 vlength = v3_magnitude(v);
+    if(vlength) return (v/vlength);
+    return {0,0,0};
 }
 internal V3
-v3_normalize_with_magnitude(V3 v, f32 magnitude){return v3_normalize_with_magnitude(v.x,v.y,v.z,magnitude);}
-internal V3
-v3_normalize(f32 x, f32 y, f32 z){
-    f32 vlength = v3_magnitude(x,y,z);
-    return v3_normalize_with_magnitude(x,y,z,vlength);
-}
-internal V3 v3_normalize(V3 v){return v3_normalize(v.x, v.y, v.z);}
+v3_normalize(f32 x, f32 y, f32 z){return v3_normalize({x, y, z});}
 
 struct Int4
 {
@@ -218,75 +286,7 @@ union V4
 internal f32
 v2_angle(V2 v)
 {
-    if(v.x < 0)
-        // if(v.y < 0)
-        //     return atanf(-v.y / v.x);
-        // else
-            return ATAN2F(v.y, -v.x) ;
-    else 
-        return ATAN2F(v.y, -v.x);
-}
-
-
-internal V2
-v2_addition(V2 v1, V2 v2)
-{
-    return {v1.x + v2.x, v1.y + v2.y};
-}
-
-internal V2
-v2_difference(V2 v1, V2 v2)
-{
-    return {v1.x - v2.x, v1.y - v2.y};
-}
-
-internal V2
-operator +(V2 v1, V2 v2)
-{
-    return v2_addition(v1, v2);
-}
-
-internal V2
-operator -(V2 v1, V2 v2)
-{
-    return v2_difference(v1, v2);
-}
-
-internal V2
-operator /(V2 v1, f32 a)
-{
-    return {v1.x/a, v1.y/a};
-}
-//Escalar multiplication
-internal V2
-operator *(f32 e, V2 v)
-{
-    return {e * v.x, e * v.y};
-}
-internal V2
-operator *(u32 e, V2 v)
-{
-    return {e * v.x, e * v.y};
-}
-internal V2
-operator *(V2 v, f32 e)
-{
-    return {e * v.x, e * v.y};
-}
-internal V2
-operator *(V2 v, u32 e)
-{
-    return {e * v.x, e * v.y};
-}
-internal b8
-operator ==(V2 v1, V2 v2)
-{
-    return(v1.x == v2.x && v1.y == v2.y);
-}
-internal b8
-operator !=(V2 v1, V2 v2)
-{
-    return(v1.x != v2.x || v1.y != v2.y);
+    return ATAN2F(v.y, v.x);
 }
 
 union Rect
