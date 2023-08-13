@@ -188,7 +188,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_GENERATE_RESOURCE,
 			E_PROJECTILE_JUMPS_BETWEEN_TARGETS,
 			E_PROJECTILE_PIERCE_TARGETS,
-			E_HOMING_PROJECTILES
+			E_HOMING_PROJECTILES,
+			E_PROJECTILE_EXPLODE
 		};
 
 		char* button_text[] = {
@@ -201,7 +202,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"resource farm",
 			"projectile jump between targets",
 			"piercing projectiles",
-			"homing projectiles"
+			"homing projectiles",
+			"explode projectiles"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -688,8 +690,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				// HEALING
 
-				if(entity2->flags & E_HEALER 
-				){
+				if(entity2->flags & E_HEALER){
 					f32 distance = v3_magnitude(entity2->pos - entity->pos);
 					if(distance < entity->aura_radius){
 						if(entity->healing_cd <= 0){
@@ -700,6 +701,27 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 					}
 				}	
+
+				// EXPLOSION
+
+				if(entity2->flags & E_EXPLOSION){
+					V3 distance_vector = entity->pos - entity2->pos;
+					f32 distance = v3_magnitude(distance_vector);
+					f32 explosion_radius = entity2->scale.x*entity2->creation_size;
+					if(distance < explosion_radius){
+						f32 closeness_to_center = (1 - distance/explosion_radius);
+						f32 result_damage = closeness_to_center*3 + (entity2->action_power);
+						entity->health = CLAMP(0, entity->health - (s32)result_damage, entity->max_health);
+						// f32 outwards_force = 8*(explosion_radius-distance);
+						f32 outwards_force = 30 * closeness_to_center;
+						entity->velocity = entity->velocity + ((outwards_force/distance)*distance_vector);
+
+						if(entity->health <= 0){
+							u32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+							*index_to_kill = i;
+						}
+					}
+				}
 			}
 
 
@@ -866,6 +888,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							E_RECEIVES_DAMAGE|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
 							E_TOXIC_DAMAGE_INMUNE|E_FOLLOW_TARGET
 						;
+
+						if(entity->flags & E_PROJECTILE_EXPLODE){
+							new_bullet->flags |= P_PROJECTILE_EXPLODE;
+						}
 						
 						if(entity->flags & E_HOMING_PROJECTILES){
 							new_bullet->flags |= E_AUTO_AIM_CLOSEST;
@@ -920,6 +946,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						hitbox->color = {0, 0, 0, 0.3f};
 						hitbox->scale = {1,1,1};
+						hitbox->creation_size = 1.0f;
 
 						hitbox->lifetime = delta_time;
 
@@ -1014,17 +1041,46 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 
-	//
-	// END OF UPDATE LOOP
-	//
+		//
+		// END OF UPDATE LOOP
+		//
 	
 	}
 
 	// KILLING ENTITIES
 
 	FOREACH(u32, e_index, entities_to_kill){
-		entities[*e_index] = {0};
-		generations[*e_index]++;
+		if(entities[*e_index].flags & P_PROJECTILE_EXPLODE){
+			s32 explosion_damage = entities[*e_index].action_power;
+			V3 explosion_pos = entities[*e_index].pos;
+			Entity* explosion_hitbox = &entities[*e_index];
+
+			*explosion_hitbox = {0};
+			generations[*e_index]++;
+
+			explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
+
+			explosion_hitbox->color = {1.0f, 0, 0, 0.3f};
+			explosion_hitbox->scale = {5,5,5};
+			explosion_hitbox->creation_size = 1.0f;
+
+			explosion_hitbox->lifetime = delta_time;
+
+			// explosion_hitbox->parent_handle.index = i;
+			// explosion_hitbox->parent_handle.generation = generations[i];
+			// explosion_hitbox->team_uid = entity->team_uid;
+			explosion_hitbox->action_power = explosion_damage;
+
+			explosion_hitbox->pos = explosion_pos;
+
+			// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+			explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
+			explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
+			
+		}else{ // DEFAULT CASE
+			entities[*e_index] = {0};
+			generations[*e_index]++;
+		}
 	}
 
 

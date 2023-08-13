@@ -61,11 +61,11 @@ struct Element_handle
 
 internal b32 
 operator ==(Element_handle h1, Element_handle h2){
-	return h1.index == h2.index && h1.generation == h2.generation;
+	return ((h1.index || h1.generation) && (h2.index || h2.generation)) && (h1.index == h2.index && h1.generation == h2.generation);
 }
 internal b32
 operator !=(Element_handle h1, Element_handle h2){
-	return h1.index != h2.index || h1.generation != h2.generation;
+	return (!(h1.index || h1.generation) || !(h2.index || h2.generation)) || (h1.index != h2.index || h1.generation != h2.generation);
 }
 internal b32 
 compare_entity_handles(Element_handle h1, Element_handle h2){
