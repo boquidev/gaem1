@@ -131,6 +131,7 @@ struct Entity{
 
 	V3 ignore_sphere_pos;
 	f32 ignore_sphere_radius;
+	V3 ignore_sphere_target_pos;
 	b32 jump_change_direction;
 
 	Element_handle parent_handle;

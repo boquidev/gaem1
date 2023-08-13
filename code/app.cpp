@@ -186,7 +186,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_TOXIC|E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
 			E_HEALER,
 			E_GENERATE_RESOURCE,
-			E_PROJECTILE_JUMPS_BETWEEN_TARGETS
+			E_PROJECTILE_JUMPS_BETWEEN_TARGETS,
+			E_PROJECTILE_PIERCE_TARGETS,
 		};
 
 		char* button_text[] = {
@@ -197,7 +198,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"toxic",
 			"healer",
 			"resource farm",
-			"projectile jump between targets"
+			"projectile jump between targets",
+			"piercing projectiles"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -356,7 +358,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	memory->debug_active_entities_count = 0;
 	f32 closest_t = {0};
 	b32 first_intersection = false;
-	UNTIL(i, MAX_ENTITIES){
+	UNTIL(i, MAX_ENTITIES)
+	{
 		
 		if(!entities[i].flags) continue;
 
@@ -451,7 +454,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			entity->ignore_sphere_radius = (entity->ignore_sphere_radius-delta_time)*0.90f;
 			if(entity->ignore_sphere_radius <= 0){
 				entity->ignore_sphere_radius = 0;
+			}else{
+				entity->ignore_sphere_pos = entity->ignore_sphere_pos + (0.1f*(entity->ignore_sphere_target_pos - entity->ignore_sphere_pos));
 			}
+
 		}
 
 		// CURSOR RAYCASTING
@@ -569,7 +575,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					}
 				}
 			}
-			if(entity->flags & P_JUMP_BETWEEN_TARGETS){
+
+			// POSSIBLE JUMPING TARGETS
+
+			if(entity->flags & P_JUMP_BETWEEN_TARGETS && !(entity2->flags & E_NOT_TARGETABLE)){
 				if(v3_magnitude(entity2->pos - entity->ignore_sphere_pos) > entity->ignore_sphere_radius){
 					f32 distance = v3_magnitude(entity2->pos - entity->pos);
 					if(closest_jump_target_uid < 0 ){
@@ -636,9 +645,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 							*index_to_kill = i;
 						}
+						entity2->health--;
+						if(entity2->health <= 0){
+							u32* index_to_kill;
+							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+							*index_to_kill = j;
+						}
 						
 						//TODO: push this code to a list to process this outside the main loop
-						if(entity2->flags & P_JUMP_BETWEEN_TARGETS){
+						if(entity2->health > 0){
 							entity2->jump_change_direction = true; 
 							if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
 								entity2->ignore_sphere_pos = entity->pos;
@@ -648,6 +663,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
 								entity2->ignore_sphere_radius = entity2->ignore_sphere_radius + v3_magnitude(difference)/2;
 							}
+							entity2->ignore_sphere_target_pos = entity->pos;
 
 						}
 					}
@@ -848,9 +864,17 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							E_RECEIVES_DAMAGE|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
 							E_TOXIC_DAMAGE_INMUNE|E_FOLLOW_TARGET
 						;
+						
+						new_bullet->max_health = 1;
 						if(entity->flags & E_PROJECTILE_JUMPS_BETWEEN_TARGETS){
 							new_bullet->flags |= P_JUMP_BETWEEN_TARGETS;
+							new_bullet->max_health += 1;
 						}
+						// health is how many hits can it get before dying
+						if(entity->flags & E_PROJECTILE_PIERCE_TARGETS){
+							new_bullet->max_health += 5;
+						}
+						new_bullet->health = new_bullet->max_health;
 
 						//speed could be by the one who shoots
 						new_bullet->speed = 150;
@@ -863,9 +887,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->color = {0.6f,0.6f,0.6f,1};
 						new_bullet->scale = {0.4f,0.4f,0.4f};
 
-						// health is how many hits can it get before dying
-						new_bullet->max_health = 1;
-						new_bullet->health = new_bullet->max_health;
 
 						new_bullet->action_power = entity->action_power;
 
