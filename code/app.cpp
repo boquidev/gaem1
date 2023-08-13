@@ -185,7 +185,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_CAN_MANUALLY_MOVE,
 			E_TOXIC|E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
 			E_HEALER,
-			E_GENERATE_RESOURCE
+			E_GENERATE_RESOURCE,
+			E_PROJECTILE_JUMPS_BETWEEN_TARGETS
 		};
 
 		char* button_text[] = {
@@ -195,7 +196,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"manually move",
 			"toxic",
 			"healer",
-			"resource farm"
+			"resource farm",
+			"projectile jump between targets"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -442,10 +444,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				entity->flags ^= E_TOXIC;
 			}
 		}
-		// TOXIC TICK DAMAGE
-
-
 		
+		// PROJECTILE IGNORE SPHERE
+
+		if(entity->ignore_sphere_radius){
+			entity->ignore_sphere_radius = (entity->ignore_sphere_radius-delta_time)*0.90f;
+			if(entity->ignore_sphere_radius <= 0){
+				entity->ignore_sphere_radius = 0;
+			}
+		}
 
 		// CURSOR RAYCASTING
 
@@ -528,6 +535,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		s32 closest_entity_uid = -1;
 		f32 closest_distance = 100000;
+
+		s32 closest_jump_target_uid = -1;
+		f32 closest_jump_distance = 100000;
 		
 		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
 		// if(entity->flags & (E_DOES_DAMAGE|E_AUTO_AIM_CLOSEST|E_DETECT_COLLISIONS))
@@ -559,6 +569,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					}
 				}
 			}
+			if(entity->flags & P_JUMP_BETWEEN_TARGETS){
+				if(v3_magnitude(entity2->pos - entity->ignore_sphere_pos) > entity->ignore_sphere_radius){
+					f32 distance = v3_magnitude(entity2->pos - entity->pos);
+					if(closest_jump_target_uid < 0 ){
+						closest_jump_target_uid = j;
+						closest_jump_distance = distance;
+					}else if(distance < closest_jump_distance){
+						closest_jump_target_uid = j;
+						closest_jump_distance = distance;
+
+					}
+				}
+			}
 
 
 			// HITBOX / DAMAGE 
@@ -572,6 +595,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						!(entity2->flags & E_SKIP_PARENT_COLLISION) ||
 						entity2->parent_handle.index != i ||
 						entity2->parent_handle.generation != generations[i]
+					) && (
+						!entity2->ignore_sphere_radius ||
+						v3_magnitude(entity->pos - entity2->ignore_sphere_pos) > entity2->ignore_sphere_radius
 					)
 				){
 					b32 they_collide = false;
@@ -601,15 +627,28 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 					}
 					
-					if(they_collide)
+					if(they_collide) // DAMAGING ENTITY
 					{
 						entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
-
 						if(entity->health <= 0)
 						{
 							u32* index_to_kill;
 							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 							*index_to_kill = i;
+						}
+						
+						//TODO: push this code to a list to process this outside the main loop
+						if(entity2->flags & P_JUMP_BETWEEN_TARGETS){
+							entity2->jump_change_direction = true; 
+							if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
+								entity2->ignore_sphere_pos = entity->pos;
+								entity2->ignore_sphere_radius = 0.9f;
+							}else{
+								V3 difference = entity->pos - entity2->ignore_sphere_pos;
+								entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
+								entity2->ignore_sphere_radius = entity2->ignore_sphere_radius + v3_magnitude(difference)/2;
+							}
+
 						}
 					}
 				}
@@ -655,6 +694,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					!(entity->flags & E_SKIP_PARENT_COLLISION) ||
 					entity->parent_handle.index != j ||
 					entity->parent_handle.generation != generations[j]
+				) && (
+					!(entity->flags & E_DOES_DAMAGE) ||
+					!(entity2->flags & E_RECEIVES_DAMAGE)
 				)
 			){
 				//TODO: collision code
@@ -727,6 +769,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}	// END OF SUB ITERATION
 
 
+		// PROJECTILE JUMPING
+
+		if(entity->jump_change_direction && entity->flags & P_JUMP_BETWEEN_TARGETS){
+			entity->jump_change_direction = false;
+			entity->target_direction = entities[closest_jump_target_uid].pos - entity->pos;
+			entity->velocity = v3_magnitude(entity->velocity) * v3_normalize(entity->target_direction);
+		}
+
 
 		#define DEFAULT_AUTOAIM_RANGE 10.0f 
 		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
@@ -798,6 +848,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							E_RECEIVES_DAMAGE|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
 							E_TOXIC_DAMAGE_INMUNE|E_FOLLOW_TARGET
 						;
+						if(entity->flags & E_PROJECTILE_JUMPS_BETWEEN_TARGETS){
+							new_bullet->flags |= P_JUMP_BETWEEN_TARGETS;
+						}
 
 						//speed could be by the one who shoots
 						new_bullet->speed = 150;
@@ -1057,6 +1110,17 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->object3d.rotation = {PI32/2, 0, 0};
 
 				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
+				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+			}
+			if(memory->entities[i].ignore_sphere_radius){
+				PUSH_BACK(render_list, memory->temp_arena, request);
+				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+				request->object3d.color = {0.0f, 0.5f, 0.1f, 0.3f};
+				V3 yoffset = {0, -1, 0};
+				request->object3d.pos = memory->entities[i].ignore_sphere_pos;
+				request->object3d.scale = v3_multiply(memory->entities[i].ignore_sphere_radius, {1,1,1});
+
+				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
 		}

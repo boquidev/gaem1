@@ -129,6 +129,9 @@ struct Entity{
 
 	UNIT_TYPE spawn_unit_type;
 
+	V3 ignore_sphere_pos;
+	f32 ignore_sphere_radius;
+	b32 jump_change_direction;
 
 	Element_handle parent_handle;
 	u32 team_uid;
