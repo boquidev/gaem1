@@ -34,8 +34,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		player->action_count = 1;
 		player->action_angle = TAU32/4;
-		player->action_cd_total_time = 10.0f;
-		player->action_cd_time_passed = 9.0f;
+		player->action_cd_total_time = 3.0f;
+		player->action_cd_time_passed = 2.0f;
 		player->action_max_distance = 5.0f;
 
 		player->aura_radius = 3.0f;
@@ -62,7 +62,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		boss->speed = 60.0f;
 		boss->friction = 10.0f;
-		boss->action_cd_total_time = 2.0f;
 
 		boss->max_health = 200;
 		boss->health = boss->max_health;
@@ -73,7 +72,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		boss->action_count = 1;
 		boss->action_angle = TAU32/4;
-		boss->action_cd_total_time = 7.0f;
+		boss->action_cd_total_time = 2.0f;
 		boss->action_max_distance = 5.0f;
 		boss->aura_radius = 3.0f;
 
@@ -573,7 +572,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				if(
 					entity->flags & E_DOES_DAMAGE &&
-					entity2->flags & E_RECEIVES_DAMAGE
+					entity2->flags & E_RECEIVES_DAMAGE &&
+					entity->parent_handle != entity2->parent_handle
 				){
 					b32 they_collide = false;
 
@@ -695,7 +695,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								// overlapping =  MIN(MIN(entity->current_scale, entity2->current_scale),overlapping);
 								V3 collision_direction = {0,0,1.0f};
 								if(centers_distance_magnitude){
-									collision_direction = (overlapping/(2*centers_distance_magnitude))*centers_distance;
+									collision_direction = (overlapping/(1.0f*centers_distance_magnitude))*centers_distance;
 									// collision_direction = centers_distance / centers_distance_magnitude;
 								}
 
@@ -705,7 +705,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								// f32 momentum_i = MAX(v3_magnitude(entity->velocity), delta_time);
 								// f32 momentum_j = MAX(v3_magnitude(entity2->velocity), delta_time);
 								entity->velocity = entity->velocity - (collision_direction);
-								entity2->velocity = entity2->velocity + (collision_direction);
+								// entity2->velocity = entity2->velocity + (collision_direction);
 
 								ASSERT(!isnan(entity->velocity.x));
 								ASSERT(isfinite(entity->velocity.x));

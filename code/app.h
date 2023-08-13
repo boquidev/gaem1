@@ -59,6 +59,15 @@ struct Element_handle
 	u32 generation; // this value updates when the entity is deleted
 };
 
+internal b32 
+operator ==(Element_handle h1, Element_handle h2){
+	return h1.index == h2.index && h1.generation == h2.generation;
+}
+internal b32
+operator !=(Element_handle h1, Element_handle h2){
+	return h1.index != h2.index || h1.generation != h2.generation;
+}
+
 enum COLLIDER_TYPE{
 	// for now it is imposible to forger about the collider type okei?
 	// FORGOR_COLLIDER_TYPE,
