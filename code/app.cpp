@@ -198,15 +198,27 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
 		V2 initial_position = {0,-200};
 		UNTIL(i, ARRAYCOUNT(button_text)){
-			if(ui_last == memory->ui_clicked_uid){
-				if(memory->selected_uid >= 0){
-					if(possible_flags_to_set[i] & E_TOXIC){
+			if(ui_last == memory->ui_clicked_uid)
+			{
+				if(memory->selected_uid >= 0)
+				{
+					if(possible_flags_to_set[i] & E_TOXIC) // toxic emitter
+					{
 						if(entities[memory->selected_uid].flags & E_TOXIC_EMITTER){
 							entities[memory->selected_uid].flags &= possible_flags_to_set[i] ^ 0xffffffffffffffff;
 						}else{
 							entities[memory->selected_uid].flags |= possible_flags_to_set[i];
 						}
-					}else{
+					}
+					else if(possible_flags_to_set[i] & E_HEALER) // healer
+					{
+						entities[memory->selected_uid].flags ^= E_HEALER; 
+						//TODO: this will be a bug if there is any other thing that turns action power 
+						// into a negative number
+						entities[memory->selected_uid].action_power *= -1;
+					}
+					else // default case
+					{
 						entities[memory->selected_uid].flags ^= possible_flags_to_set[i];
 					}
 				}
@@ -230,7 +242,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			
 			V2 current_position = v2_rotate(initial_position, i*angle_step);
 
-			ui_element->size.x = 100;
+			ui_element->size.x = 110;
 			ui_element->size.y = 50;
 
 			ui_element->pos.x = (s32)(memory->radial_menu_pos.x + current_position.x)-(ui_element->size.x/2);
@@ -509,6 +521,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// SUB ITERATION
 
 		s32 closest_entity_uid = -1;
+		// TODO: this is for when i decide to do projectiles that jump from enemy to enemy
+		// s32 second_closest_entity_uid;
 		f32 closest_distance = 100000;
 		
 		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
@@ -521,6 +535,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				//TODO: walls/obstacles should not be skipping this 
 				// cuz they need to be detected by the thing that collided with them
 				if(entities[j].flags & E_SKIP_UPDATING) continue;
+				//TODO:maybe not skip the whole iteration but just certain parts?
+				// or then make specific flags to handle each case when necessary
 				if(entity->flags & E_SKIP_PARENT_COLLISION)
 				{
 					if(entity->parent_handle.index == j &&
@@ -533,11 +549,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				Entity* entity2 = &entities[j];
 
 
-
-				// HITBOXES / DAMAGE 
+				//AUTOAIM 
 
 				
-				//TODO: maybe an entity also damages allies so redo this
 				if(entity->team_uid != entity2->team_uid)
 				{
 					if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
@@ -551,61 +565,71 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							closest_distance = distance;
 						}
 					}
+				}
 
-					if(
-						entity->flags & E_DOES_DAMAGE &&
-						entity2->flags & E_RECEIVES_DAMAGE
-					){
-						b32 they_collide = false;
 
-						if(entity->collider_type == COLLIDER_TYPE_SPHERE){
-							if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
-								V3 centers_distance = entity2->pos - entity->pos;
-								f32 centers_distance_magnitude = v3_magnitude(centers_distance);
-								f32 r1 = entity->scale.x*entity->creation_size;
-								f32 r2 = entity2->scale.x*entity2->creation_size;
-								f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
+				// HITBOX / DAMAGE 
 
-								if(overlapping > 0){
-									they_collide = true;									
-								}
-							}else{ // E1 SPHERE E2 CUBE
-								//TODO: handle sphere vs cube case
-								ASSERT(false);
+
+				if(
+					entity->flags & E_DOES_DAMAGE &&
+					entity2->flags & E_RECEIVES_DAMAGE
+				){
+					b32 they_collide = false;
+
+					if(entity->collider_type == COLLIDER_TYPE_SPHERE){
+						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
+							V3 centers_distance = entity2->pos - entity->pos;
+							f32 centers_distance_magnitude = v3_magnitude(centers_distance);
+							f32 r1 = entity->scale.x*entity->creation_size;
+							f32 r2 = entity2->scale.x*entity2->creation_size;
+							f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
+
+							if(overlapping > 0){
+								they_collide = true;									
 							}
-						}else{
-							if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
-								//TODO: handle cube vs sphere case
-								ASSERT(false);
-							}else{ // BOTH CUBES
-								//TODO: handle cube vs cube case
-								ASSERT(false);
-							}
+						}else{ // E1 SPHERE E2 CUBE
+							//TODO: handle sphere vs cube case
+							ASSERT(false);
 						}
-						
-						if(they_collide)
-						{
-							if(entity->flags & E_HEALTH_IS_DAMAGE)
-							{
-								s32 damage = entity->health;
-								entity->health -= MIN(entity2->health, entity->health);
-								entity2->health -= MIN(damage, entity2->health);
-								if(entity->health <= 0) {
-									u32* index_to_kill; 
-									PUSH_BACK(entities_to_kill, memory->temp_arena,index_to_kill); 
-									*index_to_kill = i;
-								}
-							}
-							else
-							{
-								entity2->health -= MIN(entity->action_power, entity2->health);
-							}
+					}else{
+						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
+							//TODO: handle cube vs sphere case
+							ASSERT(false);
+						}else{ // BOTH CUBES
+							//TODO: handle cube vs cube case
+							ASSERT(false);
+						}
+					}
+					
+					if(they_collide)
+					{
+						// if(entity->flags & E_HEALTH_IS_DAMAGE)
+						// {
+						// 	entity->health = CLAMP(0,entity->health - entity2->action_power, entity->max_health);
+						// 	entity2->health = CLAMP(0, entity2->health entity->action_power, entity2->max_health);
+						// 	if(entity->health <= 0) {
+						// 		u32* index_to_kill; 
+						// 		PUSH_BACK(entities_to_kill, memory->temp_arena,index_to_kill); 
+						// 		*index_to_kill = i;
+						// 	}
+						// }
+						// else
+						// {
+							entity2->health = CLAMP(0, entity2->health - entity->action_power, entity2->max_health);
+						// }
 
-							if(entity2->health <= 0) {
-								u32* index_to_kill;
-								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-								*index_to_kill = j;
-							}
+						if(entity2->health <= 0)
+						{
+							u32* index_to_kill;
+							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+							*index_to_kill = j;
+						}
+						if(entity->flags & E_DIE_ON_COLLISION)
+						{
+							u32* index_to_kill;
+							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+							*index_to_kill = i;
 						}
 					}
 				}
@@ -630,14 +654,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				// HEALING
 
 				if(entity->flags & E_HEALER &&
-					entity2->flags & E_RECEIVES_DAMAGE &&
-					!(entity2->flags & E_HEALTH_IS_DAMAGE)
+					entity2->flags & E_RECEIVES_DAMAGE
 				){
 					f32 distance = v3_magnitude(entity2->pos - entity->pos);
 					if(distance < entity->aura_radius){
 						if(entity2->healing_cd <= 0){
-							entity2->health = MIN(entity2->health+1, entity2->max_health);
-							entity2->healing_cd += 5.0f;
+							if(entity2->health < entity2->max_health){
+								entity2->health = MIN(entity2->health+1, entity2->max_health);
+								entity2->healing_cd += 2.0f;
+							}
 						}
 					}
 				}
@@ -811,7 +836,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					{
 						Entity* hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, hitbox);
 						
-						hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|E_POS_IN_FRONT_OF_PARENT|E_SKIP_ROTATION|E_SKIP_DYNAMICS;
+						hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|E_POS_IN_FRONT_OF_PARENT
+							|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_SKIP_PARENT_COLLISION;
 
 						hitbox->color = {0, 0, 0, 0.3f};
 						hitbox->scale = {1,1,1};
@@ -1370,7 +1396,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->pos = {2.0f*current->pos.x/screen_size.x -1, -(2.0f*current->pos.y/screen_size.y -1)};
 			request->rotation.z = current->rotation;
 
-			request->color = 0.5f*current->color;
+			request->color = 0.8f*current->color;
 			request->texinfo_uid = memory->textures.gradient_tex_uid;
 			request->mesh_uid = memory->meshes.plane_mesh_uid;
 		}
