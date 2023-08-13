@@ -538,21 +538,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			//TODO: walls/obstacles should not be skipping this 
 			// cuz they need to be detected by the thing that collided with them
 			if(entities[j].flags & E_SKIP_UPDATING) continue;
-			//TODO:maybe not skip the whole iteration but just certain parts?
-			// or then make specific flags to handle each case when necessary
-			if(entity->flags & E_SKIP_PARENT_COLLISION && 
-				entity->parent_handle.index == j &&
-				entity->parent_handle.generation == generations[j]
-			){
-				continue;
-			}
-			if(entities[j].flags & E_SKIP_PARENT_COLLISION &&
-				entities[j].parent_handle.index == i &&
-				entities[j].parent_handle.generation == generations[i]
-			){
-				continue;
-			}
-
+			
 			Entity* entity2 = &entities[j];
 
 
@@ -577,82 +563,86 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// HITBOX / DAMAGE 
 
+			if(entity->flags & E_RECEIVES_DAMAGE)
+			{
+				if(
+					entity2->flags & E_DOES_DAMAGE &&
+					entity->parent_handle != entity2->parent_handle &&
+					(
+						!(entity2->flags & E_SKIP_PARENT_COLLISION) ||
+						entity2->parent_handle.index != i ||
+						entity2->parent_handle.generation != generations[i]
+					)
+				){
+					b32 they_collide = false;
 
-			if(
-				entity2->flags & E_DOES_DAMAGE &&
-				entity->flags & E_RECEIVES_DAMAGE &&
-				entity->parent_handle != entity2->parent_handle
-			){
-				b32 they_collide = false;
+					if(entity->collider_type == COLLIDER_TYPE_SPHERE){
+						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
+							V3 centers_distance = entity2->pos - entity->pos;
+							f32 centers_distance_magnitude = v3_magnitude(centers_distance);
+							f32 r1 = entity->scale.x*entity->creation_size;
+							f32 r2 = entity2->scale.x*entity2->creation_size;
+							f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
 
-				if(entity->collider_type == COLLIDER_TYPE_SPHERE){
-					if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // BOTH SPHERES
-						V3 centers_distance = entity2->pos - entity->pos;
-						f32 centers_distance_magnitude = v3_magnitude(centers_distance);
-						f32 r1 = entity->scale.x*entity->creation_size;
-						f32 r2 = entity2->scale.x*entity2->creation_size;
-						f32 overlapping =   (r1 + r2) - centers_distance_magnitude;
-
-						if(overlapping > 0){
-							they_collide = true;									
+							if(overlapping > 0){
+								they_collide = true;									
+							}
+						}else{ // E1 SPHERE E2 CUBE
+							//TODO: handle sphere vs cube case
+							ASSERT(false);
 						}
-					}else{ // E1 SPHERE E2 CUBE
-						//TODO: handle sphere vs cube case
-						ASSERT(false);
+					}else{
+						if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
+							//TODO: handle cube vs sphere case
+							ASSERT(false);
+						}else{ // BOTH CUBES
+							//TODO: handle cube vs cube case
+							ASSERT(false);
+						}
 					}
-				}else{
-					if(entity2->collider_type == COLLIDER_TYPE_SPHERE){ // E1 CUBE E2 SPHERE
-						//TODO: handle cube vs sphere case
-						ASSERT(false);
-					}else{ // BOTH CUBES
-						//TODO: handle cube vs cube case
-						ASSERT(false);
-					}
-				}
-				
-				if(they_collide)
-				{
-					entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
-
-					if(entity->health <= 0)
+					
+					if(they_collide)
 					{
-						u32* index_to_kill;
-						PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-						*index_to_kill = i;
-					}
-				}
-			}
+						entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
 
-			
-			// TOXIC ENTITIES INFECTING
-
-
-			if(entity2->flags & E_TOXIC && 
-				!(entity->flags & E_TOXIC_EMITTER) &&
-				(entity->flags & E_RECEIVES_DAMAGE)
-			){
-				f32 distance = v3_magnitude(entity2->pos - entity->pos);
-				if(distance < entity->aura_radius){
-					entity->toxic_time_left = 6.0f;
-					entity->flags |= E_TOXIC;
-				}
-			}
-
-
-			// HEALING
-
-			if(entity2->flags & E_HEALER &&
-				entity->flags & E_RECEIVES_DAMAGE
-			){
-				f32 distance = v3_magnitude(entity2->pos - entity->pos);
-				if(distance < entity->aura_radius){
-					if(entity->healing_cd <= 0){
-						if(entity->health < entity->max_health){
-							entity->health = MIN(entity->health+entity2->action_power, entity->max_health);
-							entity->healing_cd += 2.0f;
+						if(entity->health <= 0)
+						{
+							u32* index_to_kill;
+							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+							*index_to_kill = i;
 						}
 					}
 				}
+
+				
+				// TOXIC ENTITIES INFECTING
+
+
+				if(entity2->flags & E_TOXIC && 
+					!(entity->flags & E_TOXIC_EMITTER)
+				){
+					f32 distance = v3_magnitude(entity2->pos - entity->pos);
+					if(distance < entity->aura_radius){
+						entity->toxic_time_left = 6.0f;
+						entity->flags |= E_TOXIC;
+					}
+				}
+
+
+				// HEALING
+
+				if(entity2->flags & E_HEALER 
+				){
+					f32 distance = v3_magnitude(entity2->pos - entity->pos);
+					if(distance < entity->aura_radius){
+						if(entity->healing_cd <= 0){
+							if(entity->health < entity->max_health){
+								entity->health = MIN(entity->health+entity2->action_power, entity->max_health);
+								entity->healing_cd += 2.0f;
+							}
+						}
+					}
+				}	
 			}
 
 
@@ -661,7 +651,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			
 			if(entity->flags & E_DETECT_COLLISIONS &&
-				entity2->flags & E_HAS_COLLIDER
+				entity2->flags & E_HAS_COLLIDER && (
+					!(entity->flags & E_SKIP_PARENT_COLLISION) ||
+					entity->parent_handle.index != j ||
+					entity->parent_handle.generation != generations[j]
+				)
 			){
 				//TODO: collision code
 				b32 they_collide = false;

@@ -29,7 +29,7 @@ struct  Object3d{
 };
 
 #define MAX_ENTITIES 5000
-#define MAX_UI 1000
+#define MAX_UI 100
 enum ENTITY_TYPE{
 	ENTITY_FORGOR_TO_ASSIGN_TYPE,
 	ENTITY_UNIT,
