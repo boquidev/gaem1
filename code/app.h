@@ -58,6 +58,7 @@ struct Element_handle
 	u32 index;
 	u32 generation; // this value updates when the entity is deleted
 };
+typedef Element_handle Entity_handle;
 
 internal b32 
 operator ==(Element_handle h1, Element_handle h2){
@@ -126,6 +127,10 @@ struct Entity{
 
 	f32 toxic_time_left;
 	f32 toxic_tick_damage_cd;
+
+	f32 freezing_time_left;
+
+	f32 gravity_field_time_left;
 
 	UNIT_TYPE spawn_unit_type;
 
@@ -235,10 +240,10 @@ struct User_input
 			s32 cursor_primary;
 			s32 cursor_secondary;
 
-			s32 reset;
+			s32 T;
 
-			s32 cancel;
-			s32 move;
+			s32 F;
+			s32 space_bar;
 
 			s32 d_up;
 			s32 d_down;

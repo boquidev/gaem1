@@ -935,13 +935,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 								holding_inputs.d_down = is_down;
 							break;
 							case VK_SPACE:
-								holding_inputs.move = is_down;
+								holding_inputs.space_bar = is_down;
 								break;
 							case 'F':
-								holding_inputs.cancel = is_down;
+								holding_inputs.F = is_down;
 								break;
 							case 'T':
-								holding_inputs.reset = is_down;
+								holding_inputs.T = is_down;
 								break;
 							case 'Q':
 								holding_inputs.L = is_down;
