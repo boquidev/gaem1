@@ -382,6 +382,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	memory->debug_active_entities_count = 0;
 	f32 closest_t = {0};
 	b32 first_intersection = false;
+	if(memory->closest_entity.index == (u32)memory->selected_uid){
+		memory->closest_entity = {0};
+	}
 	Entity_handle last_frame_closest_entity = memory->closest_entity;
 	memory->is_valid_grab = true;
 	UNTIL(i, MAX_ENTITIES)
@@ -593,11 +596,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		V3 grab_pos = {0};
 		if(last_frame_closest_entity.index == i)
 		{
-			if(memory->selected_uid >= 0 && is_handle_valid(last_frame_closest_entity, generations))
-			{
+			if(
+				memory->selected_uid >= 0 && 
+				is_handle_valid(last_frame_closest_entity, generations) &&
+				!(entities[memory->selected_uid].flags & E_STICK_TO_ENTITY)
+			){
 				test_grab = true;
 				V3 distance_vector = entity->pos - entities[memory->selected_uid].pos;
-				V3 final_relative_pos = 2.5f * v3_normalize(distance_vector);
+				V3 final_relative_pos = (0.5f + entities[memory->selected_uid].scale.x + entity->scale.x) * v3_normalize(distance_vector);
 				grab_pos = entities[memory->selected_uid].pos + final_relative_pos;
 
 			}else{
@@ -606,7 +612,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 		f32 closest_entity_distance;
-		if((u32)memory->selected_uid == i)
+		if((u32)memory->selected_uid == i && is_handle_valid(last_frame_closest_entity, generations))
 		{
 			closest_entity_distance = v3_magnitude(entities[last_frame_closest_entity.index].pos - entity->pos);
 		}else{
@@ -648,7 +654,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				if(
 					i == (u32)memory->selected_uid && 
-					!(entity2->flags & (E_STICK_TO_ENTITY|E_DOES_DAMAGE)) 
+					!(entity2->flags & (E_STICK_TO_ENTITY|E_DOES_DAMAGE)) &&
+					!entity2->is_grabbing && 
+					j != global_player_handle.index
 				)
 				{
 					if(distance < closest_entity_distance)
@@ -1137,16 +1145,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_STICK_TO_ENTITY)
 		{
-			if(is_handle_valid(entity->entity_to_stick, generations))
-			{
+			if(is_handle_valid(entity->entity_to_stick, generations) && 
+				entities[entity->entity_to_stick.index].is_grabbing
+			){
 				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
 				f32 angle_offset = v2_angle({sticked_entity->looking_direction.x, sticked_entity->looking_direction.z});
 				V3 final_relative_pos = 
 					v3_rotate_y(
-						{2.5f, 0, 0}, 
+						{0.5f + entity->scale.x + sticked_entity->scale.x, 0, 0}, 
 						entity->relative_angle - angle_offset
 					);
 				entity->pos = sticked_entity->pos + final_relative_pos;
+				entity->target_direction = sticked_entity->target_direction;
 			}else{
 				entity->flags &= (0xffffffffffffffff ^ E_STICK_TO_ENTITY);
 			}
@@ -1250,12 +1260,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// STICK SELECTED ENTITY TO THE CLOSEST ONE
 
 		//TODO: highlight the closest entity
-		if(input->F == 120){
+		if(input->space_bar == 1){
 			//TODO: better put a boolean that indicates that this entity will drop all held entities 
 			// generations[memory->selected_uid]++;	
+			selected_entity->is_grabbing = false;
 
 		}
-		else if(input->F == -1)
+		if(input->F == -1)
 		{
 			Entity* entity_to_grab = &entities[memory->closest_entity.index];
 			if(
@@ -1269,6 +1280,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				entity_to_grab->entity_to_stick = {(u32)memory->selected_uid, generations[memory->selected_uid]};
 				
 				selected_entity->flags |= E_LOOK_TARGET_WHILE_MOVING;
+				selected_entity->is_grabbing = true;
 				V2 relative_distance = {
 					entity_to_grab->pos.x - selected_entity->pos.x,
 					-(entity_to_grab->pos.z - selected_entity->pos.z)
@@ -1384,12 +1396,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// SHOW FUTURE POSITION OF THE ENTITY THAT IS BEING GRABBED 
 
-	if(memory->selected_uid > 0 && memory->input->F > 0 )
+	if(memory->selected_uid > 0 && memory->input->F > 0 && is_handle_valid(memory->closest_entity, memory->entity_generations))
 	{	
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
 		Entity* possible_e_to_grab = &memory->entities[memory->closest_entity.index];
 		V3 distance_vector = possible_e_to_grab->pos - selected_entity->pos;
-		V3 final_relative_pos = 2.5f * v3_normalize(distance_vector);
+		V3 final_relative_pos = (0.5f + possible_e_to_grab->scale.x + selected_entity->scale.x) * v3_normalize(distance_vector);
 
 		PUSH_BACK(render_list, memory->temp_arena, request);
 		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;

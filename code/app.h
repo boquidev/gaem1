@@ -143,8 +143,8 @@ struct Entity{
 	u32 team_uid;
 	
 	Entity_handle entity_to_stick;
-	// f32 relative_distance;
 	f32 relative_angle;
+	b32 is_grabbing;
 	
 	f32 creation_size;
 	f32 creation_delay;
