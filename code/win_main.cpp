@@ -940,6 +940,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							case 'F':
 								holding_inputs.F = is_down;
 								break;
+							case 'R':
+								holding_inputs.pause = is_down;
+								break;
 							case 'T':
 								holding_inputs.T = is_down;
 								break;

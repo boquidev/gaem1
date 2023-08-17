@@ -288,6 +288,8 @@ v2_angle(V2 v)
 {
     return ATAN2F(v.y, v.x);
 }
+internal f32
+v2_angle(f32 x, f32 y){return v2_angle({x,y});}
 
 union Rect
 {

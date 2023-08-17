@@ -167,7 +167,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// CREATING RADIAL MENU
 
-	#define MENU_RADIUS 200
+	#define MENU_RADIUS 300
 
 	if(input->L == 1){
 		// memory->radial_menu_pos = input->cursor_pixels_pos;
@@ -193,6 +193,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_FREEZING_ACTIONS,
 			E_HIT_SPAWN_GRAVITY_FIELD,
 			E_AUTO_AIM_BOSS,
+			E_STICK_TO_ENTITY
 		};
 
 		char* button_text[] = {
@@ -210,6 +211,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"freezing abilities",
 			"hits spawn gravity field",
 			"autoaim boss",
+			"stick to parent",
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -289,7 +291,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	
 	// GAME PAUSED SO SKIP UPDATING
 
-	if(input->F == 1) memory->is_paused = !memory->is_paused;
+	if(input->pause == 1) memory->is_paused = !memory->is_paused;
 
 	if(input->debug_up) memory->teams_resources[0]++;
 
@@ -574,8 +576,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// SUB ITERATION
 
-		s32 closest_entity_uid = -1;
-		f32 closest_distance = 100000;
+		f32 closest_entity_distance;
+		if(is_handle_valid(entity->closest_entity_handle, generations)){
+			closest_entity_distance = v3_magnitude(entities[entity->closest_entity_handle.index].pos - entity->pos);
+		}else{
+			closest_entity_distance = 100000;	
+		}
+
+		s32 closest_enemy_uid = -1;
+		f32 closest_enemy_distance = 100000;
 
 		s32 closest_jump_target_uid = -1;
 		f32 closest_jump_distance = 100000;
@@ -594,22 +603,36 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			V3 distance_vector = entity2->pos - entity->pos;
 			f32 distance = v3_magnitude(distance_vector);
 
-
-			//AUTOAIM 
-
 			
 			if(entity->team_uid != entity2->team_uid)
 			{
+				//AUTOAIM 
+
+
 				if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
 				{
-					if(closest_entity_uid < 0){
-						closest_entity_uid = j;
-						closest_distance = distance;
-					}else if(distance < closest_distance){
-						closest_entity_uid = j;
-						closest_distance = distance;
+					if(closest_enemy_uid < 0){
+						closest_enemy_uid = j;
+						closest_enemy_distance = distance;
+					}else if(distance < closest_enemy_distance){
+						closest_enemy_uid = j;
+						closest_enemy_distance = distance;
 					}
 				}
+			}else{
+				// CLOSEST ENTITY TO STICK
+
+				if(
+					!(entity2->flags & (E_STICK_TO_ENTITY|E_DOES_DAMAGE)) 
+				)
+				{
+					if(distance < closest_entity_distance)
+					{
+						entity->closest_entity_handle = {j, generations[j]};
+						closest_entity_distance = distance;
+					}
+				}
+
 			}
 
 			// POSSIBLE JUMPING TARGETS
@@ -727,7 +750,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(distance < entity->aura_radius){
 						if(entity->healing_cd <= 0){
 							if(entity->health < entity->max_health){
-								entity->health = MIN(entity->health+entity2->action_power, entity->max_health);
+								entity->health = MIN(entity->health-entity2->action_power, entity->max_health);
 								entity->healing_cd += 2.0f;
 							}
 						}
@@ -780,7 +803,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					!(entity->flags & E_SKIP_PARENT_COLLISION) ||
 					entity->parent_handle.index != j ||
 					entity->parent_handle.generation != generations[j]
-				) && (
+				) && ( // THIS IS SO THAT PIERCING PROJECTILES DON'T DIE WITH THE FIRST ENTITY THEY TOUCH
 					!(entity->flags & E_DOES_DAMAGE) ||
 					!(entity2->flags & E_RECEIVES_DAMAGE)
 				)
@@ -866,18 +889,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
 		if(entity->flags & E_AUTO_AIM_BOSS){ 
 			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
-			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_distance < DEFAULT_AUTOAIM_RANGE)){
-				entity->target_direction = entities[closest_entity_uid].pos - entity->pos;
+			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_distance < DEFAULT_AUTOAIM_RANGE)){
+				entity->target_direction = entities[closest_enemy_uid].pos - entity->pos;
 			}else{
 				// friendly
 				if(entity->team_uid == entities[memory->player_uid].team_uid){
-					if(is_handle_valid(generations, global_boss_handle)){
+					if(is_handle_valid(global_boss_handle, generations)){
 						entity->target_direction = entities[global_boss_handle.index].pos - entity->pos;
 					}else{
 						entity->target_direction = {0,0,0};
 					}
 				}else{ // enemy
-					if(is_handle_valid(generations, global_player_handle)){
+					if(is_handle_valid(global_player_handle, generations)){
 						entity->target_direction = entities[global_player_handle.index].pos - entity->pos;
 					}else{
 						entity->target_direction = {0,0,0};
@@ -885,8 +908,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 			}
 		}else{
-			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_entity_uid >= 0) ){
-				entity->target_direction = entities[closest_entity_uid].pos - entity->pos;
+			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_uid >= 0) ){
+				entity->target_direction = entities[closest_enemy_uid].pos - entity->pos;
 			}
 		}
 
@@ -900,7 +923,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(entity->action_cd_time_passed >= entity->action_cd_total_time){
 				entity->action_cd_time_passed -= entity->action_cd_total_time;
 
-				ASSERT(entity->action_angle >= 0 && entity->action_angle <= TAU32);
+				ASSERT(entity->action_angle >= 0 && entity->action_angle < TAU32);
 				f32 angle_step;
 				u32 repetitions = MAX(entity->action_count, 1);
 				V3* target_directions = ARENA_PUSH_STRUCTS(memory->temp_arena, V3, repetitions);
@@ -910,7 +933,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					entity->looking_direction;
 
 				if(repetitions > 1){ // if angle = 360 then two actions will happen in the same spot behind 
-					V3 current_target_direction = v3_rotate_y(normalized_looking_direction,-entity->action_angle/2);
+					V3 current_target_direction = v3_rotate_y(normalized_looking_direction, -entity->action_angle/2);
 					angle_step = entity->action_angle / (repetitions-1);
 					UNTIL(current_angle_i, repetitions)
 					{
@@ -991,22 +1014,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					{
 						Entity* hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, hitbox);
 						
-						hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|E_POS_IN_FRONT_OF_PARENT
+						hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|E_STICK_TO_ENTITY
 							|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_SKIP_PARENT_COLLISION;
 
 						hitbox->color = {0, 0, 0, 0.3f};
 						hitbox->scale = {1,1,1};
 						hitbox->creation_size = 1.0f;
 
-						hitbox->lifetime = delta_time;
+						hitbox->lifetime = 0.5f;
 
 						hitbox->parent_handle.index = i;
 						hitbox->parent_handle.generation = generations[i];
+
+						hitbox->entity_to_stick = hitbox->parent_handle;
 						hitbox->team_uid = entity->team_uid;
 						hitbox->action_power = entity->action_power;
-						hitbox->distance_from_parent = entity->creation_size*entity->scale.x;
 
-						hitbox->pos = entity->pos + hitbox->distance_from_parent*target_directions[current_action_i];
+						hitbox->relative_angle = -(entity->action_angle/2) + (current_action_i*angle_step) ;
+
+						hitbox->pos = entity->pos + target_directions[current_action_i];
 
 						// hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 						hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
@@ -1068,10 +1094,20 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// UPDATE POSITION APPLYING VELOCITY
 
-		if(entity->flags & E_POS_IN_FRONT_OF_PARENT){
-			if(is_handle_valid(generations, entity->parent_handle)){
-				Entity* parent = entity_from_handle(entities, generations, entity->parent_handle);
-				entity->pos = parent->pos + entity->distance_from_parent*v3_normalize(parent->looking_direction);
+		if(entity->flags & E_STICK_TO_ENTITY)
+		{
+			if(is_handle_valid(entity->entity_to_stick, generations))
+			{
+				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
+				f32 angle_offset = v2_angle({sticked_entity->looking_direction.x, sticked_entity->looking_direction.z});
+				V3 final_relative_pos = 
+					v3_rotate_y(
+						{2.0f, 0, 0}, 
+						entity->relative_angle - angle_offset
+					);
+				entity->pos = sticked_entity->pos + final_relative_pos;
+			}else{
+				entity->flags &= (0xffffffffffffffff ^ E_STICK_TO_ENTITY);
 			}
 		}else{ // DEFAULT CASE
 			if(!(entity->flags & E_NOT_MOVE)){
@@ -1165,11 +1201,43 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 	}
 
-	// COLOR AND LOOKING DIRECTION OF SELECTED ENTITY
 	
 	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &entities[memory->selected_uid];
-		selected_entity->color = {0,0.7f,0,1};
+
+
+		// STICK SELECTED ENTITY TO THE CLOSEST ONE
+
+		//TODO: highlight the closest entity
+		if(input->F == 120){
+			//TODO: better put a boolean that indicates that this entity will drop all held entities 
+			generations[memory->selected_uid]++;	
+
+		}
+		else if(input->F == -1)
+		{
+			Entity* entity_to_stick = &entities[selected_entity->closest_entity_handle.index];
+			if(
+				selected_entity->closest_entity_handle != global_player_handle &&
+				entity_to_stick->team_uid == entities[memory->player_uid].team_uid
+			){
+				selected_entity->closest_entity_handle = {0};
+				// selected_entity->entity_to_stick = selected_entity->closest_entity_handle;
+				entity_to_stick->flags |= E_STICK_TO_ENTITY;
+				entity_to_stick->entity_to_stick = {(u32)memory->selected_uid, generations[memory->selected_uid]};
+				
+				selected_entity->flags |= E_LOOK_TARGET_WHILE_MOVING;
+				V2 relative_distance = {
+					entity_to_stick->pos.x - selected_entity->pos.x,
+					-(entity_to_stick->pos.z - selected_entity->pos.z)
+					};
+				f32 angle_offset = v2_angle(selected_entity->looking_direction.x, selected_entity->looking_direction.z);
+				entity_to_stick->relative_angle = v2_angle(relative_distance) + angle_offset;
+			}
+		}
+		
+		// COLOR AND LOOKING DIRECTION OF SELECTED ENTITY
+		selected_entity->color = {0, 0.7f, 0, 1};
 
 		if( input->cursor_secondary > 0){
 			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))

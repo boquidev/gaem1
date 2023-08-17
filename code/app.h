@@ -141,8 +141,13 @@ struct Entity{
 
 	Element_handle parent_handle;
 	u32 team_uid;
+
+	// TODO: this is only used by the selected entity (for now at least)
+		Entity_handle closest_entity_handle;
 	
-	f32 distance_from_parent;
+	Entity_handle entity_to_stick;
+	// f32 relative_distance;
+	f32 relative_angle;
 	
 	f32 creation_size;
 	f32 creation_delay;
@@ -187,7 +192,7 @@ last_inactive_entity(Entity entities[]){
 
 //TODO: use this
 internal b32
-is_handle_valid(u32 entity_generations[], Element_handle handle)
+is_handle_valid(Element_handle handle, u32 entity_generations[])
 {
 	if(!handle.index && !handle.generation) return false;
 	else return entity_generations[handle.index] == handle.generation;
@@ -244,6 +249,7 @@ struct User_input
 
 			s32 F;
 			s32 space_bar;
+			s32 pause;
 
 			s32 d_up;
 			s32 d_down;
