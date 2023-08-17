@@ -141,9 +141,6 @@ struct Entity{
 
 	Element_handle parent_handle;
 	u32 team_uid;
-
-	// TODO: this is only used by the selected entity (for now at least)
-		Entity_handle closest_entity_handle;
 	
 	Entity_handle entity_to_stick;
 	// f32 relative_distance;
@@ -386,6 +383,9 @@ struct App_memory
 	s32 clicked_uid;
 	s32 selected_uid;
 	u32 last_inactive_entity;
+
+	Entity_handle closest_entity;
+	b32 is_valid_grab;
 
 	u32* entity_generations;
 

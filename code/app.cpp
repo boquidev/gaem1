@@ -376,12 +376,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 // MAIN ENTITY UPDATE LOOP
 
-	if(input->d_right == 1){
+	if(input->debug_down == 1){
 		ASSERT(true);
 	}
 	memory->debug_active_entities_count = 0;
 	f32 closest_t = {0};
 	b32 first_intersection = false;
+	Entity_handle last_frame_closest_entity = memory->closest_entity;
+	memory->is_valid_grab = true;
 	UNTIL(i, MAX_ENTITIES)
 	{
 		
@@ -393,6 +395,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// CREATION TIME
 		// i don't like that this must be done even with entities that skip_updating but whatevs
 
+		//TODO: the player is not being set at 1.0f but at 1.088888888f
 		if(entities[i].creation_size < 1.0f)
 		{
 			if(entities[i].creation_delay <= 0){
@@ -576,18 +579,39 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// SUB ITERATION
 
-		f32 closest_entity_distance;
-		if(is_handle_valid(entity->closest_entity_handle, generations)){
-			closest_entity_distance = v3_magnitude(entities[entity->closest_entity_handle.index].pos - entity->pos);
-		}else{
-			closest_entity_distance = 100000;	
-		}
-
 		s32 closest_enemy_uid = -1;
 		f32 closest_enemy_distance = 100000;
 
 		s32 closest_jump_target_uid = -1;
 		f32 closest_jump_distance = 100000;
+
+
+		//TODO: check if the entity i am processing here is the same that i will check when F == -1
+		// cuz here i may be checking last frame's closest entity
+		
+		b32 test_grab = false;
+		V3 grab_pos = {0};
+		if(last_frame_closest_entity.index == i)
+		{
+			if(memory->selected_uid >= 0 && is_handle_valid(last_frame_closest_entity, generations))
+			{
+				test_grab = true;
+				V3 distance_vector = entity->pos - entities[memory->selected_uid].pos;
+				V3 final_relative_pos = 2.5f * v3_normalize(distance_vector);
+				grab_pos = entities[memory->selected_uid].pos + final_relative_pos;
+
+			}else{
+				memory->is_valid_grab = false;
+			}
+		}
+
+		f32 closest_entity_distance;
+		if((u32)memory->selected_uid == i)
+		{
+			closest_entity_distance = v3_magnitude(entities[last_frame_closest_entity.index].pos - entity->pos);
+		}else{
+			closest_entity_distance = 100000;	
+		}
 		
 		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
 		// if(entity->flags & (E_DOES_DAMAGE|E_AUTO_AIM_CLOSEST|E_DETECT_COLLISIONS))
@@ -623,16 +647,33 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				// CLOSEST ENTITY TO STICK
 
 				if(
+					i == (u32)memory->selected_uid && 
 					!(entity2->flags & (E_STICK_TO_ENTITY|E_DOES_DAMAGE)) 
 				)
 				{
 					if(distance < closest_entity_distance)
 					{
-						entity->closest_entity_handle = {j, generations[j]};
+						memory->closest_entity = {j, generations[j]};
 						closest_entity_distance = distance;
 					}
 				}
 
+			}
+			
+
+			// CHECKING IF THE AREA WHERE THE ENTITY WILL BE PLACED AFTER GRABBING IT IS CLEARED
+
+			if(test_grab)
+			{
+
+				if(
+					0 < sphere_vs_sphere(
+						grab_pos, entity->creation_size*entity->scale.x, 
+						entity2->pos, entity2->creation_size*entity2->scale.x
+					)
+				){
+					memory->is_valid_grab = false;
+				}
 			}
 
 			// POSSIBLE JUMPING TARGETS
@@ -1102,7 +1143,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				f32 angle_offset = v2_angle({sticked_entity->looking_direction.x, sticked_entity->looking_direction.z});
 				V3 final_relative_pos = 
 					v3_rotate_y(
-						{2.0f, 0, 0}, 
+						{2.5f, 0, 0}, 
 						entity->relative_angle - angle_offset
 					);
 				entity->pos = sticked_entity->pos + final_relative_pos;
@@ -1211,28 +1252,29 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		//TODO: highlight the closest entity
 		if(input->F == 120){
 			//TODO: better put a boolean that indicates that this entity will drop all held entities 
-			generations[memory->selected_uid]++;	
+			// generations[memory->selected_uid]++;	
 
 		}
 		else if(input->F == -1)
 		{
-			Entity* entity_to_stick = &entities[selected_entity->closest_entity_handle.index];
+			Entity* entity_to_grab = &entities[memory->closest_entity.index];
 			if(
-				selected_entity->closest_entity_handle != global_player_handle &&
-				entity_to_stick->team_uid == entities[memory->player_uid].team_uid
+				memory->is_valid_grab &&
+				memory->closest_entity != global_player_handle &&
+				entity_to_grab->team_uid == entities[memory->player_uid].team_uid
 			){
-				selected_entity->closest_entity_handle = {0};
-				// selected_entity->entity_to_stick = selected_entity->closest_entity_handle;
-				entity_to_stick->flags |= E_STICK_TO_ENTITY;
-				entity_to_stick->entity_to_stick = {(u32)memory->selected_uid, generations[memory->selected_uid]};
+				memory->closest_entity = {0};
+				// selected_entity->entity_to_grab = selected_entity->closest_entity_handle;
+				entity_to_grab->flags |= E_STICK_TO_ENTITY;
+				entity_to_grab->entity_to_stick = {(u32)memory->selected_uid, generations[memory->selected_uid]};
 				
 				selected_entity->flags |= E_LOOK_TARGET_WHILE_MOVING;
 				V2 relative_distance = {
-					entity_to_stick->pos.x - selected_entity->pos.x,
-					-(entity_to_stick->pos.z - selected_entity->pos.z)
+					entity_to_grab->pos.x - selected_entity->pos.x,
+					-(entity_to_grab->pos.z - selected_entity->pos.z)
 					};
 				f32 angle_offset = v2_angle(selected_entity->looking_direction.x, selected_entity->looking_direction.z);
-				entity_to_stick->relative_angle = v2_angle(relative_distance) + angle_offset;
+				entity_to_grab->relative_angle = v2_angle(relative_distance) + angle_offset;
 			}
 		}
 		
@@ -1338,6 +1380,31 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
 		}
+	}
+
+	// SHOW FUTURE POSITION OF THE ENTITY THAT IS BEING GRABBED 
+
+	if(memory->selected_uid > 0 && memory->input->F > 0 )
+	{	
+		Entity* selected_entity = &memory->entities[memory->selected_uid];
+		Entity* possible_e_to_grab = &memory->entities[memory->closest_entity.index];
+		V3 distance_vector = possible_e_to_grab->pos - selected_entity->pos;
+		V3 final_relative_pos = 2.5f * v3_normalize(distance_vector);
+
+		PUSH_BACK(render_list, memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+		//TODO: make this color be green or blue depending if it can grab or not the entity
+		if(memory->is_valid_grab){
+			request->object3d.color = {0,1,0,0.3f};
+		}else{
+			request->object3d.color = {1,0,0,0.3f};
+		}
+		
+		request->object3d.scale = {1,1,1};
+		request->object3d.pos = selected_entity->pos + final_relative_pos;
+
+		request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 	}
 
 	FOREACH(Renderer_request, current_render_request, delayed_render_list){
