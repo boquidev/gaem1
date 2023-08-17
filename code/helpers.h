@@ -253,7 +253,6 @@ static union {
 		// MELEE FLAGS
 			E_LIFE_STEAL,
 		
-			E_TOXIC, // TODO: maybe this should not be a flag but a boolean or a separate flag state
 		E_TOXIC_EMITTER,
 		E_TOXIC_DAMAGE_INMUNE,
 		

@@ -35,7 +35,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->action_angle = TAU32/4;
 		player->action_cd_total_time = 3.0f;
 		player->action_cd_time_passed = 2.0f;
-		player->action_max_distance = 5.0f;
+		player->action_range = 5.0f;
 
 		player->aura_radius = 3.0f;
 
@@ -72,7 +72,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->action_count = 1;
 		boss->action_angle = TAU32/4;
 		boss->action_cd_total_time = 0.5f;
-		boss->action_max_distance = 5.0f;
+		boss->action_range = 5.0f;
 		boss->aura_radius = 3.0f;
 
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
@@ -184,7 +184,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_MELEE_ATTACK,
 			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
 			E_CAN_MANUALLY_MOVE,
-			E_TOXIC|E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
+			E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
 			E_HEALER,
 			E_GENERATE_RESOURCE,
 			E_PROJECTILE_PIERCE_TARGETS,
@@ -221,7 +221,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				if(memory->selected_uid >= 0)
 				{
-					if(possible_flags_to_set[i] & E_TOXIC) // toxic emitter
+					if(possible_flags_to_set[i] & E_TOXIC_EMITTER) // toxic emitter
 					{
 						if(entities[memory->selected_uid].flags & E_TOXIC_EMITTER){
 							entities[memory->selected_uid].flags &= possible_flags_to_set[i] ^ 0xffffffffffffffff;
@@ -443,14 +443,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		
 
+		// TOXIC LIFETIME
 
-		// PROCESSING TOXIC ENTITIES
+		if(entity->toxic_time_left)
+		{
+			entity->toxic_time_left -= delta_time;
+			if(entity->toxic_time_left <= 0)
+			{
+				entity->toxic_time_left = 0;
+			}
+		}
+		
+
+		// APPLYING TOXIC DAMAGE 
 
 		// TODO: i think this should be done when assigning the flag
 		// but my current ui system is kinda tedious
 		if(entity->flags & E_TOXIC_EMITTER){
 			entity->toxic_time_left = 0;
-		}else if(entity->flags & E_TOXIC){
+		}else if(entity->toxic_time_left){
 			if(!(entity->flags & E_TOXIC_DAMAGE_INMUNE)){
 				entity->toxic_tick_damage_cd -= delta_time;
 				if(entity->toxic_tick_damage_cd <= 0){
@@ -465,17 +476,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}
 
-		// TOXIC LIFETIME
-
-		if(entity->toxic_time_left)
-		{
-			entity->toxic_time_left -= delta_time;
-			if(entity->toxic_time_left <= 0)
-			{
-				entity->toxic_time_left = 0;
-				entity->flags ^= E_TOXIC;//TODO: isn't this a little superfluous
-			}
-		}
 		
 		// FREEZE TIME
 
@@ -534,6 +534,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_FOLLOW_TARGET && !entity->freezing_time_left)
 		{
+			// TODO: MAKE A SPECIAL CASE FOR PROJECTILES CUZ THEY WILL COMPLETELY STOP IF HOMING + AUTO_AIM
 			entity->normalized_accel = v3_normalize(entity->target_direction);
 		}
 		
@@ -782,13 +783,17 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				
 				// TOXIC ENTITIES INFECTING
 
-
-				if(entity2->flags & E_TOXIC && 
+#define DEFAULT_TOXIC_RADIUS 2.5f
+				if((entity2->flags & E_TOXIC_EMITTER) && 
 					!(entity->flags & E_TOXIC_EMITTER)
 				){
 					if(distance < entity->aura_radius){
 						entity->toxic_time_left = 5.0f;
-						entity->flags |= E_TOXIC;
+					}
+				}else if(entity2->toxic_time_left && !(entity->flags & E_TOXIC_EMITTER))
+				{
+					if(distance < DEFAULT_TOXIC_RADIUS){
+						entity->toxic_time_left = 3.0f;
 					}
 				}
 
@@ -809,7 +814,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				// EXPLOSION
 
-				if(entity2->flags & E_EXPLOSION){
+				if(entity2->flags & E_EXPLOSION)
+				{
 					f32 explosion_radius = entity2->scale.x*entity2->creation_size;
 					if(distance < explosion_radius)
 					{
@@ -817,8 +823,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						f32 result_damage = closeness_to_center*3 + (entity2->action_power);
 						entity->health = CLAMP(0, entity->health - (s32)result_damage, entity->max_health);
 						// f32 outwards_force = 8*(explosion_radius-distance);
-						f32 outwards_force = 30 * closeness_to_center;
-						entity->velocity = entity->velocity - ((outwards_force/distance)*distance_vector);
+						f32 outwards_force = 15 * closeness_to_center;
+						entity->velocity = entity->velocity - (outwards_force*distance_vector);
 
 						if(entity->health <= 0)
 						{
@@ -938,7 +944,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
 		if(entity->flags & E_AUTO_AIM_BOSS){ 
 			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
-			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_distance < DEFAULT_AUTOAIM_RANGE)){
+			if((entity->flags & E_AUTO_AIM_CLOSEST) && 
+				(closest_enemy_distance < DEFAULT_AUTOAIM_RANGE) && 
+				closest_enemy_uid >= 0
+			){
+				
 				entity->target_direction = entities[closest_enemy_uid].pos - entity->pos;
 			}else{
 				// friendly
@@ -965,7 +975,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// COOLDOWN ACTIONS 
 
-
 		// if it is not 0
 		if(!entity->freezing_time_left && entity->action_cd_total_time){
 			entity->action_cd_time_passed += delta_time;
@@ -977,11 +986,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				u32 repetitions = MAX(entity->action_count, 1);
 				V3* target_directions = ARENA_PUSH_STRUCTS(memory->temp_arena, V3, repetitions);
 				f32 looking_direction_length = v3_magnitude(entity->looking_direction);
-				V3 normalized_looking_direction = looking_direction_length ? 
-					entity->looking_direction / looking_direction_length :
-					entity->looking_direction;
+				V3 normalized_looking_direction;
+				if(looking_direction_length){
+					normalized_looking_direction = entity->looking_direction / looking_direction_length;
+				}else{
+					normalized_looking_direction = {1,0,0};
+				} 
 
-				if(repetitions > 1){ // if angle = 360 then two actions will happen in the same spot behind 
+				if(repetitions > 1){ //TODO: if angle = 360 then two actions will happen in the same spot behind 
 					V3 current_target_direction = v3_rotate_y(normalized_looking_direction, -entity->action_angle/2);
 					angle_step = entity->action_angle / (repetitions-1);
 					UNTIL(current_angle_i, repetitions)
@@ -1052,7 +1064,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->team_uid = parent->team_uid;
 						new_bullet->pos = parent->pos;
 						// TODO: go in the direction that parent is looking (the parent's rotation);
-						new_bullet->target_direction = parent->looking_direction;
+						new_bullet->target_direction = target_directions[current_action_i];
 
 						new_bullet->velocity =  (new_bullet->speed/2) * target_directions[current_action_i];
 					}
@@ -1065,23 +1077,30 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						
 						hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|E_STICK_TO_ENTITY
 							|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_SKIP_PARENT_COLLISION;
+						if(entity->flags & E_FREEZING_ACTIONS){
+							hitbox->flags |= P_FREEZING;
+						}
 
 						hitbox->color = {0, 0, 0, 0.3f};
+						//TODO: the size of the hitbox will change depending on the entity stats
 						hitbox->scale = {1,1,1};
+						hitbox->scale = entity->action_range * hitbox->scale;
 						hitbox->creation_size = 1.0f;
 
-						hitbox->lifetime = 0.5f;
+						hitbox->lifetime = delta_time;
 
 						hitbox->parent_handle.index = i;
 						hitbox->parent_handle.generation = generations[i];
 
 						hitbox->entity_to_stick = hitbox->parent_handle;
 						hitbox->team_uid = entity->team_uid;
-						hitbox->action_power = entity->action_power;
 
+						hitbox->action_power = entity->action_power;
 						hitbox->relative_angle = -(entity->action_angle/2) + (current_action_i*angle_step) ;
 
-						hitbox->pos = entity->pos + target_directions[current_action_i];
+						f32 relative_distance = 0.5f + entity->scale.x + hitbox->scale.x;
+
+						hitbox->pos = entity->pos + relative_distance*target_directions[current_action_i];
 
 						// hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 						hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
@@ -1109,6 +1128,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->max_health = 4;
 						new_entity->health = new_entity->max_health;
 						new_entity->action_cd_total_time = 1.0f;
+						new_entity->action_range = 1.0f;
 						new_entity->aura_radius = 3.0f;
 
 						new_entity->parent_handle.index = i;
@@ -1117,8 +1137,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->action_power = 1;
 
 						V3 spawn_direction;
-						if(looking_direction_length > entity->action_max_distance){
-							f32 temp_multiplier = entity->action_max_distance / looking_direction_length;
+						if(looking_direction_length > entity->action_range){
+							f32 temp_multiplier = entity->action_range / looking_direction_length;
 							spawn_direction =  (temp_multiplier * entity->looking_direction);
 						}else{
 							spawn_direction = entity->looking_direction;
@@ -1145,8 +1165,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_STICK_TO_ENTITY)
 		{
-			if(is_handle_valid(entity->entity_to_stick, generations) && 
-				entities[entity->entity_to_stick.index].is_grabbing
+			if(is_handle_valid(entity->entity_to_stick, generations) && (
+					entities[entity->entity_to_stick.index].is_grabbing ||
+					entity->flags & E_DOES_DAMAGE
+				)
 			){
 				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
 				f32 angle_offset = v2_angle({sticked_entity->looking_direction.x, sticked_entity->looking_direction.z});
@@ -1331,30 +1353,36 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 			request->object3d.scale = scale_multiplier * request->object3d.scale;
 
-			if(memory->entities[i].flags & E_TOXIC)
+			if(memory->entities[i].flags & E_TOXIC_EMITTER || memory->entities[i].toxic_time_left)
 			{
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-				request->object3d.color = {0.2f, 0.0f , 0.4f, 1.0f};
-				V3 yoffset = {0,-1,0};
-				request->object3d.pos = memory->entities[i].pos + yoffset;
-				request->object3d.scale = v3_multiply(memory->entities[i].aura_radius, {1,1,1});
-				request->object3d.rotation = {PI32/2,0,0};
+				// V3 yoffset = {0,-1,0};
+				request->object3d.pos = memory->entities[i].pos;// + yoffset;
+				f32 toxic_radius;
+				if(memory->entities[i].flags & E_TOXIC_EMITTER){ 
+					toxic_radius = memory->entities[i].aura_radius;
+				}else{
+					toxic_radius = DEFAULT_TOXIC_RADIUS;
+				}
+				request->object3d.scale = v3_multiply(toxic_radius, {1,0.5f,1});
+				request->object3d.color = {0.2f, 0.0f , 0.4f, 0.3f};
+				// request->object3d.rotation = {PI32/2,0,0};
 				
-				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
+				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
 			if(memory->entities[i].flags & E_HEALER)
 			{
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-				request->object3d.color = {0.0f, 0.5f, 0.1f, 1.0f};
-				V3 yoffset = {0, -1, 0};
-				request->object3d.pos = memory->entities[i].pos + yoffset;
-				request->object3d.scale = v3_multiply(memory->entities[i].aura_radius, {1,1,1});
-				request->object3d.rotation = {PI32/2, 0, 0};
+				// V3 yoffset = {0, -1, 0};
+				request->object3d.pos = memory->entities[i].pos;// + yoffset;
+				request->object3d.scale = v3_multiply(memory->entities[i].aura_radius, {1,0.5,1});
+				request->object3d.color = {0.0f, 0.5f, 0.1f, 0.3f};
+				// request->object3d.rotation = {PI32/2, 0, 0};
 
-				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
+				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
 			if(memory->entities[i].freezing_time_left)

@@ -117,7 +117,7 @@ struct Entity{
 	f32 action_angle;
 
 	f32 action_max_time;
-	f32 action_max_distance;
+	f32 action_range;
 
 		f32 damage_redness;
 
@@ -503,7 +503,7 @@ default_spawner(Entity* out, App_memory* memory){
 	out->friction = 4.0f;
 	out->max_health = 2;
 	out->action_cd_total_time = 2.0f;
-	out->action_max_distance = 5.0f;
+	out->action_range = 5.0f;
 	out->action_count = 2;
 	out->action_angle = TAU32/2;
 	out->spawn_unit_type = UNIT_MELEE;
