@@ -193,7 +193,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_FREEZING_ACTIONS,
 			E_HIT_SPAWN_GRAVITY_FIELD,
 			E_AUTO_AIM_BOSS,
-			E_STICK_TO_ENTITY
+			E_STICK_TO_ENTITY,
+			E_LIFE_STEAL,
 		};
 
 		char* button_text[] = {
@@ -212,6 +213,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"hits spawn gravity field",
 			"autoaim boss",
 			"stick to parent",
+			"lifesteal"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -744,6 +746,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					
 					if(they_collide) // DAMAGING ENTITY
 					{
+						s32 damage_dealt = MIN(entity->health, entity2->action_power);
 						entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
 						if(entity->health <= 0)
 						{
@@ -779,6 +782,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								}
 								entity2->ignore_sphere_target_pos = entity->pos;
 							}
+						}
+						if(entity2->flags & A_STEAL_LIFE){
+							Entity* parent = entity_from_handle(entity2->parent_handle, entities, generations);
+							parent->health = CLAMP(0, parent->health+damage_dealt, parent->max_health);
 						}
 					}
 				}
@@ -1083,6 +1090,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						if(entity->flags & E_FREEZING_ACTIONS){
 							hitbox->flags |= E_FREEZING_ACTIONS;
 						}
+						if(entity->flags & E_LIFE_STEAL){
+							hitbox->flags |= E_LIFE_STEAL;
+						}
+
 						hitbox->max_health = 1;
 						if(entity->flags & E_PROJECTILE_PIERCE_TARGETS){
 							hitbox->max_health += 4;
@@ -1123,6 +1134,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_SKIP_PARENT_COLLISION;
 					if(entity->flags & E_FREEZING_ACTIONS){
 						hitbox->flags |= P_FREEZING;
+					}
+					if(entity->flags & E_LIFE_STEAL){
+						hitbox->flags |= A_STEAL_LIFE;
 					}
 
 					hitbox->color = {1, 1, 1, 0.3f};
@@ -1189,10 +1203,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->pos = spawn_direction + entity->pos;
 						
 						if(entity->team_uid == entities[memory->player_uid].team_uid){//friendly
-							V3 boss_pos = entity_from_handle(entities, generations, global_boss_handle)->pos;
+							V3 boss_pos = entity_from_handle(global_boss_handle, entities, generations)->pos;
 							new_entity->target_direction = boss_pos - new_entity->pos;
 						}else{//enemy
-							V3 player_pos = entity_from_handle(entities, generations, global_player_handle)->pos;
+							V3 player_pos = entity_from_handle(global_player_handle, entities, generations)->pos;
 							new_entity->target_direction = player_pos - new_entity->pos;
 						}
 						

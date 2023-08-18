@@ -252,7 +252,8 @@ static union {
 
 
 		// MELEE FLAGS
-			E_LIFE_STEAL,
+		E_LIFE_STEAL,
+			A_STEAL_LIFE,
 		
 		E_TOXIC_EMITTER,
 		E_TOXIC_DAMAGE_INMUNE,

@@ -196,7 +196,7 @@ is_handle_valid(Element_handle handle, u32 entity_generations[])
 }
 
 internal Entity*
-entity_from_handle(Entity* entities, u32* entity_generations, Element_handle handle){
+entity_from_handle(Element_handle handle, Entity* entities, u32* entity_generations){
 	if(entity_generations[handle.index] == handle.generation)
 		return &entities[handle.index];
 	else
