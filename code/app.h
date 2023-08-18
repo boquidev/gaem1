@@ -100,6 +100,7 @@ struct Entity{
 
 	f32 speed;
 	f32 friction;
+	f32 weight; // currently this is just for the gravity field
 
 	// this is relative to the entity position
 	V3 looking_direction;

@@ -45,6 +45,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->team_uid = 0;
 		player->speed = 5.0f;
 		player->friction = 1.0f;
+		player->weight = 10.0f;
 		player->type = ENTITY_UNIT;
 
 		player->mesh_uid = memory->meshes.player_mesh_uid;
@@ -74,6 +75,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->action_cd_total_time = 0.5f;
 		boss->action_range = 5.0f;
 		boss->aura_radius = 3.0f;
+
+		boss->weight = 10.0f;
 
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
 		boss->texinfo_uid = memory->textures.default_tex_uid;
@@ -854,8 +857,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				// TODO: bullets looking direction should stay in the direction they are moving
 				// when they go out of the field
 
-				entity->target_direction = distance_vector;
-				entity->velocity = entity->velocity + (delta_time*(distance_vector-entity->velocity));
+				ASSERT(entity->weight);
+
+				entity->velocity = entity->velocity + ((delta_time/entity->weight)*((distance_vector/entity->weight)-(entity->velocity)));
+				if(entity->flags & E_DOES_DAMAGE){
+					entity->target_direction = entity->velocity;
+				}
 				// entity->velocity = entity->velocity + (delta_time*distance_vector);
 			}
 
@@ -1056,6 +1063,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->speed = 150;
 						new_bullet->friction = 4.0f;
 						new_bullet->lifetime = 5.0f;
+						new_bullet->weight = 0.1f;
 						// this is obsolete but useful for debug
 						new_bullet->type = ENTITY_PROJECTILE;
 						new_bullet->mesh_uid = memory->meshes.ball_mesh_uid;
@@ -1182,6 +1190,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						new_entity->speed = 40.0f;
 						new_entity->friction = 5.0f;
+						new_entity->weight = 1.0f;
 						new_entity->max_health = 4;
 						new_entity->health = new_entity->max_health;
 						new_entity->action_cd_total_time = 1.0f;
