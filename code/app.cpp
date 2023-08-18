@@ -758,24 +758,27 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								entity->gravity_field_time_left = 10.0f;
 							}
 						}
-						entity2->health--;
-						if(entity2->health <= 0){
-							u32* index_to_kill;
-							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-							*index_to_kill = j;
-						}else{
-
-							//TODO: push this code to a list to process this outside the main loop
-							entity2->jump_change_direction = true; 
-							if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
-								entity2->ignore_sphere_pos = entity->pos;
-								entity2->ignore_sphere_radius = 0.9f;
+						if(entity2->flags & E_RECEIVES_DAMAGE)
+						{
+							entity2->health--;
+							if(entity2->health <= 0){
+								u32* index_to_kill;
+								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+								*index_to_kill = j;
 							}else{
-								V3 difference = entity->pos - entity2->ignore_sphere_pos;
-								entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
-								entity2->ignore_sphere_radius = entity2->ignore_sphere_radius + v3_magnitude(difference)/2;
+
+								//TODO: push this code to a list to process this outside the main loop
+								entity2->jump_change_direction = true; 
+								if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
+									entity2->ignore_sphere_pos = entity->pos;
+									entity2->ignore_sphere_radius = 0.9f;
+								}else{
+									V3 difference = entity->pos - entity2->ignore_sphere_pos;
+									entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
+									entity2->ignore_sphere_radius = entity2->ignore_sphere_radius + v3_magnitude(difference)/2;
+								}
+								entity2->ignore_sphere_target_pos = entity->pos;
 							}
-							entity2->ignore_sphere_target_pos = entity->pos;
 						}
 					}
 				}
@@ -1035,7 +1038,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 						// health is how many hits can it get before dying
 						if(entity->flags & E_PROJECTILE_PIERCE_TARGETS){
-							new_bullet->max_health += 5;
+							new_bullet->max_health += 4;
 						}
 						if(entity->flags & E_HIT_SPAWN_GRAVITY_FIELD){
 							new_bullet->flags |= P_SPAWN_GRAVITY_FIELD;
@@ -1070,24 +1073,29 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					}
 				}
 				if((entity->flags & E_MELEE_ATTACK))
-				{
+				{	// spawn a pseudo entity that spawns hitboxes each 0.1 second depending on how much health it has
 					UNTIL(current_action_i, repetitions)
 					{
 						Entity* hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, hitbox);
 						
-						hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|E_STICK_TO_ENTITY
-							|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_SKIP_PARENT_COLLISION;
+						hitbox->flags = E_MELEE_HITBOX|E_VISIBLE|E_STICK_TO_ENTITY|
+							E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_SKIP_PARENT_COLLISION;
 						if(entity->flags & E_FREEZING_ACTIONS){
-							hitbox->flags |= P_FREEZING;
+							hitbox->flags |= E_FREEZING_ACTIONS;
 						}
+						hitbox->max_health = 1;
+						if(entity->flags & E_PROJECTILE_PIERCE_TARGETS){
+							hitbox->max_health += 4;
+						}
+						hitbox->health = hitbox->max_health;
 
 						hitbox->color = {0, 0, 0, 0.3f};
 						//TODO: the size of the hitbox will change depending on the entity stats
 						hitbox->scale = {1,1,1};
-						hitbox->scale = entity->action_range * hitbox->scale;
+						hitbox->scale = 2*entity->action_range * hitbox->scale;
 						hitbox->creation_size = 1.0f;
 
-						hitbox->lifetime = delta_time;
+						hitbox->action_cd_total_time = 0.1f;
 
 						hitbox->parent_handle.index = i;
 						hitbox->parent_handle.generation = generations[i];
@@ -1105,6 +1113,41 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						// hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 						hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
 						hitbox->texinfo_uid = memory->textures.white_tex_uid;
+					}
+				}
+				if(entity->flags & E_MELEE_HITBOX)
+				{
+					Entity* hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, hitbox);
+					
+					hitbox->flags = E_VISIBLE|E_DOES_DAMAGE|
+						E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_SKIP_PARENT_COLLISION;
+					if(entity->flags & E_FREEZING_ACTIONS){
+						hitbox->flags |= P_FREEZING;
+					}
+
+					hitbox->color = {1, 1, 1, 0.3f};
+					//TODO: the size of the hitbox will change depending on the entity stats
+					hitbox->scale = entity->scale;
+					hitbox->creation_size = 1.0f;
+
+					hitbox->lifetime = delta_time;
+
+					hitbox->parent_handle = entity->parent_handle;
+
+					hitbox->team_uid = entity->team_uid;
+
+					hitbox->action_power = entity->action_power;
+
+					hitbox->pos = entity->pos;
+
+					// hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+					hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
+					hitbox->texinfo_uid = memory->textures.white_tex_uid;
+					
+					entity->health -= 1;
+					if(entity->health <= 0){
+						u32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+						*index_to_kill = i;
 					}
 				}
 				if(entity->flags & E_GENERATE_RESOURCE){// RESOURCE GENERATOR
@@ -1167,7 +1210,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			if(is_handle_valid(entity->entity_to_stick, generations) && (
 					entities[entity->entity_to_stick.index].is_grabbing ||
-					entity->flags & E_DOES_DAMAGE
+					entity->flags & E_MELEE_HITBOX
 				)
 			){
 				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
@@ -1481,7 +1524,6 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	UNTIL(i, MAX_ENTITIES)
 	{
 		if((memory->entities[i].flags & E_VISIBLE) && 
-			(memory->entities[i].type != ENTITY_PROJECTILE) && 
 			(memory->entities[i].type != ENTITY_OBSTACLE)
 		){
 			String health_string = number_to_string(memory->entities[i].health, memory->temp_arena);
