@@ -58,7 +58,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		default_object3d(boss);
 		boss->flags = 
 			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|E_NOT_MOVE|
-			E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_LOOK_TARGET_WHILE_MOVING|E_SPAWN_ENTITIES;
+			E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_SPAWN_ENTITIES;
 
 		boss->speed = 60.0f;
 		boss->friction = 10.0f;
@@ -198,6 +198,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_AUTO_AIM_BOSS,
 			E_STICK_TO_ENTITY,
 			E_LIFE_STEAL,
+			E_HAS_SHIELD,
 		};
 
 		char* button_text[] = {
@@ -216,7 +217,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"hits spawn gravity field",
 			"autoaim boss",
 			"stick to parent",
-			"lifesteal"
+			"lifesteal",
+			"add shield"
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -494,6 +496,54 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			entity->gravity_field_time_left = MAX(0, entity->gravity_field_time_left - delta_time);
 		}
 
+		// SHIELD COOLDOWN
+
+		if(entity->flags & E_HAS_SHIELD)
+		{
+			if(!entity->shield_active)
+			{
+				entity->shield_cd = MAX(0, entity->shield_cd-delta_time);
+
+				if(entity->shield_cd <= 0)
+				{
+					entity->shield_active = true;
+					Entity* new_shield; PUSH_BACK(entities_to_create, memory->temp_arena, new_shield);
+
+					new_shield->flags = 
+						E_VISIBLE|E_NOT_TARGETABLE|E_RECEIVES_DAMAGE|P_SHIELD|
+						E_TOXIC_DAMAGE_INMUNE|E_STICK_TO_ENTITY|E_SKIP_DYNAMICS
+						// E_IGNORE_ALLIES
+					;
+					
+					new_shield->max_health = entity->action_power;
+					new_shield->health = new_shield->max_health;
+
+					//speed could be by the one who shoots
+					new_shield->speed = 40.0f;
+					new_shield->friction = 4.0f;
+					new_shield->weight = 1.0f;
+					// this is obsolete but useful for debug
+					new_shield->mesh_uid = memory->meshes.shield_mesh_uid;
+					new_shield->texinfo_uid = memory->textures.white_tex_uid;
+					new_shield->color = {0.0f,0.6f,0.6f,0.5};
+					new_shield->scale = {2.0f,2.0f,2.0f};
+
+					new_shield->creation_delay = 0.5f;
+
+					new_shield->aura_radius = 2.0f;
+
+					Entity* parent = entity;
+					new_shield->parent_handle.index = i;
+					new_shield->parent_handle.generation = generations[i];
+					new_shield->entity_to_stick = new_shield->parent_handle;
+					new_shield->team_uid = parent->team_uid;
+					new_shield->pos = parent->pos;
+					// TODO: go in the direction that parent is looking (the parent's rotation);
+				}
+			}
+			
+		}
+
 
 
 		// PROJECTILE IGNORE SPHERE
@@ -561,16 +611,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				//slowing_down
 			}else{
-				if(entity->flags & E_LOOK_TARGET_WHILE_MOVING)
+				if(entity->flags & E_LOOK_IN_THE_MOVING_DIRECTION)
 				{
-					// look at the target
-					//TODO: handle case when entity->target_direction == 0
-					V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
-					entity->looking_direction = entity->looking_direction + delta_looking_direction;
-				}else{
 					// look in the moving direction
 					//TODO: handle case when entity->velocity == 0
 					V3 delta_looking_direction = (10*delta_time*(entity->velocity - entity->looking_direction));
+					entity->looking_direction = entity->looking_direction + delta_looking_direction;
+				}
+				else // DEFAULT CASE
+				{ 
+					// look at the target
+					//TODO: handle case when entity->target_direction == 0
+					V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
 					entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				}
 			}
@@ -677,7 +729,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// CHECKING IF THE AREA WHERE THE ENTITY WILL BE PLACED AFTER GRABBING IT IS CLEARED
 
-			if(test_grab)
+			if(test_grab && 
+				entity2->flags & E_HAS_COLLIDER)
 			{
 
 				if(
@@ -718,6 +771,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						entity2->parent_handle.index != i ||
 						entity2->parent_handle.generation != generations[i]
 					) && (
+						entity->team_uid != entity2->team_uid ||
+						!(entity->flags & E_IGNORE_ALLIES)
+					) &&(
 						!entity2->ignore_sphere_radius ||
 						v3_magnitude(entity->pos - entity2->ignore_sphere_pos) > entity2->ignore_sphere_radius
 					)
@@ -749,46 +805,66 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					
 					if(they_collide) // DAMAGING ENTITY
 					{
-						s32 damage_dealt = MIN(entity->health, entity2->action_power);
-						entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
-						if(entity->health <= 0)
+						if(entity->flags & P_SHIELD)
 						{
-							u32* index_to_kill;
-							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-							*index_to_kill = i;
-						}else{ // still alive
-							if(entity2->flags & P_FREEZING){
-								entity->freezing_time_left = 5.0f;
-							}
-							if(entity2->flags & P_SPAWN_GRAVITY_FIELD){
-								entity->gravity_field_time_left = 10.0f;
-							}
-						}
-						if(entity2->flags & E_RECEIVES_DAMAGE)
-						{
-							entity2->health--;
-							if(entity2->health <= 0){
+							entity->health -= 1;
+							if(entity->health <= 0){
 								u32* index_to_kill;
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-								*index_to_kill = j;
-							}else{
+								*index_to_kill = i;
 
-								//TODO: push this code to a list to process this outside the main loop
-								entity2->jump_change_direction = true; 
-								if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
-									entity2->ignore_sphere_pos = entity->pos;
-									entity2->ignore_sphere_radius = 0.9f;
-								}else{
-									V3 difference = entity->pos - entity2->ignore_sphere_pos;
-									entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
-									entity2->ignore_sphere_radius = entity2->ignore_sphere_radius + v3_magnitude(difference)/2;
-								}
-								entity2->ignore_sphere_target_pos = entity->pos;
+								Entity* parent = entity_from_handle(entity->parent_handle, entities, generations);
+								parent->shield_active = false;
+								parent->shield_cd = 8.0f;
 							}
+							entity2->flags = 0;
+							u32* index_to_kill;
+							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+							*index_to_kill = j;
 						}
-						if(entity2->flags & A_STEAL_LIFE){
-							Entity* parent = entity_from_handle(entity2->parent_handle, entities, generations);
-							parent->health = CLAMP(0, parent->health+damage_dealt, parent->max_health);
+						else // DEFAULT CASE
+						{
+							s32 damage_dealt = MIN(entity->health, entity2->action_power);
+							entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
+							if(entity->health <= 0)
+							{
+								u32* index_to_kill;
+								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+								*index_to_kill = i;
+							}else{ // still alive
+								if(entity2->flags & P_FREEZING){
+									entity->freezing_time_left = 5.0f;
+								}
+								if(entity2->flags & P_SPAWN_GRAVITY_FIELD){
+									entity->gravity_field_time_left = 10.0f;
+								}
+							}
+							if(entity2->flags & E_RECEIVES_DAMAGE)
+							{
+								entity2->health--;
+								if(entity2->health <= 0){
+									u32* index_to_kill;
+									PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+									*index_to_kill = j;
+								}else{
+
+									//TODO: push this code to a list to process this outside the main loop
+									entity2->jump_change_direction = true; 
+									if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
+										entity2->ignore_sphere_pos = entity->pos;
+										entity2->ignore_sphere_radius = 0.9f;
+									}else{
+										V3 difference = entity->pos - entity2->ignore_sphere_pos;
+										entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
+										entity2->ignore_sphere_radius = entity2->ignore_sphere_radius + v3_magnitude(difference)/2;
+									}
+									entity2->ignore_sphere_target_pos = entity->pos;
+								}
+							}
+							if(entity2->flags & A_STEAL_LIFE){
+								Entity* parent = entity_from_handle(entity2->parent_handle, entities, generations);
+								parent->health = CLAMP(0, parent->health+damage_dealt, parent->max_health);
+							}
 						}
 					}
 				}
@@ -798,7 +874,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 #define DEFAULT_TOXIC_RADIUS 2.5f
 				if((entity2->flags & E_TOXIC_EMITTER) && 
-					!(entity->flags & E_TOXIC_EMITTER)
+					!(entity->flags & E_TOXIC_EMITTER) &&
+					!(entity->flags & P_SHIELD)
 				){
 					if(distance < entity->aura_radius){
 						entity->toxic_time_left = 5.0f;
@@ -813,7 +890,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				// HEALING
 
-				if(entity2->flags & E_HEALER){
+				if(entity2->flags & E_HEALER && 
+					!(entity->flags & P_SHIELD)
+				){
 					if(distance < entity->aura_radius){
 						if(entity->healing_cd <= 0){
 							if(entity->health < entity->max_health){
@@ -827,8 +906,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				// EXPLOSION
 
-				if(entity2->flags & E_EXPLOSION)
-				{
+				if(entity2->flags & E_EXPLOSION && 
+					!(entity->flags & P_SHIELD)
+				){
 					f32 explosion_radius = entity2->scale.x*entity2->creation_size;
 					if(distance < explosion_radius)
 					{
@@ -1233,7 +1313,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			if(is_handle_valid(entity->entity_to_stick, generations) && (
 					entities[entity->entity_to_stick.index].is_grabbing ||
-					entity->flags & E_MELEE_HITBOX
+					entity->flags & E_MELEE_HITBOX ||
+					entity->flags & P_SHIELD
 				)
 			){
 				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
@@ -1245,6 +1326,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					);
 				entity->pos = sticked_entity->pos + final_relative_pos;
 				entity->target_direction = sticked_entity->target_direction;
+				entity->looking_direction = entity->target_direction;
 			}else{
 				entity->flags &= (0xffffffffffffffff ^ E_STICK_TO_ENTITY);
 			}
@@ -1367,7 +1449,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				entity_to_grab->flags |= E_STICK_TO_ENTITY;
 				entity_to_grab->entity_to_stick = {(u32)memory->selected_uid, generations[memory->selected_uid]};
 				
-				selected_entity->flags |= E_LOOK_TARGET_WHILE_MOVING;
 				selected_entity->is_grabbing = true;
 				V2 relative_distance = {
 					entity_to_grab->pos.x - selected_entity->pos.x,
