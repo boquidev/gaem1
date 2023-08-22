@@ -95,8 +95,9 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
 	result.rgb *= fresnel;
 
 	// weird outline (just works in perspective view and with smooth meshes)
-	float clip_mask = saturate(20*(1.15-fresnel));
-	result.rgb *= clip_mask;
+
+	// float clip_mask = saturate(20*(1.15-fresnel));
+	// result.rgb *= clip_mask;
 	
 	return result;
 }

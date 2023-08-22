@@ -454,11 +454,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->toxic_time_left)
 		{
-			entity->toxic_time_left -= delta_time;
-			if(entity->toxic_time_left <= 0)
-			{
-				entity->toxic_time_left = 0;
-			}
+			entity->toxic_time_left = MAX(0, entity->toxic_time_left-delta_time);
 		}
 		
 
@@ -635,6 +631,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(!(entity->flags & E_SKIP_ROTATION)){
 			// this is negative cuz +y is up while we are looking down
 			entity->rotation.y = - (v2_angle({entity->looking_direction.x, entity->looking_direction.z}) + PI32/2); 
+			entity->rotation.x = entity->velocity.z/10;
+			entity->rotation.z = -entity->velocity.x/10;
 		}
 		
 
@@ -678,7 +676,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		
 		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
-		// if(entity->flags & (E_DOES_DAMAGE|E_AUTO_AIM_CLOSEST|E_DETECT_COLLISIONS))
+		// if(entity->flags & (E_RECEIVES_DAMAGE|E_AUTO_AIM_CLOSEST|E_DETECT_COLLISIONS))
 		UNTIL(j, MAX_ENTITIES)
 		{
 			if(!entities[j].flags)continue;
@@ -872,7 +870,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				
 				// TOXIC ENTITIES INFECTING
 
-#define DEFAULT_TOXIC_RADIUS 2.5f
+				#define DEFAULT_TOXIC_RADIUS 2.5f
 				if((entity2->flags & E_TOXIC_EMITTER) && 
 					!(entity->flags & E_TOXIC_EMITTER) &&
 					!(entity->flags & P_SHIELD)
@@ -880,10 +878,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(distance < entity->aura_radius){
 						entity->toxic_time_left = 5.0f;
 					}
-				}else if(entity2->toxic_time_left && !(entity->flags & E_TOXIC_EMITTER))
+				}else if(entity->toxic_time_left < entity2->toxic_time_left && !(entity->flags & E_TOXIC_EMITTER))
 				{
 					if(distance < DEFAULT_TOXIC_RADIUS){
-						entity->toxic_time_left = 3.0f;
+						entity->toxic_time_left = MAX(0, entity2->toxic_time_left-delta_time);
 					}
 				}
 
@@ -931,14 +929,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// BEING AFFECTED BY THE ENTITY'S GRAVITY FIELD
 
-			if(distance < entity2->gravity_field_time_left){
-				// TODO: make this be dependant on the entity's mass 
-				// TODO: i don't like that it makes all nearby entities look in its direction;
-				// TODO: bullets looking direction should stay in the direction they are moving
-				// when they go out of the field
-
-				ASSERT(entity->weight);
-
+			if(distance < entity2->gravity_field_time_left && entity->weight){
+				
 				entity->velocity = entity->velocity + ((delta_time/entity->weight)*((distance_vector/entity->weight)-(entity->velocity)));
 				if(entity->flags & E_DOES_DAMAGE){
 					entity->target_direction = entity->velocity;
@@ -1299,8 +1291,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							new_entity->target_direction = player_pos - new_entity->pos;
 						}
 						
-						new_entity->mesh_uid = memory->meshes.icosphere_mesh_uid;
-						new_entity->texinfo_uid = memory->textures.white_tex_uid;
+						new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
+						new_entity->texinfo_uid = memory->textures.test_tex_uid;
 					}
 				}
 			}
@@ -1998,6 +1990,7 @@ void init(App_memory* memory, Init_data* init_data){
 			{string(":shield_mesh:"), &memory->meshes.shield_mesh_uid},
 			{string(":shooter_mesh:"), &memory->meshes.shooter_mesh_uid},
 			{string(":melee_mesh:"), &memory->meshes.melee_mesh_uid},
+			{string(":blank_entity:"), &memory->meshes.blank_entity_mesh_uid},
 		};
 
 		LIST(String, meshes_filenames) = {0};
@@ -2014,7 +2007,8 @@ void init(App_memory* memory, Init_data* init_data){
 		String_index_pair string_index_pairs [] = {
 			{string(":default_tex:"), &memory->textures.default_tex_uid},
 			{string(":white_tex:"), &memory->textures.white_tex_uid},
-			{string(":gradient_tex:"), &memory->textures.gradient_tex_uid}
+			{string(":gradient_tex:"), &memory->textures.gradient_tex_uid},
+			{string(":test_texture:"), &memory->textures.test_tex_uid}
 		};
 
 		LIST(String, textures_filenames) = {0};

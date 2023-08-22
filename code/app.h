@@ -292,6 +292,7 @@ struct Meshes
 	u32 centered_plane_mesh_uid;
 	u32 plane_mesh_uid;
 	u32 icosphere_mesh_uid;
+	u32 blank_entity_mesh_uid;
 
 	u32 player_mesh_uid;
 	u32 spawner_mesh_uid;
@@ -306,7 +307,8 @@ struct Textures{
 	u32 default_tex_uid;
 	u32 white_tex_uid;
 	u32 gradient_tex_uid;
-
+	
+	u32 test_tex_uid;
 	u32 font_atlas_uid;
 };
 

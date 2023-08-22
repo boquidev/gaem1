@@ -1231,7 +1231,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// GIVES THE ILLUSION OF YOU MOVING THE CAMERA
 			view_matrix = 
 				XMMatrixTranslation( -memory.camera_pos.x, -memory.camera_pos.y,-memory.camera_pos.z )*
-				XMMatrixRotationZ(-memory.camera_rotation.z )*
 				XMMatrixRotationY(-memory.camera_rotation.y)*
 				XMMatrixRotationX(-memory.camera_rotation.x) ;
 			dx11_modify_resource(dx, view_buffer.buffer, &view_matrix, sizeof(view_matrix));
@@ -1247,7 +1246,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			dx11_modify_resource(dx, projection_buffer.buffer, &projection_matrix, sizeof(projection_matrix));			
 
 			// OBJECT TRANSFORM
-			//TODO: make a GENERAL RENDER REQUEST QUEUE
 			FOREACH(Renderer_request, request, render_list){
 				ASSERT(request->type_flags); //assert at least one flag is set
 
@@ -1257,10 +1255,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					ASSERT(object->scale.x || object->scale.y || object->scale.z); // FORGOR TO SET THE SCALE
 					XMMATRIX object_transform_matrix = 
 						XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
-						XMMatrixRotationX(object->rotation.x) *
 						XMMatrixRotationY(object->rotation.y) *
+						XMMatrixRotationX(object->rotation.x) *
 						XMMatrixRotationZ(object->rotation.z) *
-						XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z); 
+						XMMatrixTranslation(object->pos.x, object->pos.y, object->pos.z); 
 
 					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
 					Tex_info* texinfo; LIST_GET(memory.tex_infos, object->texinfo_uid, texinfo);
