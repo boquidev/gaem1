@@ -5,6 +5,8 @@
 
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
+global_variable RNG rng;
+
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size){
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
@@ -171,15 +173,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// CREATING RADIAL MENU
 
 	#define MENU_RADIUS 300
+	
+	s32 ui_last = 0;
 
 	if(input->L == 1){
 		// memory->radial_menu_pos = input->cursor_pixels_pos;
-		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS+50, input->cursor_pixels_pos.x, client_size.x -(50+MENU_RADIUS));
+		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS+100, input->cursor_pixels_pos.x, client_size.x -(100+MENU_RADIUS));
 		memory->radial_menu_pos.y = CLAMP(MENU_RADIUS, input->cursor_pixels_pos.y, client_size.y -MENU_RADIUS);
 	}
 
 	if(input->L > 0){
-		s32 ui_last = 0;
 
 		u64 possible_flags_to_set[] = {
 			E_SHOOT,
@@ -223,7 +226,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
 		V2 initial_position = {0,-MENU_RADIUS};
-		UNTIL(i, ARRAYCOUNT(button_text)){
+		UNTIL(i, ARRAYCOUNT(button_text))
+		{
 			if(ui_last == memory->ui_clicked_uid)
 			{
 				if(memory->selected_uid >= 0)
@@ -256,6 +260,77 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			
 			if(memory->selected_uid >= 0){
 				if(!((entities[memory->selected_uid].flags & possible_flags_to_set[i]) ^ possible_flags_to_set[i])){
+					ui_element->color = {1.0f,1.0f,1.0f,1};
+				}else{
+					ui_element->color = {0.6f,0.6f,0.6f,1};
+				}
+			}else{
+				ui_element->color = {0.2f,0.2f,0.2f,1};
+			}
+
+			ui_element->flags = 1;
+			ui_element->text = string(button_text[i]); 
+			
+			V2 current_position = v2_rotate(initial_position, i*angle_step);
+
+			ui_element->size.x = 110;
+			ui_element->size.y = 50;
+
+			ui_element->pos.x = (s32)(memory->radial_menu_pos.x + current_position.x)-(ui_element->size.x/2);
+			ui_element->pos.y = (s32)(memory->radial_menu_pos.y + current_position.y)-(ui_element->size.y/2);
+		}
+
+	}
+
+	if(input->R == 1){
+		// memory->radial_menu_pos = input->cursor_pixels_pos;
+		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS+50, input->cursor_pixels_pos.x, client_size.x -(50+MENU_RADIUS));
+		memory->radial_menu_pos.y = CLAMP(MENU_RADIUS, input->cursor_pixels_pos.y, client_size.y -MENU_RADIUS);
+	}
+	if(input->R > 0){
+
+		ENTITY_ELEMENT_TYPE possible_types_to_select[] = {
+			ELEMENT_TYPE_HEAL,
+			ELEMENT_TYPE_WATER,
+			ELEMENT_TYPE_FIRE,
+			ELEMENT_TYPE_ICE,
+			ELEMENT_TYPE_ELECTRIC,
+		};
+
+		char* button_text[] = {
+			"heal",
+			"water",
+			"fire",
+			"ice",
+			"electric",
+		};
+
+		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
+		V2 initial_position = {0,-MENU_RADIUS/2};
+		UNTIL(i, ARRAYCOUNT(button_text))
+		{
+			if(ui_last == memory->ui_clicked_uid)
+			{
+				if(memory->selected_uid >= 0)
+				{
+					entities[memory->selected_uid].element_type = possible_types_to_select[i];
+					if(possible_types_to_select[i] == ELEMENT_TYPE_HEAL) // healer
+					{
+						entities[memory->selected_uid].action_power = -ABS(entities[memory->selected_uid].action_power);
+					}
+					else // default case
+					{
+						entities[memory->selected_uid].action_power = ABS(entities[memory->selected_uid].action_power);
+					}
+				}
+			}
+
+
+			Ui_element* ui_element = &ui_elements[ui_last++];
+			
+			
+			if(memory->selected_uid >= 0){
+				if(entities[memory->selected_uid].element_type == possible_types_to_select[i]){
 					ui_element->color = {1.0f,1.0f,1.0f,1};
 				}else{
 					ui_element->color = {0.6f,0.6f,0.6f,1};
@@ -1394,7 +1469,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// DECIDE WHOS THE SELECTED ENTITY 
 
-	if(!is_cursor_in_ui && !input->L){
+	if(!is_cursor_in_ui && !input->L && !input->R){
 		if(input->cursor_primary == 1){
 			memory->clicked_uid = hot_entity_uid;
 			memory->selected_uid = -1;
@@ -1797,7 +1872,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	User_input* input = memory->input;
 	if(
-		input->L && (
+		(input->L  || input->R) && (
 			input->cursor_pixels_pos.x != memory->radial_menu_pos.x ||
 			input->cursor_pixels_pos.y != memory->radial_menu_pos.y
 		)

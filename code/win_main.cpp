@@ -184,7 +184,8 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 
 int WINAPI 
 wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cmd_show)
-{h_prev_instance; cmd_line; cmd_show; //unreferenced formal parameters
+{
+	h_prev_instance; cmd_line; cmd_show; //unreferenced formal parameters
 	
 	RECT winrect = {0,0,1600,900};
 	AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);

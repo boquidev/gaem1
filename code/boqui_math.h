@@ -1,5 +1,5 @@
 
-#define SQRT(a) math_sqrt(a)
+#define SQRT(a) fast_sqrt(a)
 #define ABS(x) math_abs(x)
 #define SINF(a) sinf(a)
 #define COSF(a) cosf(a)
@@ -61,8 +61,29 @@ u32_pow(u32 base, u32 exponent)
 internal f32 math_abs(f32 n) {return ((n > 0) ? n : -1*n);} 
 internal s32 math_abs(s32 n) {return ((n > 0) ? n : -1*n);}
 
+// sqrt 
+
+// john carmack's fast square root
 internal f32
-math_sqrt(f32 n)
+fast_sqrt(f32 n)
+{
+    ASSERT(n >= 0);
+    f32 x = n * 0.5f;
+    f32 y = n; // just to not use the address of the parameter i guess
+
+    s32 i = *(s32*)&y; // casting the float to an integer
+    i = 0x5f3759df - (i >> 1); // this is complete sorcery
+    y = *(float*)&i; // re casting to a float
+
+    y = y * (1.5f - (x * y * y)); // newton pass
+    y = y * (1.5f - (x * y * y)); // optional second newton pass for more precision
+
+    return n*y;
+}
+
+// newton's algorithm for square root
+internal f32
+newton_sqrt(f32 n)
 {
     ASSERT(n >= 0);
     f32 r = n/2;
@@ -73,6 +94,7 @@ math_sqrt(f32 n)
     }
     return r;
 }
+
 
 struct V2
 {
@@ -474,4 +496,25 @@ v3_rotate_z(V3 vector, f32 angle)
     };
 
     return result;
+}
+
+internal f32
+rng_lcg(u32 seed){
+    return ((f32)((8121 * seed + 28411) % 134456) / 134456);
+}
+
+struct RNG{
+    u32 last_seed;
+
+    f32 rng_next(){
+        u32 bits_flipped = (last_seed ^ 0xffffffff); // this is my own addition so i may be introducing some problem i don't know
+        last_seed =  ((8121 * bits_flipped + 28411) % 134456);
+        return (f32)last_seed / 134456;
+    }
+};
+
+internal f32
+rng_rand(u32 seed){
+    seed = (seed << 13) ^ seed;
+    return (f32)((seed * (seed * seed * 15731 + 789221) + 1376312589) & 0x7fffffff) / 0x7fffffff;
 }

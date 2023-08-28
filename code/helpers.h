@@ -254,8 +254,6 @@ static union {
 		E_EXPLOSION,
 
 
-
-
 		// MELEE FLAGS
 		E_LIFE_STEAL,
 			A_STEAL_LIFE,
