@@ -620,7 +620,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// PROJECTILE IGNORE SPHERE
 
 		if(entity->ignore_sphere_radius){
-			entity->ignore_sphere_radius = (entity->ignore_sphere_radius-delta_time)*0.90f;
+			entity->ignore_sphere_radius = (entity->ignore_sphere_radius-delta_time)*0.89f;
 			if(entity->ignore_sphere_radius <= 0){
 				entity->ignore_sphere_radius = 0;
 			}else{
@@ -663,7 +663,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// TODO: MAKE A SPECIAL CASE FOR PROJECTILES CUZ THEY WILL COMPLETELY STOP IF HOMING + AUTO_AIM
 			entity->normalized_accel = v3_normalize(entity->target_direction);
 		}
-		
+
 
 		// MOVEMENT / DYNAMICS
 
@@ -700,6 +700,21 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 		entity->normalized_accel = {0,0,0};
+
+		
+		// VELOCITY = SIZE
+
+		if(entity->flags & E_SHRINK_WITH_VELOCITY)
+		{
+			f32 speed_left = v3_magnitude(entity->velocity) / entity->speed;
+			f32 new_scale = SQRT(speed_left);
+			if(speed_left > 0.05f){
+				entity->creation_size = new_scale;
+			}else{
+				u32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+				*index_to_kill = i;
+			}
+		}
 		
 		
 		// ROTATION / LOOKING DIRECTION
@@ -929,12 +944,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 									}else{
 										V3 difference = entity->pos - entity2->ignore_sphere_pos;
 										entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
-										entity2->ignore_sphere_radius = entity2->ignore_sphere_radius + v3_magnitude(difference)/2;
+										entity2->ignore_sphere_radius = MAX(0.9f,entity2->ignore_sphere_radius + v3_magnitude(difference)/2);
 									}
 									entity2->ignore_sphere_target_pos = entity->pos;
 								}
 							}
-							if(entity2->flags & A_STEAL_LIFE){
+							if(entity2->flags & A_STEAL_LIFE)
+							{
 								Entity* parent = entity_from_handle(entity2->parent_handle, entities, generations);
 								parent->health = CLAMP(0, parent->health+damage_dealt, parent->max_health);
 							}
@@ -1179,7 +1195,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->flags = 
 							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE|
 							E_RECEIVES_DAMAGE|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
-							E_TOXIC_DAMAGE_INMUNE|E_FOLLOW_TARGET
+							E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY
 						;
 
 						if(entity->flags & E_PROJECTILE_EXPLODE){
@@ -1191,6 +1207,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						if(entity->flags & E_FREEZING_ACTIONS){
 							new_bullet->flags |= P_FREEZING;
 						}
+						if(entity->flags & E_LIFE_STEAL){
+							new_bullet->flags |= A_STEAL_LIFE;
+						}
+
+						new_bullet->element_type = entity->element_type;
 						
 						new_bullet->max_health = 1;
 						if(entity->flags & E_PROJECTILE_JUMPS_BETWEEN_TARGETS){
@@ -1207,8 +1228,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->health = new_bullet->max_health;
 
 						//speed could be by the one who shoots
-						new_bullet->speed = 150;
-						new_bullet->friction = 4.0f;
+						new_bullet->speed = 60;
+						new_bullet->friction = 5.0f;
+
 						new_bullet->lifetime = 5.0f;
 						new_bullet->weight = 0.1f;
 						// this is obsolete but useful for debug
@@ -1231,7 +1253,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						// TODO: go in the direction that parent is looking (the parent's rotation);
 						new_bullet->target_direction = target_directions[current_action_i];
 
-						new_bullet->velocity =  (new_bullet->speed/2) * target_directions[current_action_i];
+						new_bullet->velocity =  (new_bullet->speed) * target_directions[current_action_i];
 					}
 				}
 				if((entity->flags & E_MELEE_ATTACK))
