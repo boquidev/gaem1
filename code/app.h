@@ -81,23 +81,24 @@ enum COLLIDER_TYPE{
 };
 
 enum ENTITY_ELEMENT_TYPE{
-	ELEMENT_TYPE_NONE,
+	EET_WATER = 1<<0,
+	EET_FIRE = 1<<2,
+	EET_ICE = 1<<4,
+	EET_ELECTRIC = 1<<6,
 
-	ELEMENT_TYPE_HEAL,
-	ELEMENT_TYPE_WATER,
-	ELEMENT_TYPE_FIRE,
-	ELEMENT_TYPE_ICE,
-	ELEMENT_TYPE_ELECTRIC,
+	EET_HEAL = 1<<8,
 
+	EE_ALL_TYPES = EET_WATER|EET_FIRE|EET_ICE|EET_ELECTRIC|EET_HEAL,
 
-	ELEMENT_TYPE_COUNT
+	EE_REACTIVE_ELEMENTS = EET_WATER|EET_FIRE|EET_ICE|EET_ELECTRIC,
 };
 
 // ENTITY MEGA-STRUCT
 
 struct Entity{
 	u64 flags;
-	ENTITY_ELEMENT_TYPE element_type;
+	u16 element_type;
+	u16 element_effect;
 	ENTITY_TYPE type;
 	UNIT_TYPE unit_type;
 	COLLIDER_TYPE collider_type;
@@ -154,7 +155,7 @@ struct Entity{
 	V3 ignore_sphere_pos;
 	f32 ignore_sphere_radius;
 	V3 ignore_sphere_target_pos;
-	
+
 	b32 jump_change_direction;
 
 	Element_handle parent_handle;

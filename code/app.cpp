@@ -290,11 +290,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->R > 0){
 
 		ENTITY_ELEMENT_TYPE possible_types_to_select[] = {
-			ELEMENT_TYPE_HEAL,
-			ELEMENT_TYPE_WATER,
-			ELEMENT_TYPE_FIRE,
-			ELEMENT_TYPE_ICE,
-			ELEMENT_TYPE_ELECTRIC,
+			EET_HEAL,
+			EET_WATER,
+			EET_FIRE,
+			EET_ICE,
+			EET_ELECTRIC,
 		};
 
 		char* button_text[] = {
@@ -313,8 +313,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				if(memory->selected_uid >= 0)
 				{
-					entities[memory->selected_uid].element_type = possible_types_to_select[i];
-					if(possible_types_to_select[i] == ELEMENT_TYPE_HEAL) // healer
+					u32 entity_element_flags = entities[memory->selected_uid].element_type;
+					entities[memory->selected_uid].element_type = 0;
+
+					if(!(entity_element_flags & possible_types_to_select[i]))
+					{
+						entities[memory->selected_uid].element_type |= possible_types_to_select[i];
+					}
+
+					if(possible_types_to_select[i] == EET_HEAL) // healer
 					{
 						entities[memory->selected_uid].action_power = -ABS(entities[memory->selected_uid].action_power);
 					}
@@ -330,7 +337,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			
 			
 			if(memory->selected_uid >= 0){
-				if(entities[memory->selected_uid].element_type == possible_types_to_select[i]){
+				if(entities[memory->selected_uid].element_type & possible_types_to_select[i]){
 					ui_element->color = {1.0f,1.0f,1.0f,1};
 				}else{
 					ui_element->color = {0.6f,0.6f,0.6f,1};
@@ -920,6 +927,64 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 								*index_to_kill = i;
 							}else{ // still alive
+							
+								u16 elemental_damage = entity2->element_type & EE_REACTIVE_ELEMENTS;
+								if(elemental_damage)
+								{
+									u16 current_element = (entity->element_type|entity->element_effect) & (EE_REACTIVE_ELEMENTS);
+									if(current_element)
+									{
+										u16 reaction = elemental_damage | current_element;
+										switch(reaction)
+										{
+											case EET_WATER|EET_FIRE:{
+											}break;
+											case EET_WATER|EET_ICE:{
+											}break;
+											case EET_WATER|EET_ELECTRIC:{
+											}break;
+											case EET_FIRE|EET_ICE:{
+												Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
+
+												explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
+
+												explosion_hitbox->color = {1.0f, 0, 0, 0.3f};
+												explosion_hitbox->scale = {5,5,5};
+												explosion_hitbox->creation_size = 1.0f;
+
+												explosion_hitbox->lifetime = delta_time;
+
+												// explosion_hitbox->parent_handle.index = i;
+												// explosion_hitbox->parent_handle.generation = generations[i];
+												// explosion_hitbox->team_uid = entity->team_uid;
+												explosion_hitbox->action_power = entity2->action_power;
+
+												explosion_hitbox->pos = entity2->pos;
+
+												// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+												explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
+												explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
+											}break;
+
+											case EET_FIRE|EET_ELECTRIC:{
+											}break;
+											case EET_ICE|EET_ELECTRIC:{
+											}break;
+											// THE SAME ELEMENT
+											case EET_WATER:
+											case EET_FIRE:
+											case EET_ICE:
+											case EET_ELECTRIC: 
+											break;
+
+											default:
+												ASSERT(false);
+										}
+									}else{
+										entity->element_effect = elemental_damage;
+									}
+								}
+
 								if(entity2->flags & P_FREEZING){
 									entity->freezing_time_left = 5.0f;
 								}
