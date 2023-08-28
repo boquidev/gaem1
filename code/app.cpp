@@ -501,6 +501,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entities[i].flags & E_SKIP_UPDATING) continue;
 		Entity* entity = &entities[i];
+		entity->color = {0.5f,0.5f,0.5f,1};
+		
 
 
 		// ENEMY_COLOR
@@ -642,8 +644,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if((entity->flags & E_SELECTABLE) &&
 				entity->team_uid == entities[memory->player_uid].team_uid 
 			){	
-				entity->color = {0.5f,0.5f,0.5f,1};
-
 				f32 intersected_t = 0;
 				if(line_vs_sphere(cursor_screen_to_world_pos, z_direction, 
 					entity->pos, entity->scale.x, 
@@ -935,13 +935,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 									if(current_element)
 									{
 										u16 reaction = elemental_damage | current_element;
+										b32 reaction_ocurred = true;
 										switch(reaction)
 										{
 											case EET_WATER|EET_FIRE:{
+
+
 											}break;
 											case EET_WATER|EET_ICE:{
+												entity->freezing_time_left = 5.0f;
 											}break;
 											case EET_WATER|EET_ELECTRIC:{
+
 											}break;
 											case EET_FIRE|EET_ICE:{
 												Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
@@ -964,21 +969,27 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 												// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 												explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
 												explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
-											}break;
 
+											}break;
 											case EET_FIRE|EET_ELECTRIC:{
+
 											}break;
 											case EET_ICE|EET_ELECTRIC:{
+
 											}break;
 											// THE SAME ELEMENT
 											case EET_WATER:
 											case EET_FIRE:
 											case EET_ICE:
 											case EET_ELECTRIC: 
+												reaction_ocurred = false;
 											break;
 
 											default:
 												ASSERT(false);
+										}
+										if(reaction_ocurred){
+											entity->element_effect = 0;
 										}
 									}else{
 										entity->element_effect = elemental_damage;
@@ -1614,7 +1625,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		
 		// COLOR AND LOOKING DIRECTION OF SELECTED ENTITY
-		selected_entity->color = {0, 0.7f, 0, 1};
+		selected_entity->color = colors_product(selected_entity->color,{2.0f, 2.0f, 2.0f, 1});
 
 		if( input->cursor_secondary > 0){
 			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
@@ -1725,9 +1736,10 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// SHOW FUTURE POSITION OF THE ENTITY THAT IS BEING GRABBED 
 
-	if(memory->selected_uid > 0 && memory->input->F > 0 && is_handle_valid(memory->closest_entity, memory->entity_generations))
+	if(memory->selected_uid >= 0 && memory->input->F > 0 && is_handle_valid(memory->closest_entity, memory->entity_generations))
 	{	
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
+
 		Entity* possible_e_to_grab = &memory->entities[memory->closest_entity.index];
 		V3 distance_vector = possible_e_to_grab->pos - selected_entity->pos;
 		V3 final_relative_pos = (0.5f + possible_e_to_grab->scale.x + selected_entity->scale.x) * v3_normalize(distance_vector);
@@ -1758,17 +1770,30 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		PUSH_BACK(render_list, memory->temp_arena, request);
 		*request = *current_render_request;
 	}
+
 	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
-		{
 
+
+		// SHOW SELECTED ENTITY WITH A ICON OVER THE ENTITY
+		PUSH_BACK(render_list, memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+		request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+		request->object3d.scale = {0.5f,0.5f,0.5f};
+		request->object3d.color = {1,1,1,0.5f};
+		request->object3d.pos = selected_entity->pos;
+		request->object3d.pos.y += selected_entity->scale.y;
+		
+		{
+			// SHOW TARGET POSITION
 			PUSH_BACK(render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 				request->object3d.scale = {1,1,1};
 				request->object3d.pos = selected_entity->looking_direction + selected_entity->pos;
 				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
-				request->object3d.color = {1,0,0,0.1f};
+				request->object3d.color = {1,0,0,0.15f};
 		}
 	}
 
