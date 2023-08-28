@@ -501,7 +501,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entities[i].flags & E_SKIP_UPDATING) continue;
 		Entity* entity = &entities[i];
-		entity->color = {0.5f,0.5f,0.5f,1};
+
+		if(entity->flags & E_SMOKE_SCREEN){
+			entity->color = {1,1,1,0.4f};
+		}else{ // DEFAULT CASE
+			entity->color = {0.5f,0.5f,0.5f,1};
+		}
 		
 
 
@@ -511,6 +516,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			entity->color = {0.7f, 0,0,1};
 		}
 
+
+		//SHRINK WITH LIFETIME
+
+		if(entity->flags & E_SHRINK_WITH_LIFETIME)
+		{
+			f32 next_scale = (1-(delta_time/entity->lifetime));
+			if(next_scale > 0){
+				entity->scale = next_scale*entity->scale;
+			}
+		}
 
 		// LIFETIME
 
@@ -927,7 +942,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 								*index_to_kill = i;
 							}else{ // still alive
-							
+								// CHEKING IF A ELEMENTAL REACTION OCURRED
 								u16 elemental_damage = entity2->element_type & EE_REACTIVE_ELEMENTS;
 								if(elemental_damage)
 								{
@@ -939,8 +954,20 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 										switch(reaction)
 										{
 											case EET_WATER|EET_FIRE:{
+												Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
+												smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|
+													E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
+													;
+												smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
+												smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
 
+												smoke_screen->color = {1,1,1,0.2f};
+												smoke_screen->scale = {4,2,4};
+												smoke_screen->creation_delay = 0.3f;
+												smoke_screen->lifetime = 10.0f;
 
+												smoke_screen->pos = entity->pos;
+												
 											}break;
 											case EET_WATER|EET_ICE:{
 												entity->freezing_time_left = 5.0f;
@@ -975,7 +1002,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 											}break;
 											case EET_ICE|EET_ELECTRIC:{
-
+												entity->gravity_field_time_left = 10.0f;
 											}break;
 											// THE SAME ELEMENT
 											case EET_WATER:
@@ -995,7 +1022,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 										entity->element_effect = elemental_damage;
 									}
 								}
-
+								// OLD WAY OF FREEZING
 								if(entity2->flags & P_FREEZING){
 									entity->freezing_time_left = 5.0f;
 								}
@@ -1655,7 +1682,18 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	UNTIL(i, MAX_ENTITIES)
 	{
-		if(memory->entities[i].flags & E_VISIBLE)
+		if(!(memory->entities[i].flags & E_VISIBLE)) continue;
+		
+		if(memory->entities[i].flags & E_SMOKE_SCREEN)
+		{
+			PUSH_BACK(delayed_render_list2, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+			request->object3d = memory->entities[i].object3d;
+
+			f32 scale_multiplier = MAX(memory->delta_time, memory->entities[i].creation_size);
+			request->object3d.scale = scale_multiplier * request->object3d.scale;
+		}
+		else
 		{
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
@@ -1720,6 +1758,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
+
+			// THIS IS JUST FOR DEBUG
 			if(memory->entities[i].ignore_sphere_radius){
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
