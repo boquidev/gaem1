@@ -99,14 +99,17 @@ struct Entity{
 	u64 flags;
 	u16 element_type;
 	u16 element_effect;
+
+	f32 fog_debuff_time_left;
+
 	ENTITY_TYPE type;
 	UNIT_TYPE unit_type;
 	COLLIDER_TYPE collider_type;
 
 	f32 lifetime;
 
-	s32 max_health;
-	s32 health;// replace this with damage (maybe not), when health is damage it's tedious, or maybe i am dumb i will try it again
+	f32 max_health;
+	f32 health;// replace this with damage (maybe not), when health is damage it's tedious, or maybe i am dumb i will try it again
 
 	// this is normalized and relative to the entity position 
 	V3 normalized_accel;
@@ -127,7 +130,11 @@ struct Entity{
 	f32 action_cd_total_time;
 	f32 action_cd_time_passed;
 
-	s32 action_power;	
+	union{
+		f32 action_power;	
+		f32 total_power;
+	};
+
 	u32 action_count;
 	f32 action_angle;
 
@@ -180,6 +187,25 @@ struct Entity{
 	};
 };
 global_variable Entity nil_entity = {0}; 
+
+
+internal f32
+calculate_power(Entity* entity)
+{
+	f32 water_effect_multiplier = (entity->element_effect & EET_WATER) ? 0.8f : 1.0f;
+	f32 fog_multiplier = (entity->fog_debuff_time_left) ? 0.7f : 1.0f;
+	//TODO: benchmark the difference between this 2
+	// f32 healer_multiplier = 1+(-2.0f*(entity->flags & E_HEALER)/E_HEALER); 
+	f32 healer_multiplier = (entity->flags & E_HEALER) ? -1.0f : 1.0f; 
+	return entity->action_power * water_effect_multiplier * healer_multiplier * fog_multiplier;
+}
+
+//TODO: this is in case reactions can be triggered by something different than a projectile
+internal void 
+calculate_elemental_reaction(void)
+{
+
+}
 
 internal u32
 next_inactive_entity(Entity entities[], u32* last_inactive_i){

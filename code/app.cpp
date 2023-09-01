@@ -29,13 +29,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->flags = E_VISIBLE|E_SELECTABLE|E_SPAWN_ENTITIES|E_AUTO_AIM_BOSS|
 			E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE;
 		player->pos = {-25, 0, 0};
-		player->max_health = 10;
+		player->max_health = 100;
 		player->health = player->max_health;
 		player->team_uid = 0;
 
+		player->action_power = 1.0f;
 		player->action_count = 1;
 		player->action_angle = TAU32/4;
-		player->action_cd_total_time = 3.0f;
+		player->action_cd_total_time = 2.9f;
 		player->action_cd_time_passed = 2.0f;
 		player->action_range = 5.0f;
 
@@ -72,9 +73,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->type = ENTITY_BOSS;
 		boss->creation_delay = 0.2f;
 
+		boss->action_power = 1.0f;
 		boss->action_count = 1;
 		boss->action_angle = TAU32/4;
-		boss->action_cd_total_time = 0.5f;
+		boss->action_cd_total_time = 10.5f;
 		boss->action_range = 5.0f;
 		boss->aura_radius = 3.0f;
 
@@ -245,7 +247,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						entities[memory->selected_uid].flags ^= E_HEALER; 
 						//TODO: this will be a bug if there is any other thing that turns action power 
 						// into a negative number
-						entities[memory->selected_uid].action_power *= -1;
 					}
 					else // default case
 					{
@@ -321,13 +322,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						entities[memory->selected_uid].element_type |= possible_types_to_select[i];
 					}
 
-					if(possible_types_to_select[i] == EET_HEAL) // healer
+					if(entities[memory->selected_uid].element_type == EET_HEAL) // healer
 					{
-						entities[memory->selected_uid].action_power = -ABS(entities[memory->selected_uid].action_power);
+						entities[memory->selected_uid].flags |= E_HEALER; 
 					}
 					else // default case
 					{
-						entities[memory->selected_uid].action_power = ABS(entities[memory->selected_uid].action_power);
+						entities[memory->selected_uid].flags &= (E_HEALER ^ 0xffffffffffffffff); 
 					}
 				}
 			}
@@ -610,7 +611,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						// E_IGNORE_ALLIES
 					;
 					
-					new_shield->max_health = entity->action_power;
+					new_shield->max_health = 10.0f;
 					new_shield->health = new_shield->max_health;
 
 					//speed could be by the one who shoots
@@ -637,6 +638,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 			}
 			
+		}
+
+		// FOG DEBUFF TIME
+
+		if(entity->fog_debuff_time_left)
+		{
+			entity->fog_debuff_time_left = MAX(0, entity->fog_debuff_time_left-delta_time);
 		}
 
 
@@ -934,8 +942,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 						else // DEFAULT CASE
 						{
-							s32 damage_dealt = MIN(entity->health, entity2->action_power);
-							entity->health = CLAMP(0, entity->health - entity2->action_power, entity->max_health);
+							f32 damage_dealt = MIN(entity->health, entity2->total_power);
+							entity->health = CLAMP(0, entity->health - entity2->total_power, entity->max_health);
 							if(entity->health <= 0)
 							{
 								u32* index_to_kill;
@@ -989,7 +997,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 												// explosion_hitbox->parent_handle.index = i;
 												// explosion_hitbox->parent_handle.generation = generations[i];
 												// explosion_hitbox->team_uid = entity->team_uid;
-												explosion_hitbox->action_power = entity2->action_power;
+												explosion_hitbox->total_power = entity2->total_power;
 
 												explosion_hitbox->pos = entity2->pos;
 
@@ -1030,8 +1038,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 									entity->gravity_field_time_left = 10.0f;
 								}
 							}
-							if(entity2->flags & E_RECEIVES_DAMAGE)
-							{
+							if(true) 
+							{//TODO: not very multithready friendly
 								entity2->health--;
 								if(entity2->health <= 0){
 									u32* index_to_kill;
@@ -1088,7 +1096,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(distance < entity->aura_radius){
 						if(entity->healing_cd <= 0){
 							if(entity->health < entity->max_health){
-								entity->health = MIN(entity->health-entity2->action_power, entity->max_health);
+								entity->health = MIN(entity->health-calculate_power(entity2), entity->max_health);
 								entity->healing_cd += 2.0f;
 							}
 						}
@@ -1105,7 +1113,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(distance < explosion_radius)
 					{
 						f32 closeness_to_center = (1 - distance/explosion_radius);
-						f32 result_damage = closeness_to_center*3 + (entity2->action_power);
+						f32 result_damage = closeness_to_center*(MAX(20 + entity2->total_power, 10));
 						entity->health = CLAMP(0, entity->health - (s32)result_damage, entity->max_health);
 						// f32 outwards_force = 8*(explosion_radius-distance);
 						f32 outwards_force = 15 * closeness_to_center;
@@ -1123,13 +1131,35 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// BEING AFFECTED BY THE ENTITY'S GRAVITY FIELD
 
-			if(distance < entity2->gravity_field_time_left && entity->weight){
+			if(distance < entity2->gravity_field_time_left && entity->weight)
+			{
+				f32 entity_speed = MAX(v3_magnitude(entity->velocity), 0.5F);
+				// f32 multiplier = delta_time * (1.0f - distance/entity2->gravity_field_time_left) / entity->weight;
+				// entity->velocity = entity->velocity + (multiplier*((entity_speed*v3_normalize(distance_vector))-(entity->velocity)));
+
+				// f32 multiplier = delta_time * entity_speed / entity->weight;
+				// entity->velocity = entity->velocity + (multiplier*(v3_normalize(distance_vector)));
 				
-				entity->velocity = entity->velocity + ((delta_time/entity->weight)*((distance_vector/entity->weight)-(entity->velocity)));
-				if(entity->flags & E_DOES_DAMAGE){
-					entity->target_direction = entity->velocity;
-				}
+				entity->velocity = entity_speed * v3_normalize(entity->velocity + (distance_vector/(20*entity->weight)));
+
+				// f32 multiplier = delta_time * (1 + v3_magnitude(entity->velocity)/entity->weight) ;
+				// entity->velocity = entity->velocity + (multiplier*v3_normalize(distance_vector));
+
+				// if(entity->flags & E_DOES_DAMAGE)
+				// {
+				// 	entity->target_direction = entity->velocity;
+				// }
 				// entity->velocity = entity->velocity + (delta_time*distance_vector);
+			}
+
+			// BEING AFFECTED BY THE SMOKE SCREEN
+			if(entity2->flags & E_SMOKE_SCREEN)
+			{
+				if(distance < entity2->scale.x * entity2->creation_size)
+				{
+					entity->color = 0.3f*entity->color;
+					entity->fog_debuff_time_left += delta_time;
+				}
 			}
 
 
@@ -1141,7 +1171,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					!(entity->flags & E_SKIP_PARENT_COLLISION) ||
 					entity->parent_handle.index != j ||
 					entity->parent_handle.generation != generations[j]
-				) && ( // THIS IS SO THAT PIERCING PROJECTILES DON'T DIE WITH THE FIRST ENTITY THEY TOUCH
+				) && ( // THIS IS SO THAT PIERCING PROJECTILES DON'T DIE IF THEY INFLICTED DAMAGE TO THE ENTITY
 					!(entity->flags & E_DOES_DAMAGE) ||
 					!(entity2->flags & E_RECEIVES_DAMAGE)
 				)
@@ -1297,8 +1327,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						new_bullet->flags = 
 							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE|
-							E_RECEIVES_DAMAGE|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
+							E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
 							E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY
+							//|E_RECEIVES_DAMAGE
 						;
 
 						if(entity->flags & E_PROJECTILE_EXPLODE){
@@ -1344,7 +1375,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->scale = {0.4f,0.4f,0.4f};
 
 
-						new_bullet->action_power = entity->action_power;
+						new_bullet->total_power = calculate_power(entity);
 
 						new_bullet->aura_radius = 2.0f;
 
@@ -1394,7 +1425,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						hitbox->entity_to_stick = hitbox->parent_handle;
 						hitbox->team_uid = entity->team_uid;
 
-						hitbox->action_power = entity->action_power;
+						hitbox->total_power = calculate_power(entity);
 						hitbox->relative_angle = -(entity->action_angle/2) + (current_action_i*angle_step) ;
 
 						f32 relative_distance = 0.5f + entity->scale.x + hitbox->scale.x;
@@ -1430,7 +1461,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 					hitbox->team_uid = entity->team_uid;
 
-					hitbox->action_power = entity->action_power;
+					hitbox->total_power = entity->total_power;
 
 					hitbox->pos = entity->pos;
 
@@ -1455,7 +1486,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						// default_melee(new_entity, memory);
 						new_entity->flags = 
-							E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE;
+							E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_SHOOT;
 
 						new_entity->color = {1,1,1,1};
 						new_entity->scale = {1.0f,1.0f,1.0f};
@@ -1463,8 +1494,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->speed = 40.0f;
 						new_entity->friction = 5.0f;
 						new_entity->weight = 1.0f;
-						new_entity->max_health = 4;
+						new_entity->max_health = 40.f;
 						new_entity->health = new_entity->max_health;
+						new_entity->action_power = 10.0f;
 						new_entity->action_cd_total_time = 1.0f;
 						new_entity->action_range = 1.0f;
 						new_entity->aura_radius = 3.0f;
@@ -1472,7 +1504,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->parent_handle.index = i;
 						new_entity->parent_handle.generation = generations[i];
 						new_entity->team_uid = entity->team_uid;
-						new_entity->action_power = 1;
 
 						V3 spawn_direction;
 						if(looking_direction_length > entity->action_range){
@@ -1566,7 +1597,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// explosion_hitbox->parent_handle.index = i;
 			// explosion_hitbox->parent_handle.generation = generations[i];
 			// explosion_hitbox->team_uid = entity->team_uid;
-			explosion_hitbox->action_power = entities[*e_index].action_power;
+			explosion_hitbox->total_power = calculate_power(&entities[*e_index]);
 
 			explosion_hitbox->pos = entities[*e_index].pos;
 
@@ -1849,7 +1880,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		if((memory->entities[i].flags & E_VISIBLE) && 
 			(memory->entities[i].type != ENTITY_OBSTACLE)
 		){
-			String health_string = number_to_string(memory->entities[i].health, memory->temp_arena);
+			f32 health_offset = memory->entities[i].health - (s32)(memory->entities[i].health);
+			String health_string = number_to_string((s32)memory->entities[i].health+(!!health_offset), memory->temp_arena);
 			printo_world(memory, screen_size, render_list,
 				health_string, 
 				memory->entities[i].pos,

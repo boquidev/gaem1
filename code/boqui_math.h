@@ -78,6 +78,7 @@ fast_sqrt(f32 n)
     y = y * (1.5f - (x * y * y)); // newton pass
     y = y * (1.5f - (x * y * y)); // optional second newton pass for more precision
 
+    
     return n*y;
 }
 
