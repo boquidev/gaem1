@@ -258,6 +258,8 @@ static union {
 
 		E_SMOKE_SCREEN,
 
+		E_EXTRA_RANGE,
+
 
 		// MELEE FLAGS
 		E_LIFE_STEAL,

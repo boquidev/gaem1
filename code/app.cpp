@@ -180,50 +180,58 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	if(input->L == 1){
 		// memory->radial_menu_pos = input->cursor_pixels_pos;
-		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS+100, input->cursor_pixels_pos.x, client_size.x -(100+MENU_RADIUS));
-		memory->radial_menu_pos.y = CLAMP(MENU_RADIUS, input->cursor_pixels_pos.y, client_size.y -MENU_RADIUS);
+		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS, input->cursor_pixels_pos.x, client_size.x - (MENU_RADIUS));
+		memory->radial_menu_pos.y = CLAMP(MENU_RADIUS+25, input->cursor_pixels_pos.y, client_size.y - (25+MENU_RADIUS));
 	}
 
 	if(input->L > 0){
 
 		u64 possible_flags_to_set[] = {
 			E_SHOOT,
-			E_PROJECTILE_JUMPS_BETWEEN_TARGETS,
-			E_MELEE_ATTACK,
 			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
 			E_CAN_MANUALLY_MOVE,
-			E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
-			E_HEALER,
 			E_GENERATE_RESOURCE,
+			E_HAS_SHIELD,
+			E_EXTRA_RANGE,
+			
+			/*
+			E_AUTO_AIM_BOSS,
 			E_PROJECTILE_PIERCE_TARGETS,
 			E_HOMING_PROJECTILES,
+			E_LIFE_STEAL,
+			E_PROJECTILE_JUMPS_BETWEEN_TARGETS,
+			E_TOXIC_EMITTER|E_TOXIC_DAMAGE_INMUNE,
 			E_PROJECTILE_EXPLODE,
 			E_FREEZING_ACTIONS,
 			E_HIT_SPAWN_GRAVITY_FIELD,
-			E_AUTO_AIM_BOSS,
 			E_STICK_TO_ENTITY,
-			E_LIFE_STEAL,
-			E_HAS_SHIELD,
+			E_HEALER,
+			*/
 		};
 
 		char* button_text[] = {
 			"shoot",
-			"projectile jump between targets",
-			"melee attack",
 			"go after enemies",
 			"manually move",
-			"toxic",
-			"healer",
 			"resource farm",
+			"add shield",
+			"extra_range",
+			
+			/*
+			"melee attack",
+			E_MELEE_ATTACK,
+			"autoaim boss",
 			"piercing projectiles",
 			"homing projectiles",
+			"lifesteal",
+			"projectile jump between targets",
+			"toxic",
 			"explode projectiles",
 			"freezing abilities",
 			"hits spawn gravity field",
-			"autoaim boss",
 			"stick to parent",
-			"lifesteal",
-			"add shield"
+			"healer",
+			*/
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
@@ -384,6 +392,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->pause == 1) memory->is_paused = !memory->is_paused;
 
 	if(input->debug_up) memory->teams_resources[0]++;
+
+	if(input->debug_left == 1) entities[memory->selected_uid].action_range /= 2;
+	if(input->debug_right == 1) entities[memory->selected_uid].action_range *= 2;
 
 	// UPDATE 1 FRAME IF THE KEY IS TAPPED
 	if(memory->is_paused) if (input->debug_right != 1) return;
@@ -1322,7 +1333,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						//speed could be by the one who shoots
 						new_bullet->speed = 60;
-						new_bullet->friction = 5.0f;
+						f32 range_multiplier = 1.0f + (2.0f * !!(entity->flags & E_EXTRA_RANGE));
+						new_bullet->friction = 20.0f / (range_multiplier * entity->action_range);
 
 						new_bullet->lifetime = 5.0f;
 						new_bullet->weight = 0.1f;
@@ -1459,7 +1471,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_entity->health = new_entity->max_health;
 						new_entity->action_power = 10.0f;
 						new_entity->action_cd_total_time = 1.0f;
-						new_entity->action_range = 1.0f;
+						new_entity->action_range = 4.0f;
 						new_entity->aura_radius = 3.0f;
 
 						new_entity->parent_handle.index = i;
