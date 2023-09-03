@@ -102,6 +102,9 @@ struct Entity{
 
 	f32 elemental_effect_duration;
 	f32 elemental_damage_duration; // this is used to know how much will the duration effect last when this entity does damage
+
+	f32 heat_tick_damage_cd;
+
 	f32 fog_debuff_time_left;
 
 	ENTITY_TYPE type;
@@ -444,7 +447,7 @@ struct App_memory
 };
 
 internal void 
-calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory, LIST(Entity,entities_to_create), f32 delta_time)
+calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory, LIST(Entity,entities_to_create))
 {
 	// CHEKING IF A ELEMENTAL REACTION OCURRED
 	u16 elemental_damage = entity2->element_type & EE_REACTIVE_ELEMENTS;
@@ -468,7 +471,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
 						;
 					smoke_screen->element_type = EET_WATER;
-					smoke_screen->elemental_damage_duration = 2*delta_time;
+					smoke_screen->elemental_damage_duration = 2*memory->delta_time;
 					smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
 					smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
 
@@ -517,7 +520,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					Entity* effect;
 					PUSH_BACK(entities_to_create, memory->temp_arena, effect);
 					effect->flags = E_VISIBLE|E_NOT_TARGETABLE;
-					effect->lifetime = 2*delta_time;
+					effect->lifetime = 2*memory->delta_time;
 
 					effect->pos = entity->pos;
 
@@ -536,7 +539,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					explosion_hitbox->scale = {8,8,8};
 					explosion_hitbox->creation_size = 1.0f;
 
-					explosion_hitbox->lifetime = delta_time;
+					explosion_hitbox->lifetime = memory->delta_time;
 
 					// explosion_hitbox->parent_handle.index = i;
 					// explosion_hitbox->parent_handle.generation = generations[i];

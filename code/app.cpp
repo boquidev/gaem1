@@ -100,7 +100,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	Entity* entities = memory->entities;
 	u32* generations = memory->entity_generations;
 	Ui_element* ui_elements = memory->ui_elements;
-	f32 delta_time = memory->delta_time;
+	f32 world_delta_time = memory->delta_time;
 
 	//TODO: this
 	if(input->T == 1)
@@ -494,14 +494,40 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(entities[i].creation_delay <= 0){
 				entities[i].creation_size = 1.0f;
 			}else{
-				entities[i].creation_size += (1-entities[i].creation_size) / (entities[i].creation_delay/delta_time);
-				entities[i].creation_delay -= delta_time;
+				entities[i].creation_size += (1-entities[i].creation_size) / (entities[i].creation_delay/world_delta_time);
+				entities[i].creation_delay -= world_delta_time;
 			}
 		}
 
 
 		if(entities[i].flags & E_SKIP_UPDATING) continue;
 		Entity* entity = &entities[i];
+
+		f32 entity_dt = world_delta_time;
+
+		switch(entity->element_effect)
+		{
+			case EET_COLD:
+			{
+				entity_dt = world_delta_time * 0.65f;
+			}break;
+			case EET_HEAT:
+			{
+				entity->heat_tick_damage_cd -= world_delta_time;
+				if(entity->heat_tick_damage_cd <= 0)
+				{
+					entity->heat_tick_damage_cd += 1.0f;
+					entity->health = MAX(5.0f, entity->health - 5.0F);
+				}
+			}break;
+			case EET_ELECTRIC:
+			case EET_WATER:
+			case 0:
+			break;
+			default:
+				ASSERT(false);	
+		}
+
 
 		if(entity->flags & E_SMOKE_SCREEN){
 			entity->color = {1,1,1,0.4f};
@@ -522,7 +548,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_SHRINK_WITH_LIFETIME)
 		{
-			f32 next_scale = (1-(delta_time/entity->lifetime));
+			f32 next_scale = (1-(entity_dt/entity->lifetime));
 			if(next_scale > 0){
 				entity->scale = next_scale*entity->scale;
 			}
@@ -532,7 +558,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->lifetime)
 		{
-			entity->lifetime -= delta_time;
+			entity->lifetime -= world_delta_time;
 			if(entity->lifetime <= 0 )
 			{
 				u32* entity_index; PUSH_BACK(entities_to_kill, memory->temp_arena, entity_index);
@@ -544,7 +570,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// HEALING COOLDOWN
 
-		entity->healing_cd -= delta_time;
+		entity->healing_cd -= entity_dt;
 		if(entity->healing_cd <= 0){
 			entity->healing_cd = 0;
 		}
@@ -554,7 +580,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->toxic_time_left)
 		{
-			entity->toxic_time_left = MAX(0, entity->toxic_time_left-delta_time);
+			entity->toxic_time_left = MAX(0, entity->toxic_time_left-entity_dt);
 		}
 		
 
@@ -566,7 +592,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			entity->toxic_time_left = 0;
 		}else if(entity->toxic_time_left){
 			if(!(entity->flags & E_TOXIC_DAMAGE_INMUNE)){
-				entity->toxic_tick_damage_cd -= delta_time;
+				entity->toxic_tick_damage_cd -= world_delta_time;
 				if(entity->toxic_tick_damage_cd <= 0){
 					entity->toxic_tick_damage_cd += 2.0f;
 
@@ -583,13 +609,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// FREEZE TIME
 
 		if(entity->freezing_time_left){
-			entity->freezing_time_left = MAX(0, entity->freezing_time_left - delta_time);
+			entity->freezing_time_left = MAX(0, entity->freezing_time_left - entity_dt);
 		}
 
 		// GRAVITY FIELD TIME 
 
 		if(entity->gravity_field_time_left){
-			entity->gravity_field_time_left = MAX(0, entity->gravity_field_time_left - delta_time);
+			entity->gravity_field_time_left = MAX(0, entity->gravity_field_time_left - entity_dt);
 		}
 
 		// SHIELD COOLDOWN
@@ -598,7 +624,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			if(!entity->shield_active)
 			{
-				entity->shield_cd = MAX(0, entity->shield_cd-delta_time);
+				entity->shield_cd = MAX(0, entity->shield_cd-entity_dt);
 
 				if(entity->shield_cd <= 0)
 				{
@@ -644,21 +670,21 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->fog_debuff_time_left)
 		{
-			entity->fog_debuff_time_left = MAX(0, entity->fog_debuff_time_left - delta_time);
+			entity->fog_debuff_time_left = MAX(0, entity->fog_debuff_time_left - world_delta_time);
 		}
 
 		// REACTION COOLDOWN
 
 		if(entity->reaction_cooldown)
 		{
-			entity->reaction_cooldown = MAX(0, entity->reaction_cooldown - delta_time);
+			entity->reaction_cooldown = MAX(0, entity->reaction_cooldown - world_delta_time);
 		}
 
 		// ELEMENTAL EFFECT DURATION
 
 		if(entity->elemental_effect_duration)
 		{
-			entity->elemental_effect_duration = MAX(0, entity->elemental_effect_duration - delta_time);
+			entity->elemental_effect_duration = MAX(0, entity->elemental_effect_duration - world_delta_time);
 			if(!entity->elemental_effect_duration)
 			{
 				entity->element_effect = 0;
@@ -669,7 +695,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// PROJECTILE IGNORE SPHERE
 
 		if(entity->ignore_sphere_radius){
-			entity->ignore_sphere_radius = (entity->ignore_sphere_radius-delta_time)*0.89f;
+			entity->ignore_sphere_radius = (entity->ignore_sphere_radius-world_delta_time)*0.89f;
 			if(entity->ignore_sphere_radius <= 0){
 				entity->ignore_sphere_radius = 0;
 			}else{
@@ -716,8 +742,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(!(entity->flags & E_SKIP_DYNAMICS))
 		{
-			V3 acceleration = ((entity->speed*(!entity->freezing_time_left)*entity->normalized_accel)-(entity->friction*entity->velocity));
-			entity->velocity = entity->velocity + (delta_time*acceleration);
+			f32 paralysis_multiplier = (entity->element_effect & EET_ELECTRIC) ? 0.1f : 1.0f;
+			V3 acceleration = ((paralysis_multiplier*entity->speed*(!entity->freezing_time_left)*entity->normalized_accel)-(entity->friction*entity->velocity));
+			entity->velocity = entity->velocity + (entity_dt*acceleration);
 			f32 min_threshold = 0.1f;
 			if( // it is not moving
 				(entity->normalized_accel.x < min_threshold && entity->normalized_accel.x > -min_threshold) &&
@@ -725,7 +752,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			){
 				// look at the target
 				//TODO: handle case when entity->target_direction == 0
-				V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
+				V3 delta_looking_direction = (10*entity_dt*(entity->target_direction - entity->looking_direction));
 				entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				//slowing_down
 			}else{
@@ -733,14 +760,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				{
 					// look in the moving direction
 					//TODO: handle case when entity->velocity == 0
-					V3 delta_looking_direction = (10*delta_time*(entity->velocity - entity->looking_direction));
+					V3 delta_looking_direction = (10*entity_dt*(entity->velocity - entity->looking_direction));
 					entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				}
 				else // DEFAULT CASE
 				{ 
 					// look at the target
 					//TODO: handle case when entity->target_direction == 0
-					V3 delta_looking_direction = (10*delta_time*(entity->target_direction - entity->looking_direction));
+					V3 delta_looking_direction = (10*entity_dt*(entity->target_direction - entity->looking_direction));
 					entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				}
 			}
@@ -749,7 +776,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		entity->normalized_accel = {0,0,0};
 
 		
-		// VELOCITY = SIZE
+		// SIZE = VELOCITY
 
 		if(entity->flags & E_SHRINK_WITH_VELOCITY)
 		{
@@ -977,7 +1004,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							}
 							// CHEKING IF A ELEMENTAL REACTION OCURRED
 
-							calculate_elemental_reaction(entity, entity2, memory, entities_to_create, delta_time);
+							calculate_elemental_reaction(entity, entity2, memory, entities_to_create);
 
 
 							//TODO: not very multithready friendly
@@ -1025,7 +1052,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}else if(entity->toxic_time_left < entity2->toxic_time_left && !(entity->flags & E_TOXIC_EMITTER))
 				{
 					if(distance < DEFAULT_TOXIC_RADIUS){
-						entity->toxic_time_left = MAX(0, entity2->toxic_time_left-delta_time);
+						entity->toxic_time_left = MAX(0, entity2->toxic_time_left-entity_dt);
 					}
 				}
 
@@ -1076,33 +1103,20 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(distance < entity2->gravity_field_time_left && entity->weight)
 			{
 				f32 entity_speed = MAX(v3_magnitude(entity->velocity), 0.5F);
-				// f32 multiplier = delta_time * (1.0f - distance/entity2->gravity_field_time_left) / entity->weight;
-				// entity->velocity = entity->velocity + (multiplier*((entity_speed*v3_normalize(distance_vector))-(entity->velocity)));
-
-				// f32 multiplier = delta_time * entity_speed / entity->weight;
-				// entity->velocity = entity->velocity + (multiplier*(v3_normalize(distance_vector)));
-				
+				//TODO: this is independent of entity_dt 
 				entity->velocity = entity_speed * v3_normalize(entity->velocity + (distance_vector/(20*entity->weight)));
-
-				// f32 multiplier = delta_time * (1 + v3_magnitude(entity->velocity)/entity->weight) ;
-				// entity->velocity = entity->velocity + (multiplier*v3_normalize(distance_vector));
-
-				// if(entity->flags & E_DOES_DAMAGE)
-				// {
-				// 	entity->target_direction = entity->velocity;
-				// }
-				// entity->velocity = entity->velocity + (delta_time*distance_vector);
 			}
 
 			// BEING AFFECTED BY THE SMOKE SCREEN
 			if(entity2->flags & E_SMOKE_SCREEN && 
-				!(entity->flags & E_DOES_DAMAGE))
-			{
+				(entity->flags & E_RECEIVES_DAMAGE) &&
+				!(entity->flags & E_DOES_DAMAGE) 
+			){
 				if(distance < (entity2->scale.x * entity2->creation_size))
 				{
 					entity->color = 0.3f*entity->color;
-					entity->fog_debuff_time_left = 2*delta_time;
-					calculate_elemental_reaction(entity, entity2, memory, entities_to_create, delta_time);
+					entity->fog_debuff_time_left = 2*world_delta_time;
+					calculate_elemental_reaction(entity, entity2, memory, entities_to_create);
 				}
 			}
 
@@ -1145,8 +1159,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							
 							//TODO: this will need a rework cuz it is not multithread friendly
 							// i should not modify other entities while processing another one
-							// f32 momentum_i = MAX(v3_magnitude(entity->velocity), delta_time);
-							// f32 momentum_j = MAX(v3_magnitude(entity2->velocity), delta_time);
+							// f32 momentum_i = MAX(v3_magnitude(entity->velocity), entity_dt);
+							// f32 momentum_j = MAX(v3_magnitude(entity2->velocity), entity_dt);
 							entity->velocity = entity->velocity - (collision_direction);
 							// entity2->velocity = entity2->velocity + (collision_direction);
 
@@ -1234,7 +1248,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// if it is not 0
 		if(!entity->freezing_time_left && entity->action_cd_total_time){
-			entity->action_cd_time_passed += delta_time;
+			entity->action_cd_time_passed += entity_dt;
 			if(entity->action_cd_time_passed >= entity->action_cd_total_time){
 				entity->action_cd_time_passed -= entity->action_cd_total_time;
 
@@ -1400,7 +1414,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					hitbox->scale = entity->scale;
 					hitbox->creation_size = 1.0f;
 
-					hitbox->lifetime = delta_time;
+					hitbox->lifetime = world_delta_time;
 
 					hitbox->parent_handle = entity->parent_handle;
 
@@ -1502,7 +1516,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}else{ // DEFAULT CASE
 			if(!(entity->flags & E_NOT_MOVE)){
-				entity->pos = entity->pos + (delta_time * entity->velocity);
+				entity->pos = entity->pos + (entity_dt * entity->velocity);
 			}
 		}
 
@@ -1539,7 +1553,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			explosion_hitbox->scale = {5,5,5};
 			explosion_hitbox->creation_size = 1.0f;
 
-			explosion_hitbox->lifetime = delta_time;
+			explosion_hitbox->lifetime = world_delta_time;
 
 			// explosion_hitbox->parent_handle.index = i;
 			// explosion_hitbox->parent_handle.generation = generations[i];
