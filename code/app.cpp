@@ -990,7 +990,47 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 													entity->freezing_time_left = 5.0f;
 												}break;
 												case EET_WATER|EET_ELECTRIC:{
+													Entity* e; // jumping lightning
+													PUSH_BACK(entities_to_create, memory->temp_arena, e);
+													e->flags = E_VISIBLE|E_NOT_TARGETABLE|E_DOES_DAMAGE|
+														E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE
+														|P_JUMP_BETWEEN_TARGETS;
+														
+													e->element_type = EET_ELECTRIC;
 
+													e->max_health = 3;
+													e->health = e->max_health;
+													e->speed = 30;
+													e->friction = 0.0f;
+													e->lifetime = 5.0f;
+													e->weight = 100.0f;
+													e->total_power = 10.0f;
+													e->aura_radius = 2.0f;
+
+													e->pos = entity->pos;
+													e->velocity = {e->speed, 0, 0};
+													e->parent_handle = entity2->parent_handle;
+
+													e->ignore_sphere_pos = entity2->ignore_sphere_pos;
+													e->ignore_sphere_radius = entity2->ignore_sphere_radius;
+													e->ignore_sphere_target_pos = entity2->ignore_sphere_target_pos;
+
+													e->mesh_uid = memory->meshes.ball_mesh_uid;
+													e->texinfo_uid = memory->textures.white_tex_uid;
+													e->color = {1.0f, 1.0f, 0.0f, 1};
+													e->scale = {0.4f, 0.4f, 0.4f};
+
+													Entity* effect;
+													PUSH_BACK(entities_to_create, memory->temp_arena, effect);
+													effect->flags = E_VISIBLE|E_NOT_TARGETABLE;
+													effect->lifetime = 2*delta_time;
+
+													effect->pos = entity->pos;
+
+													effect->scale = {5,5,5};
+													effect->color = {1,1,0,1};
+													effect->mesh_uid = memory->meshes.centered_cube_mesh_uid;
+													effect->texinfo_uid = memory->textures.white_tex_uid;
 
 												}break;
 												case EET_HEAT|EET_COLD:{
@@ -1497,8 +1537,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						Entity* new_entity; PUSH_BACK(entities_to_create, memory->temp_arena, new_entity);
 
 						// default_melee(new_entity, memory);
-						new_entity->flags = 
+						new_entity->flags = E_CAN_MANUALLY_MOVE|
 							E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_SHOOT;
+
+						new_entity->element_type = EET_WATER;
 
 						new_entity->color = {1,1,1,1};
 						new_entity->scale = {1.0f,1.0f,1.0f};
