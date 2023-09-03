@@ -644,14 +644,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->fog_debuff_time_left)
 		{
-			entity->fog_debuff_time_left = MAX(0, entity->fog_debuff_time_left-delta_time);
+			entity->fog_debuff_time_left = MAX(0, entity->fog_debuff_time_left - delta_time);
 		}
 
 		// REACTION COOLDOWN
 
 		if(entity->reaction_cooldown)
 		{
-			entity->reaction_cooldown = MAX(0, entity->reaction_cooldown-delta_time);
+			entity->reaction_cooldown = MAX(0, entity->reaction_cooldown - delta_time);
+		}
+
+		// ELEMENTAL EFFECT DURATION
+
+		if(entity->elemental_effect_duration)
+		{
+			entity->elemental_effect_duration = MAX(0, entity->elemental_effect_duration - delta_time);
+			if(!entity->elemental_effect_duration)
+			{
+				entity->element_effect = 0;
+			}
 		}
 
 
@@ -956,132 +967,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 								*index_to_kill = i;
 							}else{ // still alive
-								// CHEKING IF A ELEMENTAL REACTION OCURRED
-								u16 elemental_damage = entity2->element_type & EE_REACTIVE_ELEMENTS;
-								if(elemental_damage)
-								{
-									u16 current_element = (entity->element_type|entity->element_effect) & (EE_REACTIVE_ELEMENTS);
-									if(current_element)
-									{
-										if(!entity->reaction_cooldown)
-										{
-											entity->reaction_cooldown = 5.0f;
-											u16 reaction = elemental_damage | current_element;
-											b32 reaction_ocurred = true;
-											switch(reaction)
-											{
-												case EET_WATER|EET_HEAT:{
-													Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
-													smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|
-														E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
-														;
-													smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
-													smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
-
-													smoke_screen->color = {1,1,1,0.2f};
-													smoke_screen->scale = {4,2,4};
-													smoke_screen->creation_delay = 0.3f;
-													smoke_screen->lifetime = 10.0f;
-
-													smoke_screen->pos = entity->pos;
-													
-												}break;
-												case EET_WATER|EET_COLD:{
-													entity->freezing_time_left = 5.0f;
-												}break;
-												case EET_WATER|EET_ELECTRIC:{
-													Entity* e; // jumping lightning
-													PUSH_BACK(entities_to_create, memory->temp_arena, e);
-													e->flags = E_VISIBLE|E_NOT_TARGETABLE|E_DOES_DAMAGE|
-														E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE
-														|P_JUMP_BETWEEN_TARGETS;
-														
-													e->element_type = EET_ELECTRIC;
-
-													e->max_health = 3;
-													e->health = e->max_health;
-													e->speed = 30;
-													e->friction = 0.0f;
-													e->lifetime = 5.0f;
-													e->weight = 100.0f;
-													e->total_power = 10.0f;
-													e->aura_radius = 2.0f;
-
-													e->pos = entity->pos;
-													e->velocity = {e->speed, 0, 0};
-													e->parent_handle = entity2->parent_handle;
-
-													e->ignore_sphere_pos = entity2->ignore_sphere_pos;
-													e->ignore_sphere_radius = entity2->ignore_sphere_radius;
-													e->ignore_sphere_target_pos = entity2->ignore_sphere_target_pos;
-
-													e->mesh_uid = memory->meshes.ball_mesh_uid;
-													e->texinfo_uid = memory->textures.white_tex_uid;
-													e->color = {1.0f, 1.0f, 0.0f, 1};
-													e->scale = {0.4f, 0.4f, 0.4f};
-
-													Entity* effect;
-													PUSH_BACK(entities_to_create, memory->temp_arena, effect);
-													effect->flags = E_VISIBLE|E_NOT_TARGETABLE;
-													effect->lifetime = 2*delta_time;
-
-													effect->pos = entity->pos;
-
-													effect->scale = {5,5,5};
-													effect->color = {1,1,0,1};
-													effect->mesh_uid = memory->meshes.centered_cube_mesh_uid;
-													effect->texinfo_uid = memory->textures.white_tex_uid;
-
-												}break;
-												case EET_HEAT|EET_COLD:{
-													Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
-
-													explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
-
-													explosion_hitbox->color = {1.0f, 0, 0, 0.3f};
-													explosion_hitbox->scale = {5,5,5};
-													explosion_hitbox->creation_size = 1.0f;
-
-													explosion_hitbox->lifetime = delta_time;
-
-													// explosion_hitbox->parent_handle.index = i;
-													// explosion_hitbox->parent_handle.generation = generations[i];
-													// explosion_hitbox->team_uid = entity->team_uid;
-													explosion_hitbox->total_power = entity2->total_power;
-
-													explosion_hitbox->pos = entity2->pos;
-
-													// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
-													explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
-													explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
-
-												}break;
-												case EET_HEAT|EET_ELECTRIC:{
-													entity->toxic_time_left = 5.0f;
-
-												}break;
-												case EET_COLD|EET_ELECTRIC:{
-													entity->gravity_field_time_left = 10.0f;
-												}break;
-												// THE SAME ELEMENT
-												case EET_WATER:
-												case EET_HEAT:
-												case EET_COLD:
-												case EET_ELECTRIC: 
-													reaction_ocurred = false;
-												break;
-
-												default:
-													ASSERT(false);
-											}
-											if(reaction_ocurred){
-												entity->element_effect = 0;
-											}
-										}
-									}else{
-										entity->element_effect = elemental_damage;
-									}
-								}
 								// OLD WAY OF FREEZING
 								if(entity2->flags & P_FREEZING){
 									entity->freezing_time_left = 5.0f;
@@ -1090,27 +975,153 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 									entity->gravity_field_time_left = 10.0f;
 								}
 							}
-							if(true) 
-							{//TODO: not very multithready friendly
-								entity2->health--;
-								if(entity2->health <= 0){
-									u32* index_to_kill;
-									PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-									*index_to_kill = j;
-								}else{
-
-									//TODO: push this code to a list to process this outside the main loop
-									entity2->jump_change_direction = true; 
-									if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
-										entity2->ignore_sphere_pos = entity->pos;
-										entity2->ignore_sphere_radius = 0.9f;
-									}else{
-										V3 difference = entity->pos - entity2->ignore_sphere_pos;
-										entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
-										entity2->ignore_sphere_radius = MAX(0.9f,entity2->ignore_sphere_radius + v3_magnitude(difference)/2);
-									}
-									entity2->ignore_sphere_target_pos = entity->pos;
+							// CHEKING IF A ELEMENTAL REACTION OCURRED
+							u16 elemental_damage = entity2->element_type & EE_REACTIVE_ELEMENTS;
+							if(elemental_damage)
+							{
+								u16 current_element = (entity->element_type|entity->element_effect) & (EE_REACTIVE_ELEMENTS);
+								if(!current_element || entity->element_effect == elemental_damage)
+								{
+									entity->element_effect = elemental_damage;
+									entity->elemental_effect_duration = entity2->elemental_damage_duration;
 								}
+								if(!entity->reaction_cooldown)
+								{
+									u16 reaction = elemental_damage | current_element;
+									b32 reaction_ocurred = true;
+									switch(reaction)
+									{
+										case EET_WATER|EET_HEAT:{
+											Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
+											smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|
+												E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
+												;
+											smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
+											smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
+
+											smoke_screen->color = {1,1,1,0.2f};
+											smoke_screen->scale = {4,2,4};
+											smoke_screen->creation_delay = 0.3f;
+											smoke_screen->lifetime = 10.0f;
+
+											smoke_screen->pos = entity->pos;
+											
+										}break;
+										case EET_WATER|EET_COLD:{
+											entity->freezing_time_left = 5.0f;
+										}break;
+										case EET_WATER|EET_ELECTRIC:{
+											Entity* e; // jumping lightning
+											PUSH_BACK(entities_to_create, memory->temp_arena, e);
+											e->flags = E_VISIBLE|E_NOT_TARGETABLE|E_DOES_DAMAGE|
+												E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE
+												|P_JUMP_BETWEEN_TARGETS;
+												
+											e->element_type = EET_ELECTRIC;
+											e->elemental_damage_duration = 1.0f;
+
+											e->max_health = 3;
+											e->health = e->max_health;
+											e->speed = 30;
+											e->friction = 0.0f;
+											e->lifetime = 5.0f;
+											e->weight = 100.0f;
+											e->total_power = 10.0f;
+											e->aura_radius = 2.0f;
+
+											e->pos = entity->pos;
+											e->velocity = {e->speed, 0, 0};
+
+											e->parent_handle = entity2->parent_handle;
+											e->ignore_sphere_pos = entity2->ignore_sphere_pos;
+											e->ignore_sphere_radius = entity2->ignore_sphere_radius;
+											e->ignore_sphere_target_pos = entity2->ignore_sphere_target_pos;
+
+											e->mesh_uid = memory->meshes.ball_mesh_uid;
+											e->texinfo_uid = memory->textures.white_tex_uid;
+											e->color = {1.0f, 1.0f, 0.0f, 1};
+											e->scale = {0.4f, 0.4f, 0.4f};
+
+											Entity* effect;
+											PUSH_BACK(entities_to_create, memory->temp_arena, effect);
+											effect->flags = E_VISIBLE|E_NOT_TARGETABLE;
+											effect->lifetime = 2*delta_time;
+
+											effect->pos = entity->pos;
+
+											effect->scale = {5,5,5};
+											effect->color = {1,1,0,1};
+											effect->mesh_uid = memory->meshes.centered_cube_mesh_uid;
+											effect->texinfo_uid = memory->textures.white_tex_uid;
+
+										}break;
+										case EET_HEAT|EET_COLD:{
+											Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
+
+											explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
+
+											explosion_hitbox->color = {1.0f, 0, 0, 0.3f};
+											explosion_hitbox->scale = {5,5,5};
+											explosion_hitbox->creation_size = 1.0f;
+
+											explosion_hitbox->lifetime = delta_time;
+
+											// explosion_hitbox->parent_handle.index = i;
+											// explosion_hitbox->parent_handle.generation = generations[i];
+											// explosion_hitbox->team_uid = entity->team_uid;
+											explosion_hitbox->total_power = 15.0f;
+
+											explosion_hitbox->pos = entity->pos;
+
+											// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+											explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
+											explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
+
+										}break;
+										case EET_HEAT|EET_ELECTRIC:{
+											entity->toxic_time_left = 5.0f;
+
+										}break;
+										case EET_COLD|EET_ELECTRIC:{
+											entity->gravity_field_time_left = 10.0f;
+										}break;
+										// THE SAME ELEMENT
+										case EET_WATER:
+										case EET_HEAT:
+										case EET_COLD:
+										case EET_ELECTRIC: 
+											reaction_ocurred = false;
+										break;
+										default: // OTHER
+											ASSERT(false);
+									}
+									if(reaction_ocurred){
+										entity->reaction_cooldown = 5.0f;
+										entity->element_effect = 0;
+									}
+								}
+							}
+							//TODO: not very multithready friendly
+							entity2->health--;
+							if(entity2->health <= 0)
+							{
+								u32* index_to_kill;
+								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+								*index_to_kill = j;
+							}
+							else
+							{
+								//TODO: push this code to a list to process this outside the main loop
+								entity2->jump_change_direction = true; 
+								if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
+									entity2->ignore_sphere_pos = entity->pos;
+									entity2->ignore_sphere_radius = 0.9f;
+								}else{
+									V3 difference = entity->pos - entity2->ignore_sphere_pos;
+									entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
+									entity2->ignore_sphere_radius = MAX(0.9f,entity2->ignore_sphere_radius + v3_magnitude(difference)/2);
+								}
+								entity2->ignore_sphere_target_pos = entity->pos;
 							}
 							if(entity2->flags & A_STEAL_LIFE)
 							{
@@ -1398,6 +1409,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 
 						new_bullet->element_type = entity->element_type;
+						new_bullet->elemental_damage_duration = 5.0f;
 						
 						new_bullet->max_health = 1;
 						if(entity->flags & E_PROJECTILE_JUMPS_BETWEEN_TARGETS){

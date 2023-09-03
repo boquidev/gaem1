@@ -100,6 +100,8 @@ struct Entity{
 	u16 element_type;
 	u16 element_effect;
 
+	f32 elemental_effect_duration;
+	f32 elemental_damage_duration; // this is used to know how much will the duration effect last when this entity does damage
 	f32 fog_debuff_time_left;
 
 	ENTITY_TYPE type;
@@ -138,7 +140,6 @@ struct Entity{
 	u32 action_count;
 	f32 action_angle;
 
-	f32 action_max_time;
 	f32 action_range;
 
 		f32 damage_redness;
