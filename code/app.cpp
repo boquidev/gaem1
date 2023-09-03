@@ -293,8 +293,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		ENTITY_ELEMENT_TYPE possible_types_to_select[] = {
 			EET_HEAL,
 			EET_WATER,
-			EET_FIRE,
-			EET_ICE,
+			EET_HEAT,
+			EET_COLD,
 			EET_ELECTRIC,
 		};
 
@@ -647,6 +647,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			entity->fog_debuff_time_left = MAX(0, entity->fog_debuff_time_left-delta_time);
 		}
 
+		// REACTION COOLDOWN
+
+		if(entity->reaction_cooldown)
+		{
+			entity->reaction_cooldown = MAX(0, entity->reaction_cooldown-delta_time);
+		}
 
 
 		// PROJECTILE IGNORE SPHERE
@@ -957,74 +963,80 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 									u16 current_element = (entity->element_type|entity->element_effect) & (EE_REACTIVE_ELEMENTS);
 									if(current_element)
 									{
-										u16 reaction = elemental_damage | current_element;
-										b32 reaction_ocurred = true;
-										switch(reaction)
+										if(!entity->reaction_cooldown)
 										{
-											case EET_WATER|EET_FIRE:{
-												Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
-												smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|
-													E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
-													;
-												smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
-												smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
+											entity->reaction_cooldown = 5.0f;
+											u16 reaction = elemental_damage | current_element;
+											b32 reaction_ocurred = true;
+											switch(reaction)
+											{
+												case EET_WATER|EET_HEAT:{
+													Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
+													smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|
+														E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
+														;
+													smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
+													smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
 
-												smoke_screen->color = {1,1,1,0.2f};
-												smoke_screen->scale = {4,2,4};
-												smoke_screen->creation_delay = 0.3f;
-												smoke_screen->lifetime = 10.0f;
+													smoke_screen->color = {1,1,1,0.2f};
+													smoke_screen->scale = {4,2,4};
+													smoke_screen->creation_delay = 0.3f;
+													smoke_screen->lifetime = 10.0f;
 
-												smoke_screen->pos = entity->pos;
-												
-											}break;
-											case EET_WATER|EET_ICE:{
-												entity->freezing_time_left = 5.0f;
-											}break;
-											case EET_WATER|EET_ELECTRIC:{
+													smoke_screen->pos = entity->pos;
+													
+												}break;
+												case EET_WATER|EET_COLD:{
+													entity->freezing_time_left = 5.0f;
+												}break;
+												case EET_WATER|EET_ELECTRIC:{
 
-											}break;
-											case EET_FIRE|EET_ICE:{
-												Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
 
-												explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
+												}break;
+												case EET_HEAT|EET_COLD:{
+													Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
 
-												explosion_hitbox->color = {1.0f, 0, 0, 0.3f};
-												explosion_hitbox->scale = {5,5,5};
-												explosion_hitbox->creation_size = 1.0f;
+													explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
 
-												explosion_hitbox->lifetime = delta_time;
+													explosion_hitbox->color = {1.0f, 0, 0, 0.3f};
+													explosion_hitbox->scale = {5,5,5};
+													explosion_hitbox->creation_size = 1.0f;
 
-												// explosion_hitbox->parent_handle.index = i;
-												// explosion_hitbox->parent_handle.generation = generations[i];
-												// explosion_hitbox->team_uid = entity->team_uid;
-												explosion_hitbox->total_power = entity2->total_power;
+													explosion_hitbox->lifetime = delta_time;
 
-												explosion_hitbox->pos = entity2->pos;
+													// explosion_hitbox->parent_handle.index = i;
+													// explosion_hitbox->parent_handle.generation = generations[i];
+													// explosion_hitbox->team_uid = entity->team_uid;
+													explosion_hitbox->total_power = entity2->total_power;
 
-												// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
-												explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
-												explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
+													explosion_hitbox->pos = entity2->pos;
 
-											}break;
-											case EET_FIRE|EET_ELECTRIC:{
+													// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+													explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
+													explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
 
-											}break;
-											case EET_ICE|EET_ELECTRIC:{
-												entity->gravity_field_time_left = 10.0f;
-											}break;
-											// THE SAME ELEMENT
-											case EET_WATER:
-											case EET_FIRE:
-											case EET_ICE:
-											case EET_ELECTRIC: 
-												reaction_ocurred = false;
-											break;
+												}break;
+												case EET_HEAT|EET_ELECTRIC:{
+													entity->toxic_time_left = 5.0f;
 
-											default:
-												ASSERT(false);
-										}
-										if(reaction_ocurred){
-											entity->element_effect = 0;
+												}break;
+												case EET_COLD|EET_ELECTRIC:{
+													entity->gravity_field_time_left = 10.0f;
+												}break;
+												// THE SAME ELEMENT
+												case EET_WATER:
+												case EET_HEAT:
+												case EET_COLD:
+												case EET_ELECTRIC: 
+													reaction_ocurred = false;
+												break;
+
+												default:
+													ASSERT(false);
+											}
+											if(reaction_ocurred){
+												entity->element_effect = 0;
+											}
 										}
 									}else{
 										entity->element_effect = elemental_damage;
@@ -1158,7 +1170,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				if(distance < entity2->scale.x * entity2->creation_size)
 				{
 					entity->color = 0.3f*entity->color;
-					entity->fog_debuff_time_left += delta_time;
+					entity->fog_debuff_time_left = 2*delta_time;
 				}
 			}
 
