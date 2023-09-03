@@ -467,13 +467,15 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|
 						E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
 						;
+					smoke_screen->element_type = EET_WATER;
+					smoke_screen->elemental_damage_duration = 2*delta_time;
 					smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
 					smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
 
 					smoke_screen->color = {1,1,1,0.2f};
-					smoke_screen->scale = {4,2,4};
+					smoke_screen->scale = {6,3,6};
 					smoke_screen->creation_delay = 0.3f;
-					smoke_screen->lifetime = 10.0f;
+					smoke_screen->lifetime = 7.0f;
 
 					smoke_screen->pos = entity->pos;
 					

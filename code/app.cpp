@@ -1095,12 +1095,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 
 			// BEING AFFECTED BY THE SMOKE SCREEN
-			if(entity2->flags & E_SMOKE_SCREEN)
+			if(entity2->flags & E_SMOKE_SCREEN && 
+				!(entity->flags & E_DOES_DAMAGE))
 			{
-				if(distance < entity2->scale.x * entity2->creation_size)
+				if(distance < (entity2->scale.x * entity2->creation_size))
 				{
 					entity->color = 0.3f*entity->color;
 					entity->fog_debuff_time_left = 2*delta_time;
+					calculate_elemental_reaction(entity, entity2, memory, entities_to_create, delta_time);
 				}
 			}
 
