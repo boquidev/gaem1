@@ -263,7 +263,8 @@ struct Ui_element{
 };
 
 internal b32
-ui_is_point_inside(Ui_element* ui, Int2 p){
+ui_is_point_inside(Ui_element* ui, Int2 p)
+{
 	b32 x_inside = IS_VALUE_BETWEEN(ui->pos.x, p.x, ui->pos.x + ui->size.x);
 	b32 y_inside = IS_VALUE_BETWEEN(ui->pos.y, p.y, ui->pos.y + ui->size.y);
 	return x_inside && y_inside;
@@ -413,12 +414,13 @@ struct App_memory
 	u32 time_ms; // this goes up to 1200 hours more or less 
 
 	b32 is_paused;
-	
-	f32 spawn_timer; //TODO: this is not being used anymore
 
 	u32 player_uid;
 
 	s32 teams_resources[2];
+	s32 team_entity_charges[2];
+
+	V3 new_entity_pos;
 	
 	u32 creating_unit; // this is an index of the unit being created
 	UNIT_TYPE possible_entities[7];

@@ -291,12 +291,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	}
 
-	if(input->R == 1){
-		// memory->radial_menu_pos = input->cursor_pixels_pos;
-		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS+50, input->cursor_pixels_pos.x, client_size.x -(50+MENU_RADIUS));
-		memory->radial_menu_pos.y = CLAMP(MENU_RADIUS, input->cursor_pixels_pos.y, client_size.y -MENU_RADIUS);
-	}
-	if(input->R > 0){
+	if(input->L > 0){
 
 		ENTITY_ELEMENT_TYPE possible_types_to_select[] = {
 			EET_HEAL,
@@ -1451,53 +1446,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 				if((entity->flags & E_SPAWN_ENTITIES))
 				{
-					UNTIL(current_action_i, repetitions)
-					{
-						Entity* new_entity; PUSH_BACK(entities_to_create, memory->temp_arena, new_entity);
-
-						// default_melee(new_entity, memory);
-						new_entity->flags = E_CAN_MANUALLY_MOVE|
-							E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_SHOOT;
-
-						new_entity->element_type = EET_WATER;
-
-						new_entity->color = {1,1,1,1};
-						new_entity->scale = {1.0f,1.0f,1.0f};
-
-						new_entity->speed = 40.0f;
-						new_entity->friction = 5.0f;
-						new_entity->weight = 1.0f;
-						new_entity->max_health = 40.f;
-						new_entity->health = new_entity->max_health;
-						new_entity->action_power = 10.0f;
-						new_entity->action_cd_total_time = 1.0f;
-						new_entity->action_range = 4.0f;
-						new_entity->aura_radius = 3.0f;
-
-						new_entity->parent_handle.index = i;
-						new_entity->parent_handle.generation = generations[i];
-						new_entity->team_uid = entity->team_uid;
-
-						V3 spawn_direction;
-						if(looking_direction_length > entity->action_range){
-							f32 temp_multiplier = entity->action_range / looking_direction_length;
-							spawn_direction =  (temp_multiplier * entity->looking_direction);
-						}else{
-							spawn_direction = entity->looking_direction;
-						}
-						new_entity->pos = spawn_direction + entity->pos;
-						
-						if(entity->team_uid == entities[memory->player_uid].team_uid){//friendly
-							V3 boss_pos = entity_from_handle(global_boss_handle, entities, generations)->pos;
-							new_entity->target_direction = boss_pos - new_entity->pos;
-						}else{//enemy
-							V3 player_pos = entity_from_handle(global_player_handle, entities, generations)->pos;
-							new_entity->target_direction = player_pos - new_entity->pos;
-						}
-						
-						new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
-						new_entity->texinfo_uid = memory->textures.test_tex_uid;
-					}
+					memory->team_entity_charges[entity->team_uid]++;
 				}
 			}
 		}
@@ -1598,7 +1547,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// DECIDE WHOS THE SELECTED ENTITY 
 
-	if(!is_cursor_in_ui && !input->L && !input->R){
+	if(!is_cursor_in_ui && !input->L){
 		if(input->cursor_primary == 1){
 			memory->clicked_uid = hot_entity_uid;
 			memory->selected_uid = -1;
@@ -1619,7 +1568,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	}
 
 	
-	if(memory->selected_uid >= 0){
+	if(memory->selected_uid >= 0)
+	{
 		Entity* selected_entity = &entities[memory->selected_uid];
 
 
@@ -1658,11 +1608,73 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// COLOR AND LOOKING DIRECTION OF SELECTED ENTITY
 		selected_entity->color = colors_product(selected_entity->color,{2.0f, 2.0f, 2.0f, 1});
 
-		if( input->cursor_secondary > 0){
+		if( input->cursor_secondary > 0)
+		{
 			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
 			{
 				selected_entity->target_direction = v3_difference({cursor_y0_pos.x, 0, cursor_y0_pos.z}, selected_entity->pos);
 			}
+		}
+	}
+	else
+	{
+		Entity* player_entity = &entities[memory->player_uid];
+		if( input->cursor_secondary > 0 )
+		{
+			//TODO: preview new entity to spawn
+			V3 relative_cursor_pos = cursor_y0_pos - player_entity->pos;
+			f32 relative_cursor_pos_magnitude = v3_magnitude(relative_cursor_pos);
+			if(relative_cursor_pos_magnitude > player_entity->action_range){
+				f32 temp_multiplier = player_entity->action_range / relative_cursor_pos_magnitude;
+				memory->new_entity_pos = player_entity->pos + (temp_multiplier * relative_cursor_pos);
+			}else{
+				memory->new_entity_pos = cursor_y0_pos;
+			}
+		}
+		else if( input->cursor_secondary == -1)
+		{
+			if(memory->team_entity_charges[0])
+			{
+				memory->team_entity_charges[0]--;
+				
+				u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+				Entity* new_entity = &entities[e_index];
+
+				// default_melee(new_entity, memory);
+				new_entity->flags = 
+					E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE;
+
+				new_entity->color = {1,1,1,1};
+				new_entity->scale = {1.0f,1.0f,1.0f};
+
+				new_entity->speed = 40.0f;
+				new_entity->friction = 5.0f;
+				new_entity->weight = 1.0f;
+				new_entity->max_health = 40.f;
+				new_entity->health = new_entity->max_health;
+				new_entity->action_power = 10.0f;
+				new_entity->action_cd_total_time = 1.0f;
+				new_entity->action_range = 4.0f;
+				new_entity->aura_radius = 3.0f;
+
+				new_entity->parent_handle = global_player_handle;
+				new_entity->team_uid = player_entity->team_uid;
+
+				new_entity->pos = memory->new_entity_pos;
+				
+				// this is basically useless
+				if(new_entity->team_uid == entities[memory->player_uid].team_uid){//friendly
+					V3 boss_pos = entity_from_handle(global_boss_handle, entities, generations)->pos;
+					new_entity->target_direction = boss_pos - new_entity->pos;
+				}else{//enemy
+					V3 player_pos = entity_from_handle(global_player_handle, entities, generations)->pos;
+					new_entity->target_direction = player_pos - new_entity->pos;
+				}
+				
+				new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
+				new_entity->texinfo_uid = memory->textures.test_tex_uid;	
+			}
+
 		}
 	}
 	
@@ -1839,6 +1851,23 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 				request->object3d.color = {1,0,0,0.15f};
 		}
+	}
+
+	// SHOW ENTITY THAT IS ABOUT TO BE CREATED
+
+	if(memory->selected_uid < 0 && memory->input->cursor_secondary > 0)
+	{
+		PUSH_BACK(render_list, memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+		request->object3d.scale = {1,1,1};
+		if(memory->team_entity_charges[0]){
+			request->object3d.color = {0,1,0,0.5f};
+		}else{
+			request->object3d.color = {1,0,0,0.5f};
+		}
+		request->object3d.pos = memory->new_entity_pos;
+		request->object3d.mesh_uid = memory->meshes.blank_entity_mesh_uid;
+		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 	}
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
@@ -2029,7 +2058,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	User_input* input = memory->input;
 	if(
-		(input->L  || input->R) && (
+		(input->L) && (
 			input->cursor_pixels_pos.x != memory->radial_menu_pos.x ||
 			input->cursor_pixels_pos.y != memory->radial_menu_pos.y
 		)
