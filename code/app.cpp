@@ -350,27 +350,45 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
 		V2 initial_position = {0,-MENU_RADIUS/3};
+
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
+			if(memory->selected_uid >= 0 && entities[memory->selected_uid].element_type)
+			{
+				memory->ui_costs[ui_last] = 10;
+			}
+
 			if(ui_last == memory->ui_clicked_uid)
 			{
 				if(memory->selected_uid >= 0)
 				{
 					u32 entity_element_flags = entities[memory->selected_uid].element_type;
-					entities[memory->selected_uid].element_type = 0;
 
-					if(!(entity_element_flags & possible_types_to_select[i]))
-					{
-						entities[memory->selected_uid].element_type |= possible_types_to_select[i];
-					}
+					if(!entity_element_flags || 
+						memory->teams_resources[player_entity->team_uid] >= 10
+					){
+						if(entity_element_flags)
+						{
+							memory->teams_resources[player_entity->team_uid] -= 10;
+						}
 
-					if(entities[memory->selected_uid].element_type == EET_HEAL) // healer
-					{
-						entities[memory->selected_uid].flags |= E_HEALER; 
-					}
-					else // default case
-					{
-						entities[memory->selected_uid].flags &= (E_HEALER ^ 0xffffffffffffffff); 
+						{
+							entities[memory->selected_uid].element_type = 0;
+
+							if(!(entity_element_flags & possible_types_to_select[i]))
+							{
+								entities[memory->selected_uid].element_type |= possible_types_to_select[i];
+							}
+
+							if(entities[memory->selected_uid].element_type == EET_HEAL) // healer
+							{
+								entities[memory->selected_uid].flags |= E_HEALER; 
+							}
+							else // default case
+							{
+								entities[memory->selected_uid].flags &= (E_HEALER ^ 0xffffffffffffffff); 
+							}
+						}
 					}
 				}
 			}
