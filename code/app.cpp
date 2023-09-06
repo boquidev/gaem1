@@ -170,6 +170,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	
 	UNTIL(i, MAX_UI){
 		ui_elements[i] = {0};
+		memory->ui_costs[i] = 0;
 	}
 	
 
@@ -250,6 +251,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		V2 initial_position = {0,-MENU_RADIUS};
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
+			memory->ui_costs[ui_last] = upgrade_costs[i];
 			b32 property_already_set = memory->selected_uid >= 0 ? 
 				!((entities[memory->selected_uid].flags & possible_flags_to_set[i]) ^ possible_flags_to_set[i]) :
 				false;
@@ -2104,6 +2106,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->color = 0.8f*current->color;
 			request->texinfo_uid = memory->textures.gradient_tex_uid;
 			request->mesh_uid = memory->meshes.plane_mesh_uid;
+
+			printo_screen(memory, screen_size, render_list,
+			number_to_string(memory->ui_costs[i], memory->temp_arena), request->pos.v2, {1,1,0,1});
 		}
 	}
 

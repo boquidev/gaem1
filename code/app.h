@@ -442,6 +442,8 @@ struct App_memory
 	Int2 radial_menu_pos;
 
 	Ui_element* ui_elements;
+	s32 ui_costs [MAX_UI];
+
 	u32* ui_generations;
 
 	s32 ui_selected_uid;
