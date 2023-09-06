@@ -269,10 +269,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
 			s32 total_cost = upgrade_costs[i] * cost_multiplier;
-			memory->ui_costs[ui_last] = total_cost;
+
 			b32 property_already_set = memory->selected_uid >= 0 ? 
 				!((entities[memory->selected_uid].flags & possible_upgrades[i]) ^ possible_upgrades[i]) :
 				false;
+			
+			if(!property_already_set)
+			{
+				memory->ui_costs[ui_last] = total_cost;
+			}
 			if(ui_last == memory->ui_clicked_uid)
 			{
 				if(memory->selected_uid >= 0 && 
@@ -1544,6 +1549,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						*index_to_kill = i;
 					}
 				}
+				
 				// if(entity->flags & E_GENERATE_RESOURCE){// RESOURCE GENERATOR
 				// 	memory->teams_resources[entity->team_uid]++;
 				// }
