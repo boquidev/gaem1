@@ -67,7 +67,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->speed = 60.0f;
 		boss->friction = 10.0f;
 
-		boss->max_health = 200;
+		boss->max_health = 1000;
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
 		boss->team_uid = 1;
@@ -188,15 +188,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	if(input->L > 0){
 
-		u64 possible_flags_to_set[] = {
+		u64 possible_upgrades[] = {
 			E_CAN_MANUALLY_MOVE,
 			E_SHOOT,
-			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
 			E_GENERATE_RESOURCE,
 			E_HAS_SHIELD,
 			E_EXTRA_RANGE,
+			E_FOLLOW_TARGET,
+			E_AUTO_AIM_CLOSEST,
 			// extra damage,
-			// autoaim closest,
 
 			
 			/*
@@ -217,10 +217,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		char* button_text[] = {
 			"manually move",
 			"shoot",
-			"go after enemies",
 			"resource farm",
 			"add shield",
-			"extra_range",
+			"extra range",
+			"move forward",
+			"autoaim",
 			
 			/*
 			"melee attack",
@@ -243,46 +244,62 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			10,
 			10,
-			20,
 			15,
 			20,
 			20,
+			5,
+			10,
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
 		V2 initial_position = {0,-MENU_RADIUS};
+
+		s32 cost_multiplier = 1;
+		if(memory->selected_uid >= 0)
+		{
+			UNTIL(i, ARRAYCOUNT(possible_upgrades))
+			{
+				if(entities[memory->selected_uid].flags & possible_upgrades[i])
+				{
+					cost_multiplier *= 2;
+				}
+			}
+		}
+
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
-			memory->ui_costs[ui_last] = upgrade_costs[i];
+			s32 total_cost = upgrade_costs[i] * cost_multiplier;
+			memory->ui_costs[ui_last] = total_cost;
 			b32 property_already_set = memory->selected_uid >= 0 ? 
-				!((entities[memory->selected_uid].flags & possible_flags_to_set[i]) ^ possible_flags_to_set[i]) :
+				!((entities[memory->selected_uid].flags & possible_upgrades[i]) ^ possible_upgrades[i]) :
 				false;
 			if(ui_last == memory->ui_clicked_uid)
 			{
 				if(memory->selected_uid >= 0 && 
 					(
-						memory->teams_resources[player_entity->team_uid] >= upgrade_costs[i] ||
+						memory->teams_resources[player_entity->team_uid] >= total_cost ||
 						property_already_set
 					)
 				){
 					if(!property_already_set)
 					{
-						memory->teams_resources[player_entity->team_uid] -= upgrade_costs[i];
+						memory->teams_resources[player_entity->team_uid] -= total_cost;
 						entities[memory->selected_uid].total_upgrades_cost_value += upgrade_costs[i];
 					}
 					else
 					{
 						entities[memory->selected_uid].total_upgrades_cost_value -= upgrade_costs[i];
 					}
-					if(possible_flags_to_set[i] & E_TOXIC_EMITTER) // toxic emitter
+
+					if(possible_upgrades[i] & E_TOXIC_EMITTER) // toxic emitter
 					{
 						if(entities[memory->selected_uid].flags & E_TOXIC_EMITTER){
-							entities[memory->selected_uid].flags &= possible_flags_to_set[i] ^ 0xffffffffffffffff;
+							entities[memory->selected_uid].flags &= possible_upgrades[i] ^ 0xffffffffffffffff;
 						}else{
-							entities[memory->selected_uid].flags |= possible_flags_to_set[i];
+							entities[memory->selected_uid].flags |= possible_upgrades[i];
 						}
 					}
-					else if(possible_flags_to_set[i] & E_HEALER) // healer
+					else if(possible_upgrades[i] & E_HEALER) // healer
 					{
 						entities[memory->selected_uid].flags ^= E_HEALER; 
 						//TODO: this will be a bug if there is any other thing that turns action power 
@@ -290,7 +307,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					}
 					else // default case
 					{
-						entities[memory->selected_uid].flags ^= possible_flags_to_set[i];
+						entities[memory->selected_uid].flags ^= possible_upgrades[i];
 					}
 				}
 			}
@@ -303,7 +320,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				if(property_already_set){
 					ui_element->color = {1.0f,1.0f,1.0f,1};
 				}else{
-					if(memory->teams_resources[player_entity->team_uid] < upgrade_costs[i])
+					if(memory->teams_resources[player_entity->team_uid] < total_cost)
 					{
 						ui_element->color = {1, 0.6f, 0.6f, 1};
 					}
@@ -746,6 +763,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(entity->fog_debuff_time_left)
 		{
 			entity->fog_debuff_time_left = MAX(0, entity->fog_debuff_time_left - world_delta_time);
+			if(entity->fog_debuff_time_left)
+			{
+				entity->color = 0.3f*entity->color;
+			}
 		}
 
 		// REACTION COOLDOWN
@@ -763,6 +784,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(!entity->elemental_effect_duration)
 			{
 				entity->element_effect = 0;
+			}
+		}
+
+		// GENERATE RESOURCE COOLDOWN
+
+		if(entity->flags & E_GENERATE_RESOURCE)
+		{
+			entity->generate_resource_cd -= entity_dt;
+			if(entity->generate_resource_cd <= 0)
+			{
+				entity->generate_resource_cd += 2.0f;
+				memory->teams_resources[entity->team_uid]++;
 			}
 		}
 
@@ -808,8 +841,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_FOLLOW_TARGET && !entity->freezing_time_left)
 		{
-			// TODO: MAKE A SPECIAL CASE FOR PROJECTILES CUZ THEY WILL COMPLETELY STOP IF HOMING + AUTO_AIM
-			entity->normalized_accel = v3_normalize(entity->target_direction);
+			if(!(entity->flags & E_CAN_MANUALLY_MOVE) || (!input_vector.x && !input_vector.y) )
+			{
+				entity->normalized_accel = v3_normalize(entity->target_direction);
+			}
 		}
 
 
@@ -1189,7 +1224,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			){
 				if(distance < (entity2->scale.x * entity2->creation_size))
 				{
-					entity->color = 0.3f*entity->color;
 					entity->fog_debuff_time_left = 2*world_delta_time;
 					calculate_elemental_reaction(entity, entity2, memory, entities_to_create);
 				}
@@ -1510,9 +1544,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						*index_to_kill = i;
 					}
 				}
-				if(entity->flags & E_GENERATE_RESOURCE){// RESOURCE GENERATOR
-					memory->teams_resources[entity->team_uid]++;
-				}
+				// if(entity->flags & E_GENERATE_RESOURCE){// RESOURCE GENERATOR
+				// 	memory->teams_resources[entity->team_uid]++;
+				// }
 				if((entity->flags & E_SPAWN_ENTITIES))
 				{
 

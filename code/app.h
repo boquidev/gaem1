@@ -131,6 +131,7 @@ struct Entity{
 	// this is relative to the entity position 
 	V3 target_direction;
 	
+	
 
 	// ACTION PROPERTIES
 
@@ -152,6 +153,8 @@ struct Entity{
 	f32 aura_radius;
 
 	f32 reaction_cooldown;
+
+	f32 generate_resource_cd;
 
 	f32 healing_cd;
 
@@ -484,7 +487,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					smoke_screen->color = {1,1,1,0.2f};
 					smoke_screen->scale = {6,3,6};
 					smoke_screen->creation_delay = 0.3f;
-					smoke_screen->lifetime = 7.0f;
+					smoke_screen->lifetime = 4.8f;
 
 					smoke_screen->pos = entity->pos;
 					
