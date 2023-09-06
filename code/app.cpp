@@ -196,6 +196,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			E_HAS_SHIELD,
 			E_EXTRA_RANGE,
 			// extra damage,
+			// autoaim closest,
 
 			
 			/*
@@ -238,7 +239,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			*/
 		};
 
-		s32 upgrade_costs[] = {
+		s32 upgrade_costs[] = 
+		{
 			10,
 			10,
 			20,
@@ -266,6 +268,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(!property_already_set)
 					{
 						memory->teams_resources[player_entity->team_uid] -= upgrade_costs[i];
+						entities[memory->selected_uid].total_upgrades_cost_value += upgrade_costs[i];
+					}
+					else
+					{
+						entities[memory->selected_uid].total_upgrades_cost_value -= upgrade_costs[i];
 					}
 					if(possible_flags_to_set[i] & E_TOXIC_EMITTER) // toxic emitter
 					{
@@ -1576,6 +1583,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
 			
 		}
+		if(entities[*e_index].flags & E_GIVE_LOOT)
+		{
+			UNTIL(i,ARRAYCOUNT(memory->teams_resources))
+			{
+				memory->teams_resources[i] += 5;
+				memory->teams_resources[i] += entities[*e_index].total_upgrades_cost_value/2;
+			}
+		}
 		entities[*e_index] = {0};
 		generations[*e_index]++;
 	}
@@ -1689,7 +1704,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				// default_melee(new_entity, memory);
 				new_entity->flags = 
-					E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE;
+					E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
 
 				new_entity->color = {1,1,1,1};
 				new_entity->scale = {1.0f,1.0f,1.0f};
@@ -1959,6 +1974,14 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		concat_strings(string("spawn_charges: "), spawn_charges_string, memory->temp_arena), {-1, .85f}, {1,1,0,1}
 	);
 
+	if(memory->selected_uid >= 0)
+	{
+		String current_entity_value = number_to_string(memory->entities[memory->selected_uid].total_upgrades_cost_value, memory->temp_arena);
+		printo_screen(memory, screen_size, render_list,
+			concat_strings(string("selected_entity_value: "), current_entity_value, memory->temp_arena), {-1, .8f}, {1,1,0,1}
+		);
+	}
+
 	{
 		
 		Tex_info* texinfo;
@@ -2107,8 +2130,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			request->texinfo_uid = memory->textures.gradient_tex_uid;
 			request->mesh_uid = memory->meshes.plane_mesh_uid;
 
-			printo_screen(memory, screen_size, render_list,
-			number_to_string(memory->ui_costs[i], memory->temp_arena), request->pos.v2, {1,1,0,1});
+			s32 cost_value = memory->ui_costs[i];
+			if(cost_value)
+			{
+				printo_screen(memory, screen_size, render_list,
+				number_to_string(cost_value, memory->temp_arena), request->pos.v2, {1,1,0,1});
+			}
 		}
 	}
 

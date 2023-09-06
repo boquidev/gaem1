@@ -100,6 +100,8 @@ struct Entity{
 	u16 element_type;
 	u16 element_effect;
 
+	s32 total_upgrades_cost_value;
+
 	f32 elemental_effect_duration;
 	f32 elemental_damage_duration; // this is used to know how much will the duration effect last when this entity does damage
 
@@ -162,8 +164,6 @@ struct Entity{
 
 	f32 shield_cd;
 	b32 shield_active;
-
-	UNIT_TYPE spawn_unit_type;
 
 	V3 ignore_sphere_pos;
 	f32 ignore_sphere_radius;
@@ -688,7 +688,6 @@ default_spawner(Entity* out, App_memory* memory){
 	out->action_range = 5.0f;
 	out->action_count = 2;
 	out->action_angle = TAU32/2;
-	out->spawn_unit_type = UNIT_MELEE;
 	out->mesh_uid = memory->meshes.spawner_mesh_uid;
 	out->texinfo_uid = memory->textures.white_tex_uid;
 }
