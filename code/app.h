@@ -418,6 +418,8 @@ struct App_memory
 	u32 player_uid;
 
 	s32 teams_resources[2];
+	f32 add_resource_current_time;
+	f32 add_resource_total_cd;
 	s32 team_spawn_charges[2];
 
 	V3 new_entity_pos;
@@ -784,7 +786,7 @@ printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_
 			object->color = color;
 
 			request->object3d.texinfo_uid = memory->font_tex_infos_uids[char_index];
-			request->object3d.pos.y -= object->scale.y*2.0f;
+			// request->object3d.pos.y -= object->scale.y*2.0f;
 			xpos += object->scale.x*16.0f/16;
 		}
 	}

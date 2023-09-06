@@ -43,6 +43,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->aura_radius = 3.0f;
 
 		memory->teams_resources[player->team_uid] = 50;
+		memory->add_resource_total_cd = 1.0f;
 		player->creation_delay = 0.2f;
 
 		player->team_uid = 0;
@@ -90,6 +91,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->unit_creation_costs[UNIT_SPAWNER] = 40;
 		memory->unit_creation_costs[UNIT_MELEE] = 5;
 
+		//TODO: turn this into handles
 		memory->selected_uid = -1;
 		memory->ui_selected_uid = -1;
 		memory->ui_clicked_uid = -1;
@@ -186,12 +188,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->L > 0){
 
 		u64 possible_flags_to_set[] = {
+			E_CAN_MANUALLY_MOVE,
 			E_SHOOT,
 			E_FOLLOW_TARGET|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST,
-			E_CAN_MANUALLY_MOVE,
 			E_GENERATE_RESOURCE,
 			E_HAS_SHIELD,
 			E_EXTRA_RANGE,
+			// extra damage,
+
 			
 			/*
 			E_AUTO_AIM_BOSS,
@@ -209,9 +213,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		};
 
 		char* button_text[] = {
+			"manually move",
 			"shoot",
 			"go after enemies",
-			"manually move",
 			"resource farm",
 			"add shield",
 			"extra_range",
@@ -233,14 +237,34 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			*/
 		};
 
+		s32 upgrade_costs[] = {
+			10,
+			10,
+			20,
+			15,
+			20,
+			20,
+		};
+
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
 		V2 initial_position = {0,-MENU_RADIUS};
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
+			b32 property_already_set = memory->selected_uid >= 0 ? 
+				!((entities[memory->selected_uid].flags & possible_flags_to_set[i]) ^ possible_flags_to_set[i]) :
+				false;
 			if(ui_last == memory->ui_clicked_uid)
 			{
-				if(memory->selected_uid >= 0)
-				{
+				if(memory->selected_uid >= 0 && 
+					(
+						memory->teams_resources[player_entity->team_uid] >= upgrade_costs[i] ||
+						property_already_set
+					)
+				){
+					if(!property_already_set)
+					{
+						memory->teams_resources[player_entity->team_uid] -= upgrade_costs[i];
+					}
 					if(possible_flags_to_set[i] & E_TOXIC_EMITTER) // toxic emitter
 					{
 						if(entities[memory->selected_uid].flags & E_TOXIC_EMITTER){
@@ -267,10 +291,17 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			
 			
 			if(memory->selected_uid >= 0){
-				if(!((entities[memory->selected_uid].flags & possible_flags_to_set[i]) ^ possible_flags_to_set[i])){
+				if(property_already_set){
 					ui_element->color = {1.0f,1.0f,1.0f,1};
 				}else{
-					ui_element->color = {0.6f,0.6f,0.6f,1};
+					if(memory->teams_resources[player_entity->team_uid] < upgrade_costs[i])
+					{
+						ui_element->color = {1, 0.6f, 0.6f, 1};
+					}
+					else
+					{
+						ui_element->color = {0.6f,0.6f,0.6f,1};
+					}
 				}
 			}else{
 				ui_element->color = {0.2f,0.2f,0.2f,1};
@@ -392,6 +423,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// UPDATE 1 FRAME IF THE KEY IS TAPPED
 	if(memory->is_paused) if (input->debug_right != 1) return;
+
+	// ADD RESOURCES OVER TIME
+
+	memory->add_resource_current_time += world_delta_time;
+	if(memory->add_resource_current_time  >= memory->add_resource_total_cd)
+	{
+		memory->add_resource_current_time -= memory->add_resource_total_cd;
+		UNTIL(i, 2)
+		{
+			memory->teams_resources[i]++;
+		}
+	}
 
 
 

@@ -563,7 +563,19 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				// PACKING BITMAP RECTS
 
 				//total_atlas_size = atlas_side*atlas_side
-				s32 atlas_side = find_bigger_exponent_of_2((u32)(lines_height*(lines_height/2)*CHARS_COUNT));
+
+				s32 atlas_side;
+				{
+					
+					s32 min_value = (u32)(lines_height*(lines_height/2)*CHARS_COUNT);
+					s32 current_side = 2;
+					while(min_value>(current_side*current_side)){
+						current_side = current_side << 1;
+					}
+					atlas_side = current_side;
+
+				}
+
 
 				stbrp_context pack_context = {0};
 				stbrp_node* pack_nodes = ARENA_PUSH_STRUCTS(temp_arena, stbrp_node, atlas_side);

@@ -98,14 +98,6 @@ struct Surface
 	u32 height;
 	void* data;
 };
-internal u32
-find_bigger_exponent_of_2(u32 target_value){
-	u32 result = 2;
-	while(target_value>(result*result)){
-		result = result*2;
-	}
-	return result;
-}
 
 
 // FIXED SIZE ARRAYS
