@@ -26,7 +26,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		global_player_handle.generation = memory->entity_generations[memory->player_uid];
 		Entity* player = &memory->entities[memory->player_uid];
 		default_object3d(player);
-		player->flags = E_VISIBLE|E_SELECTABLE|E_SPAWN_ENTITIES|E_AUTO_AIM_BOSS|
+		player->flags = E_VISIBLE|E_SPAWN_ENTITIES|E_AUTO_AIM_BOSS|
 			E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE;
 		player->pos = {-25, 0, 0};
 		player->max_health = 100;
@@ -47,7 +47,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		player->team_uid = 0;
 		player->speed = 5.0f;
-		player->friction = 1.0f;
+		player->friction = 4.0f;
 		player->weight = 10.0f;
 		player->type = ENTITY_UNIT;
 
@@ -101,6 +101,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	u32* generations = memory->entity_generations;
 	Ui_element* ui_elements = memory->ui_elements;
 	f32 world_delta_time = memory->delta_time;
+	Entity* player_entity = &entities[memory->player_uid];
 
 	//TODO: this
 	if(input->T == 1)
@@ -125,9 +126,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// UI
 
-	// CALCULATE UI_ELEMENT RECTANGLES
-
-
+	// CALCULATE UI_ELEMENT RECTANGLES ?
 
 
 
@@ -310,7 +309,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		};
 
 		f32 angle_step = TAU32 / ARRAYCOUNT(button_text);
-		V2 initial_position = {0,-MENU_RADIUS/2};
+		V2 initial_position = {0,-MENU_RADIUS/3};
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
 			if(ui_last == memory->ui_clicked_uid)
@@ -545,7 +544,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// ENEMY_COLOR
 
-		if(entity->team_uid != entities[memory->player_uid].team_uid){
+		if(entity->team_uid != player_entity->team_uid){
 			entity->color = {0.7f, 0,0,1};
 		}
 
@@ -714,7 +713,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(!is_cursor_in_ui){
 			if((entity->flags & E_SELECTABLE) &&
-				entity->team_uid == entities[memory->player_uid].team_uid 
+				entity->team_uid == player_entity->team_uid 
 			){	
 				f32 intersected_t = 0;
 				if(line_vs_sphere(cursor_screen_to_world_pos, z_direction, 
@@ -1229,7 +1228,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				entity->target_direction = entities[closest_enemy_uid].pos - entity->pos;
 			}else{
 				// friendly
-				if(entity->team_uid == entities[memory->player_uid].team_uid){
+				if(entity->team_uid == player_entity->team_uid){
 					if(is_handle_valid(global_boss_handle, generations)){
 						entity->target_direction = entities[global_boss_handle.index].pos - entity->pos;
 					}else{
@@ -1446,7 +1445,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 				if((entity->flags & E_SPAWN_ENTITIES))
 				{
-					memory->team_entity_charges[entity->team_uid]++;
+
+					if(memory->team_spawn_charges[player_entity->team_uid] < 3)
+					{
+						memory->team_spawn_charges[entity->team_uid]++;
+					}
 				}
 			}
 		}
@@ -1588,7 +1591,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(
 				memory->is_valid_grab &&
 				memory->closest_entity != global_player_handle &&
-				entity_to_grab->team_uid == entities[memory->player_uid].team_uid
+				entity_to_grab->team_uid == player_entity->team_uid
 			){
 				memory->closest_entity = {0};
 				// selected_entity->entity_to_grab = selected_entity->closest_entity_handle;
@@ -1618,7 +1621,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	}
 	else
 	{
-		Entity* player_entity = &entities[memory->player_uid];
 		if( input->cursor_secondary > 0 )
 		{
 			//TODO: preview new entity to spawn
@@ -1633,9 +1635,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		else if( input->cursor_secondary == -1)
 		{
-			if(memory->team_entity_charges[0])
+			if(memory->team_spawn_charges[0])
 			{
-				memory->team_entity_charges[0]--;
+				memory->team_spawn_charges[0]--;
 				
 				u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 				Entity* new_entity = &entities[e_index];
@@ -1663,7 +1665,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				new_entity->pos = memory->new_entity_pos;
 				
 				// this is basically useless
-				if(new_entity->team_uid == entities[memory->player_uid].team_uid){//friendly
+				if(new_entity->team_uid == player_entity->team_uid){//friendly
 					V3 boss_pos = entity_from_handle(global_boss_handle, entities, generations)->pos;
 					new_entity->target_direction = boss_pos - new_entity->pos;
 				}else{//enemy
@@ -1844,12 +1846,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		{
 			// SHOW TARGET POSITION
 			PUSH_BACK(render_list, memory->temp_arena, request);
-				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-				request->object3d.scale = {1,1,1};
-				request->object3d.pos = selected_entity->looking_direction + selected_entity->pos;
-				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
-				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
-				request->object3d.color = {1,0,0,0.15f};
+			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+			request->scale = {1,1,1};
+			request->pos = selected_entity->looking_direction + selected_entity->pos;
+			request->mesh_uid = memory->meshes.icosphere_mesh_uid;
+			request->texinfo_uid = memory->textures.white_tex_uid;
+			request->color = {1,0,0,0.15f};
 		}
 	}
 
@@ -1859,15 +1861,16 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	{
 		PUSH_BACK(render_list, memory->temp_arena, request);
 		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-		request->object3d.scale = {1,1,1};
-		if(memory->team_entity_charges[0]){
-			request->object3d.color = {0,1,0,0.5f};
+		request->scale = {1,1,1};
+		if(memory->team_spawn_charges[0]){
+			request->color = {0,1,0,0.5f};
 		}else{
-			request->object3d.color = {1,0,0,0.5f};
+			request->color = {1,0,0,0.5f};
 		}
-		request->object3d.pos = memory->new_entity_pos;
-		request->object3d.mesh_uid = memory->meshes.blank_entity_mesh_uid;
-		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+		request->pos = memory->new_entity_pos;
+		request->mesh_uid = memory->meshes.blank_entity_mesh_uid;
+		request->texinfo_uid = memory->textures.white_tex_uid;
+		request->rotation.y = -PI32/2;
 	}
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
@@ -1902,7 +1905,14 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	String resources_string = number_to_string(memory->teams_resources[memory->entities[memory->player_uid].team_uid], memory->temp_arena);
 	printo_screen(memory, screen_size, render_list,
-		concat_strings(string("resources: "), resources_string, memory->temp_arena), {-1,.9f}, {1,1,0,1});
+		concat_strings(string("resources: "), resources_string, memory->temp_arena), {-1,.9f}, {1,1,0,1}
+	);
+
+	String spawn_charges_string = number_to_string(memory->team_spawn_charges[memory->entities[memory->player_uid].team_uid], 
+		memory->temp_arena);
+	printo_screen(memory, screen_size, render_list,
+		concat_strings(string("spawn_charges: "), spawn_charges_string, memory->temp_arena), {-1, .85f}, {1,1,0,1}
+	);
 
 	{
 		

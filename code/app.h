@@ -418,7 +418,7 @@ struct App_memory
 	u32 player_uid;
 
 	s32 teams_resources[2];
-	s32 team_entity_charges[2];
+	s32 team_spawn_charges[2];
 
 	V3 new_entity_pos;
 	
