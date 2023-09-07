@@ -11,6 +11,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
 		
+		rng.last_seed = memory->frame_random_number;
+		
 		set_mem(memory->entities, MAX_ENTITIES*sizeof(Entity), 0);
 		set_mem(memory->entity_generations, MAX_ENTITIES*sizeof(u32), 0);
 
@@ -96,7 +98,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->ui_selected_uid = -1;
 		memory->ui_clicked_uid = -1;
 	}
-	rng.last_seed = memory->frame_random_number;
 
 	User_input* input = memory->input;
 	User_input* holding_inputs = memory->holding_inputs;
@@ -470,8 +471,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	if(input->debug_up) memory->teams_resources[0]++;
 
-	if(input->debug_left == 1) entities[memory->selected_uid].action_range /= 2;
-	if(input->debug_right == 1) entities[memory->selected_uid].action_range *= 2;
+	// if(input->debug_left == 1 && memory->selected_uid >= 0) entities[memory->selected_uid].action_range /= 2;
+	// if(input->debug_right == 1 && memory->selected_uid >= 0) entities[memory->selected_uid].action_range *= 2;
 
 	// UPDATE 1 FRAME IF THE KEY IS TAPPED
 	if(memory->is_paused) if (input->debug_right != 1) return;
@@ -564,7 +565,64 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		wall->team_uid = 0xffff;
 	}
 
-// MAIN ENTITY UPDATE LOOP
+	//PROCESSING BOSS ENTITY
+
+
+	memory->boss_properties.spawn_cooldown-= world_delta_time;
+	if(memory->boss_properties.spawn_cooldown <= 0)
+	{
+		memory->boss_properties.spawn_cooldown += 2.0f;
+		boss_entity;
+		
+		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+		Entity* new_entity = &entities[e_index];
+
+		// default_melee(new_entity, memory);
+		new_entity->flags = 
+			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
+
+			
+		// specific properties:
+			// speed, range, rate of fire, element, health, shield, damage
+
+		// behavior:
+			// target closest
+			// target player
+			// protect boss
+
+		new_entity->color = {1,1,1,1};
+		new_entity->scale = {1.0f,1.0f,1.0f};
+
+		new_entity->speed = 40.0f;
+		new_entity->friction = 5.0f;
+		new_entity->weight = 1.0f;
+		new_entity->max_health = 40.f;
+		new_entity->health = new_entity->max_health;
+		new_entity->action_power = 10.0f;
+		new_entity->action_cd_total_time = 1.0f;
+		new_entity->action_range = 4.0f;
+		new_entity->aura_radius = 3.0f;
+
+		new_entity->parent_handle = global_player_handle;
+		new_entity->team_uid = boss_entity->team_uid;
+
+		V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
+		f32 random_angle = (rng.rng_next() * PI32 ) - (PI32/2);
+		new_entity->pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
+		
+		// this is basically useless
+		if(new_entity->team_uid == boss_entity->team_uid){ //enemy
+			new_entity->target_pos = player_entity->pos;
+		}else{// friendly
+			new_entity->target_pos = boss_entity->pos;
+		}
+		
+		new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
+		new_entity->texinfo_uid = memory->textures.test_tex_uid;	
+	}
+
+
+	// MAIN ENTITY UPDATE LOOP
 
 	if(input->debug_down == 1){
 		ASSERT(true);
@@ -846,12 +904,21 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 
 		// MOVE TOWARDS TARGET
+		
+		V3 entity_target_direction = entity->target_pos-entity->pos;
 
 		if(entity->flags & E_FOLLOW_TARGET && !entity->freezing_time_left)
 		{
 			if(!(entity->flags & E_CAN_MANUALLY_MOVE) || (!input_vector.x && !input_vector.y) )
 			{
-				entity->normalized_accel = v3_normalize(entity->target_direction);
+				f32 target_magnitude = v3_magnitude(entity_target_direction);
+				f32 range_magnitude = calculate_total_range(entity)*2;
+				f32 new_target_magnitude = target_magnitude - range_magnitude;
+
+				if(ABS(new_target_magnitude) > 2.0f)
+				{
+					entity->normalized_accel = ((new_target_magnitude/ABS(new_target_magnitude))/target_magnitude)*entity_target_direction;
+				}
 			}
 		}
 
@@ -864,13 +931,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			V3 acceleration = ((paralysis_multiplier*entity->speed*(!entity->freezing_time_left)*entity->normalized_accel)-(entity->friction*entity->velocity));
 			entity->velocity = entity->velocity + (entity_dt*acceleration);
 			f32 min_threshold = 0.1f;
+
+			// UPDATING LOOKING DIRECTION
+
 			if( // it is not moving
 				(entity->normalized_accel.x < min_threshold && entity->normalized_accel.x > -min_threshold) &&
 				(entity->normalized_accel.z < min_threshold && entity->normalized_accel.z > -min_threshold)
 			){
 				// look at the target
 				//TODO: handle case when entity->target_direction == 0
-				V3 delta_looking_direction = (10*entity_dt*(entity->target_direction - entity->looking_direction));
+				V3 delta_looking_direction = (10*entity_dt*(entity_target_direction - entity->looking_direction));
 				entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				//slowing_down
 			}else{
@@ -885,7 +955,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				{ 
 					// look at the target
 					//TODO: handle case when entity->target_direction == 0
-					V3 delta_looking_direction = (10*entity_dt*(entity->target_direction - entity->looking_direction));
+					V3 delta_looking_direction = (10*entity_dt*(entity_target_direction - entity->looking_direction));
 					entity->looking_direction = entity->looking_direction + delta_looking_direction;
 				}
 			}
@@ -1323,8 +1393,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->jump_change_direction && entity->flags & P_JUMP_BETWEEN_TARGETS){
 			entity->jump_change_direction = false;
-			entity->target_direction = entities[closest_jump_target_uid].pos - entity->pos;
-			entity->velocity = v3_magnitude(entity->velocity) * v3_normalize(entity->target_direction);
+			entity->target_pos = entities[closest_jump_target_uid].pos;
+			entity->velocity = v3_magnitude(entity->velocity) * v3_normalize(entity->target_pos - entity->pos);
 		}
 
 
@@ -1337,26 +1407,26 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				closest_enemy_uid >= 0
 			){
 				
-				entity->target_direction = entities[closest_enemy_uid].pos - entity->pos;
+				entity->target_pos = entities[closest_enemy_uid].pos;
 			}else{
 				// friendly
 				if(entity->team_uid == player_entity->team_uid){
 					if(is_handle_valid(global_boss_handle, generations)){
-						entity->target_direction = entities[global_boss_handle.index].pos - entity->pos;
+						entity->target_pos = entities[global_boss_handle.index].pos;
 					}else{
-						entity->target_direction = {0,0,0};
+						entity->target_pos = entity->pos;
 					}
 				}else{ // enemy
 					if(is_handle_valid(global_player_handle, generations)){
-						entity->target_direction = entities[global_player_handle.index].pos - entity->pos;
+						entity->target_pos = entities[global_player_handle.index].pos;
 					}else{
-						entity->target_direction = {0,0,0};
+						entity->target_pos = entity->pos;
 					}
 				}
 			}
 		}else{
 			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_uid >= 0) ){
-				entity->target_direction = entities[closest_enemy_uid].pos - entity->pos;
+				entity->target_pos = entities[closest_enemy_uid].pos;
 			}
 		}
 
@@ -1439,8 +1509,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						//speed could be by the one who shoots
 						new_bullet->speed = 60;
-						f32 range_multiplier = 1.0f + (2.0f * !!(entity->flags & E_EXTRA_RANGE));
-						new_bullet->friction = 20.0f / (range_multiplier * entity->action_range);
+						new_bullet->friction = 20.0f / calculate_total_range(entity);
 
 						new_bullet->lifetime = 5.0f;
 						new_bullet->weight = 0.1f;
@@ -1462,7 +1531,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->team_uid = parent->team_uid;
 						new_bullet->pos = parent->pos;
 						// TODO: go in the direction that parent is looking (the parent's rotation);
-						new_bullet->target_direction = target_directions[current_action_i];
+						new_bullet->target_pos = target_directions[current_action_i] + new_bullet->pos;
 
 						new_bullet->velocity =  (new_bullet->speed) * target_directions[current_action_i];
 					}
@@ -1568,7 +1637,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 
-		// UPDATE POSITION APPLYING VELOCITY
+		// UPDATE POSITION 
 
 		if(entity->flags & E_STICK_TO_ENTITY)
 		{
@@ -1586,12 +1655,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						entity->relative_angle - angle_offset
 					);
 				entity->pos = sticked_entity->pos + final_relative_pos;
-				entity->target_direction = sticked_entity->target_direction;
-				entity->looking_direction = entity->target_direction;
+				
+				//TODO: i probably need to change this if i want grabbed entities to autoaim
+				entity->target_pos = sticked_entity->target_pos;
+				entity->looking_direction = entity->target_pos - entity->pos;
 			}else{
 				entity->flags &= (0xffffffffffffffff ^ E_STICK_TO_ENTITY);
 			}
-		}else{ // DEFAULT CASE
+		}else{ // DEFAULT CASE APPLY VELOCITY
 			if(!(entity->flags & E_NOT_MOVE)){
 				entity->pos = entity->pos + (entity_dt * entity->velocity);
 			}
@@ -1736,7 +1807,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
 			{
-				selected_entity->target_direction = v3_difference({cursor_y0_pos.x, 0, cursor_y0_pos.z}, selected_entity->pos);
+				selected_entity->target_pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
 			}
 		}
 	}
@@ -1787,11 +1858,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				
 				// this is basically useless
 				if(new_entity->team_uid == player_entity->team_uid){//friendly
-					V3 boss_pos = entity_from_handle(global_boss_handle, entities, generations)->pos;
-					new_entity->target_direction = boss_pos - new_entity->pos;
+					new_entity->target_pos = boss_entity->pos;
 				}else{//enemy
-					V3 player_pos = entity_from_handle(global_player_handle, entities, generations)->pos;
-					new_entity->target_direction = player_pos - new_entity->pos;
+					new_entity->target_pos = player_entity->pos;
 				}
 				
 				new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;

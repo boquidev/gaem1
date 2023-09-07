@@ -126,10 +126,10 @@ struct Entity{
 	f32 friction;
 	f32 weight; // currently this is just for the gravity field
 
-	// this is relative to the entity position
-	V3 looking_direction;
-	// this is relative to the entity position 
-	V3 target_direction;
+	//TODO: check if normalizing looking direction is better
+	V3 looking_direction; // this is relative to the entity position
+
+	V3 target_pos;// this is relative to world
 	
 	
 
@@ -207,6 +207,13 @@ calculate_power(Entity* entity)
 	// f32 healer_multiplier = 1+(-2.0f*(entity->flags & E_HEALER)/E_HEALER); 
 	f32 healer_multiplier = (entity->flags & E_HEALER) ? -1.0f : 1.0f; 
 	return entity->action_power * water_effect_multiplier * healer_multiplier * fog_multiplier;
+}
+
+internal f32 
+calculate_total_range(Entity* entity)
+{
+	f32 range_multiplier = 1.0f + (2.0f * !!(entity->flags & E_EXTRA_RANGE));
+	return (range_multiplier * entity->action_range);	
 }
 
 internal u32
@@ -451,6 +458,10 @@ struct App_memory
 
 	s32 ui_selected_uid;
 	s32 ui_clicked_uid;
+
+	struct {
+		f32 spawn_cooldown;
+	}boss_properties;
 
 	s32 debug_active_entities_count;
 
