@@ -36,7 +36,7 @@ typedef short b16;
 typedef int b32;
 
 typedef float f32;
-typedef double r64;
+typedef double f64;
 
 #if DEBUGMODE
     #define ASSERT(expression) if(!(expression)) *(int *)0 = 0;

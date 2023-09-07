@@ -499,6 +499,8 @@ v3_rotate_z(V3 vector, f32 angle)
     return result;
 }
 
+//TODO: move this to helpers
+
 internal f32
 rng_lcg(u32 seed){
     return ((f32)((8121 * seed + 28411) % 134456) / 134456);

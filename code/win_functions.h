@@ -75,3 +75,4 @@ win_get_client_sizes(HWND window)
 	
 	return result;
 }
+

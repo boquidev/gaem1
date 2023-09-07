@@ -453,6 +453,8 @@ struct App_memory
 	s32 ui_clicked_uid;
 
 	s32 debug_active_entities_count;
+
+	u32 frame_random_number;
 };
 
 internal void 

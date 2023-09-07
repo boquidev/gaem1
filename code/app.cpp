@@ -96,6 +96,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->ui_selected_uid = -1;
 		memory->ui_clicked_uid = -1;
 	}
+	rng.last_seed = memory->frame_random_number;
 
 	User_input* input = memory->input;
 	User_input* holding_inputs = memory->holding_inputs;
@@ -103,7 +104,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	u32* generations = memory->entity_generations;
 	Ui_element* ui_elements = memory->ui_elements;
 	f32 world_delta_time = memory->delta_time;
+
 	Entity* player_entity = &entities[memory->player_uid];
+	Entity* boss_entity = &entities[BOSS_INDEX];
 
 	//TODO: this
 	if(input->T == 1)
@@ -352,8 +355,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	}
 
-	if(input->L > 0){
-
+	if(input->L > 0)
+	{
 		ENTITY_ELEMENT_TYPE possible_types_to_select[] = {
 			EET_HEAL,
 			EET_WATER,

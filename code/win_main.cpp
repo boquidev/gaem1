@@ -186,6 +186,8 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	global_variable u32 E_LAST_FLAG_BIT_POS;
 #endif
 
+// ENTRY POINT
+
 int WINAPI 
 wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cmd_show)
 {h_prev_instance; cmd_line; cmd_show; //unreferenced formal parameters
@@ -198,7 +200,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 	#endif
 
-	
 	RECT winrect = {0,0,1600,900};
 	AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);
 	Int2 win_size = {winrect.right-winrect.left, winrect.bottom-winrect.top};
@@ -1117,7 +1118,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		// APP UPDATE
 
-
+		
+		SYSTEMTIME st;
+		GetSystemTime(&st);
+		memory.frame_random_number = (u32)((((f64)st.wMilliseconds/999) + ((f64)st.wSecond/60000)) * 0xffffffff);
 		app.update(&memory, playback_list, sample_t, global_client_size);
 
 
@@ -1445,7 +1449,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 			u64 cycles_elapsed = end_cycle_count - last_cycles_count;
 			f32 FPS = (1.0f / (ms_per_frame/1000.0f));
-			s32 MegaCyclesPF = (s32)((r64)cycles_elapsed / (r64)(1000*1000));
+			s32 MegaCyclesPF = (s32)((f64)cycles_elapsed / (f64)(1000*1000));
 
 			char text_buffer[256];
 			wsprintfA(text_buffer, "%dms/f| %d f/s|  %d Mhz/f \n", (s32)ms_per_frame, (s32)FPS, MegaCyclesPF);
