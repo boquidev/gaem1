@@ -1610,7 +1610,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						hitbox->team_uid = entity->team_uid;
 
 						hitbox->total_power = calculate_power(entity);
-						hitbox->relative_angle = -(entity->action_angle/2) + (current_action_i*angle_step) ;
+						hitbox->relative_angle = -(entity->action_angle/2) + (current_action_i*angle_step);
 
 						f32 relative_distance = 0.5f + entity->scale.x + hitbox->scale.x;
 
@@ -1686,17 +1686,22 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				)
 			){
 				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
-				f32 angle_offset = v2_angle({sticked_entity->looking_direction.x, sticked_entity->looking_direction.z});
+				V3 owner_target_direction = sticked_entity->target_pos - sticked_entity->pos;
+				f32 offset_angle = v2_angle({owner_target_direction.x, owner_target_direction.z});
+
 				V3 final_relative_pos = 
 					v3_rotate_y(
 						{0.5f + entity->scale.x + sticked_entity->scale.x, 0, 0}, 
-						entity->relative_angle - angle_offset
+						entity->relative_angle - offset_angle
 					);
-				entity->pos = sticked_entity->pos + final_relative_pos;
+				entity->pos = entity->pos + (15*world_delta_time * (sticked_entity->pos + final_relative_pos - entity->pos));
 				
 				//TODO: i probably need to change this if i want grabbed entities to autoaim
-				entity->target_pos = sticked_entity->target_pos;
-				entity->looking_direction = entity->target_pos - entity->pos;
+				if(!(entity->flags & E_AUTO_AIM_CLOSEST))
+				{
+					entity->target_pos = sticked_entity->target_pos;
+					entity->looking_direction = entity->target_pos - entity->pos;
+				}
 			}else{
 				entity->flags &= (0xffffffffffffffff ^ E_STICK_TO_ENTITY);
 			}
@@ -1709,9 +1714,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// CLAMPING ENTITY POSITION
 
-		if(!(entity->flags & E_UNCLAMP_XZ)){
-			entity->pos.x = CLAMP(-27, entity->pos.x, 27);
-			entity->pos.z = CLAMP(-21, entity->pos.z, 21);
+		if(!(entity->flags & E_UNCLAMP_XZ))
+		{
+			f32 new_x = CLAMP(-27, entity->pos.x, 27);
+			f32 new_z = CLAMP(-21, entity->pos.z, 21);
+			if(entity->flags & E_STICK_TO_ENTITY)
+			{
+				Entity* owner_entity = entity_from_handle(entity->entity_to_stick, entities, generations);
+				owner_entity->velocity.x += 10*(new_x-entity->pos.x);
+				owner_entity->velocity.z += 10*(new_z-entity->pos.z);
+			}
+			entity->pos.x = new_x;
+			entity->pos.z = new_z;
 		}
 		if(!(entity->flags & E_UNCLAMP_Y)){
 			entity->pos.y = 0;
