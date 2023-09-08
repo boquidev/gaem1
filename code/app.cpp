@@ -61,33 +61,32 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		global_boss_handle.index = BOSS_INDEX;
 		global_boss_handle.generation = memory->entity_generations[BOSS_INDEX];
 
-		struct LEVEL_PROPERTIES{
-			f32 boss_health;
-			f32 boss_spawn_cooldown;
-			u32 possible_elements_count;
-			u16 possible_elements [10];
-		};
-		LEVEL_PROPERTIES levels_init [] = {
+		Level_properties levels_init [] = {
 			{
 				50.0f,
 				10.0f,
 				1,
-				{0}
+				{0},
+				3.0f,
+				5.0f,
+				15.0f,
 			},
 			{
 				100.0f,
 				5.0f,
 				5,
-				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER}
+				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER},
+				1.5f,
+				10.0f,
+				30.0f
 			},
 		};
 
 		memory->levels_count = ARRAYCOUNT(levels_init);
 
-		LEVEL_PROPERTIES* current_level_init = &levels_init[memory->current_level];
-		copy_mem(current_level_init->possible_elements, memory->boss_properties.possible_elements, sizeof(current_level_init->possible_elements));
-		memory->boss_properties.possible_elements_count = current_level_init->possible_elements_count;
-		memory->boss_properties.spawn_cooldown = current_level_init->boss_spawn_cooldown;
+		Level_properties* current_level_init = &levels_init[memory->current_level];
+
+		memory->level_properties = *current_level_init;		
 
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
@@ -234,7 +233,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->L > 0){
 
 		u64 possible_upgrades[] = {
-			E_CAN_MANUALLY_MOVE,
 			E_SHOOT,
 			E_GENERATE_RESOURCE,
 			E_HAS_SHIELD,
@@ -245,6 +243,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			
 			/*
+			// E_CAN_MANUALLY_MOVE,
 			E_AUTO_AIM_BOSS,
 			E_PROJECTILE_PIERCE_TARGETS,
 			E_HOMING_PROJECTILES,
@@ -260,7 +259,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		};
 
 		char* button_text[] = {
-			"manually move",
 			"shoot",
 			"resource farm",
 			"add shield",
@@ -269,6 +267,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			"autoaim",
 			
 			/*
+			// "manually move",
 			"melee attack",
 			E_MELEE_ATTACK,
 			"autoaim boss",
@@ -287,7 +286,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		s32 upgrade_costs[] = 
 		{
-			10,
 			10,
 			15,
 			20,
@@ -567,11 +565,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	V3 cursor_y0_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
 
-	LIST(u32, entities_to_kill) = {0};
+	LIST(s32, entities_to_kill) = {0};
 	LIST(Entity, entities_to_create) = {0};
 
 	
-	{
+	if(0){
 		Entity* wall = 0;
 		wall = &entities[5];
 		default_wall(wall, memory);
@@ -609,10 +607,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	//PROCESSING BOSS ENTITY
 
 
-	memory->boss_properties.spawn_current_time += world_delta_time;
-	if(memory->boss_properties.spawn_current_time >= memory->boss_properties.spawn_cooldown)
+	memory->boss_action_current_time += world_delta_time;
+	if(memory->boss_action_current_time >= memory->level_properties.boss_action_cooldown)
 	{
-		memory->boss_properties.spawn_current_time -= memory->boss_properties.spawn_cooldown;
+		memory->boss_action_current_time -= memory->level_properties.boss_action_cooldown;
 		boss_entity;
 		
 		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
@@ -626,24 +624,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// target player
 			// protect boss
 		u64 extra_flags = E_SHOOT|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET;
-		u32 dice = (u32)(rng.rng_next()*memory->boss_properties.possible_elements_count);
+		u32 dice = (u32)(rng.rng_next((f32)memory->level_properties.possible_elements_count));
 
-		new_entity->element_type = memory->boss_properties.possible_elements[dice];
+		new_entity->element_type = memory->level_properties.possible_elements[dice];
 
-		new_entity->flags = extra_flags |
+		new_entity->flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION|
 			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
 
 
 		new_entity->color = {1,1,1,1};
 		new_entity->scale = {1.0f,1.0f,1.0f};
 
-		new_entity->speed = 40.0f;
+		new_entity->speed = memory->level_properties.spawned_entities_speed;
 		new_entity->friction = 5.0f;
 		new_entity->weight = 1.0f;
-		new_entity->max_health = 40.f;
+		new_entity->max_health = 40.0f;
 		new_entity->health = new_entity->max_health;
-		new_entity->action_power = 10.0f;
-		new_entity->action_cd_total_time = 1.0f;
+		new_entity->action_power = memory->level_properties.spawned_entities_attack_damage;
+		new_entity->action_cd_total_time = (rng.rng_next(0.2f)-0.1f+1.0f) * memory->level_properties.spawned_entities_attack_cd;
 		new_entity->action_range = 4.0f;
 		new_entity->aura_radius = 3.0f;
 
@@ -651,7 +649,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		new_entity->team_uid = boss_entity->team_uid;
 
 		V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
-		f32 random_angle = (rng.rng_next() * PI32 ) - (PI32/2);
+		f32 random_angle = rng.rng_next(PI32) - (PI32/2);
 		new_entity->pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 		
 		// this is basically useless
@@ -759,7 +757,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			entity->lifetime -= world_delta_time;
 			if(entity->lifetime <= 0 )
 			{
-				u32* entity_index; PUSH_BACK(entities_to_kill, memory->temp_arena, entity_index);
+				s32* entity_index; PUSH_BACK(entities_to_kill, memory->temp_arena, entity_index);
 				*entity_index = i;
 				entity->flags &= (0xffffffffffffffff ^ E_SELECTABLE);
 			}
@@ -796,7 +794,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 					entity->health -= 1;
 					if(entity->health <= 0){
-						u32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+						s32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 						*index_to_kill = i;
 					}
 				}
@@ -1013,7 +1011,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(speed_left > 0.05f){
 				entity->creation_size = new_scale;
 			}else{
-				u32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+				s32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 				*index_to_kill = i;
 			}
 		}
@@ -1199,7 +1197,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						{
 							entity->health -= 1;
 							if(entity->health <= 0){
-								u32* index_to_kill;
+								s32* index_to_kill;
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 								*index_to_kill = i;
 
@@ -1208,7 +1206,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								parent->shield_cd = 8.0f;
 							}
 							entity2->flags = 0;
-							u32* index_to_kill;
+							s32* index_to_kill;
 							PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 							*index_to_kill = j;
 						}
@@ -1218,7 +1216,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							entity->health = CLAMP(0, entity->health - entity2->total_power, entity->max_health);
 							if(entity->health <= 0)
 							{
-								u32* index_to_kill;
+								s32* index_to_kill;
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 								*index_to_kill = i;
 							}else{ // still alive
@@ -1239,7 +1237,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							entity2->health--;
 							if(entity2->health <= 0)
 							{
-								u32* index_to_kill;
+								s32* index_to_kill;
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 								*index_to_kill = j;
 							}
@@ -1318,7 +1316,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						if(entity->health <= 0)
 						{
-							u32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+							s32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 							*index_to_kill = i;
 						}
 					}
@@ -1419,7 +1417,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				if(they_collide)
 				{
 					if(entity->flags & E_DIE_ON_COLLISION){
-						u32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+						s32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 						*index_to_kill = i;
 					}
 				} 
@@ -1657,7 +1655,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					
 					entity->health -= 1;
 					if(entity->health <= 0){
-						u32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+						s32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 						*index_to_kill = i;
 					}
 				}
@@ -1730,7 +1728,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// TODO: maybe use entity handles for this instead of u32 ???
 
-	FOREACH(u32, e_index, entities_to_kill){
+	FOREACH(s32, e_index, entities_to_kill){
 		if(entities[*e_index].flags & P_PROJECTILE_EXPLODE)
 		{
 			Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
@@ -1762,6 +1760,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				memory->teams_resources[i] += 5;
 				memory->teams_resources[i] += entities[*e_index].total_upgrades_cost_value/2;
 			}
+		}
+		if(*e_index == memory->selected_uid)
+		{
+			memory->selected_uid = -1;
 		}
 		entities[*e_index] = {0};
 		generations[*e_index]++;
@@ -1875,7 +1877,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				Entity* new_entity = &entities[e_index];
 
 				// default_melee(new_entity, memory);
-				new_entity->flags = 
+				new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION|
 					E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
 
 				new_entity->color = {1,1,1,1};

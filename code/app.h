@@ -391,6 +391,18 @@ struct Sounds{
 	u32 psss_uid;
 };
 
+struct Level_properties{
+	f32 boss_health;
+	f32 boss_action_cooldown;
+	u32 possible_elements_count;
+	u16 possible_elements [10];
+	
+	f32 spawned_entities_attack_cd;
+	f32 spawned_entities_attack_damage;
+	f32 spawned_entities_speed;
+	f32 spawned_entities_health;
+};
+
 struct App_memory
 {
 	b32 is_initialized;
@@ -464,12 +476,9 @@ struct App_memory
 
 	u32 current_level;
 	u32 levels_count;
-	struct {
-		f32 spawn_cooldown;
-		f32 spawn_current_time;
-		u16 possible_elements [10];
-		u32 possible_elements_count;
-	}boss_properties;
+
+	Level_properties level_properties;
+	f32 boss_action_current_time;//TODO: this is redundant with the boss entity properties
 
 	s32 debug_active_entities_count;
 
