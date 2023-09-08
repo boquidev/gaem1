@@ -7,7 +7,8 @@ global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
 global_variable RNG rng;
 
-void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size){
+void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size)
+{
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
 		
@@ -60,6 +61,34 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		global_boss_handle.index = BOSS_INDEX;
 		global_boss_handle.generation = memory->entity_generations[BOSS_INDEX];
 
+		struct LEVEL_PROPERTIES{
+			f32 boss_health;
+			f32 boss_spawn_cooldown;
+			u32 possible_elements_count;
+			u16 possible_elements [10];
+		};
+		LEVEL_PROPERTIES levels_init [] = {
+			{
+				50.0f,
+				10.0f,
+				1,
+				{0}
+			},
+			{
+				100.0f,
+				5.0f,
+				5,
+				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER}
+			},
+		};
+
+		memory->levels_count = ARRAYCOUNT(levels_init);
+
+		LEVEL_PROPERTIES* current_level_init = &levels_init[memory->current_level];
+		copy_mem(current_level_init->possible_elements, memory->boss_properties.possible_elements, sizeof(current_level_init->possible_elements));
+		memory->boss_properties.possible_elements_count = current_level_init->possible_elements_count;
+		memory->boss_properties.spawn_cooldown = current_level_init->boss_spawn_cooldown;
+
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
 		boss->flags = 
@@ -69,7 +98,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->speed = 60.0f;
 		boss->friction = 10.0f;
 
-		boss->max_health = 1000;
+		boss->max_health = current_level_init->boss_health;
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
 		boss->team_uid = 1;
@@ -111,7 +140,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	//TODO: this
 	if(input->T == 1)
+	{
 		memory->is_initialized = false;
+	}
+	if(input->debug_next_level == 1 )
+	{
+		memory->is_initialized = false;
+		memory->current_level = (memory->current_level+1) % memory->levels_count;
+	}
+	if(input->debug_previous_level == 1 )
+	{
+		memory->is_initialized = false;
+		memory->current_level = (memory->current_level+memory->levels_count-1) % memory->levels_count;
+	}
 
 	// f32 camera_speed = 1.0f;
 	f32 sensitivity = 2.0f;
@@ -577,11 +618,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
 		Entity* new_entity = &entities[e_index];
 
-		// default_melee(new_entity, memory);
-		new_entity->flags = 
-			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
-
-			
 		// specific properties:
 			// speed, range, rate of fire, element, health, shield, damage
 
@@ -589,6 +625,38 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// target closest
 			// target player
 			// protect boss
+		u64 extra_flags = E_SHOOT|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET;;
+		u32 dice = (u32)(rng.rng_next()*5);
+
+		switch(dice)
+		{
+			case 0:
+			{
+				new_entity->element_type = 0;
+			}break;
+			case 1:
+			{
+				new_entity->element_type = EET_COLD;
+			}break;
+			case 2:
+			{
+				new_entity->element_type = EET_ELECTRIC;
+			}break;
+			case 3:
+			{
+				new_entity->element_type = EET_HEAT;
+			}break;
+			case 4:
+			{
+				new_entity->element_type = EET_WATER;
+			}break;
+			default:
+			ASSERT(false);
+		}
+
+		new_entity->flags = extra_flags |
+			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
+
 
 		new_entity->color = {1,1,1,1};
 		new_entity->scale = {1.0f,1.0f,1.0f};
@@ -624,9 +692,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// MAIN ENTITY UPDATE LOOP
 
-	if(input->debug_down == 1){
-		ASSERT(true);
-	}
 	memory->debug_active_entities_count = 0;
 	f32 closest_t = {0};
 	b32 first_intersection = false;
@@ -692,7 +757,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}else{ // DEFAULT CASE
 			entity->color = {0.5f,0.5f,0.5f,1};
 		}
-		
 
 
 		// ENEMY_COLOR

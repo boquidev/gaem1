@@ -1008,6 +1008,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							case VK_DOWN:
 								holding_inputs.debug_down = is_down;
 							break;
+							case VK_PRIOR:
+								holding_inputs.debug_previous_level = is_down;
+							break;
+							case VK_NEXT:
+								holding_inputs.debug_next_level = is_down;
+							break;
 							default:
 							break;
 

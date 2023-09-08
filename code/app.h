@@ -323,8 +323,11 @@ struct User_input
 			s32 debug_down;
 			s32 debug_left;
 			s32 debug_right;
+
+			s32 debug_next_level;
+			s32 debug_previous_level;
 		};
-		s32 buttons[30];//TODO: narrow this number to the amount of posible buttons
+		s32 buttons[40];//TODO: narrow this number to the amount of posible buttons
 	};
 };
 
@@ -459,8 +462,13 @@ struct App_memory
 	s32 ui_selected_uid;
 	s32 ui_clicked_uid;
 
+	u32 current_level;
+	u32 levels_count;
 	struct {
 		f32 spawn_cooldown;
+		f32 spawn_current_time;
+		u16 possible_elements [10];
+		u32 possible_elements_count;
 	}boss_properties;
 
 	s32 debug_active_entities_count;
