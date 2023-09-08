@@ -609,10 +609,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	//PROCESSING BOSS ENTITY
 
 
-	memory->boss_properties.spawn_cooldown-= world_delta_time;
-	if(memory->boss_properties.spawn_cooldown <= 0)
+	memory->boss_properties.spawn_current_time += world_delta_time;
+	if(memory->boss_properties.spawn_current_time >= memory->boss_properties.spawn_cooldown)
 	{
-		memory->boss_properties.spawn_cooldown += 2.0f;
+		memory->boss_properties.spawn_current_time -= memory->boss_properties.spawn_cooldown;
 		boss_entity;
 		
 		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
@@ -625,34 +625,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// target closest
 			// target player
 			// protect boss
-		u64 extra_flags = E_SHOOT|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET;;
-		u32 dice = (u32)(rng.rng_next()*5);
+		u64 extra_flags = E_SHOOT|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET;
+		u32 dice = (u32)(rng.rng_next()*memory->boss_properties.possible_elements_count);
 
-		switch(dice)
-		{
-			case 0:
-			{
-				new_entity->element_type = 0;
-			}break;
-			case 1:
-			{
-				new_entity->element_type = EET_COLD;
-			}break;
-			case 2:
-			{
-				new_entity->element_type = EET_ELECTRIC;
-			}break;
-			case 3:
-			{
-				new_entity->element_type = EET_HEAT;
-			}break;
-			case 4:
-			{
-				new_entity->element_type = EET_WATER;
-			}break;
-			default:
-			ASSERT(false);
-		}
+		new_entity->element_type = memory->boss_properties.possible_elements[dice];
 
 		new_entity->flags = extra_flags |
 			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
