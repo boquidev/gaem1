@@ -622,7 +622,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 			{
 				case EET_WATER|EET_HEAT:{
 					Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
-					smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|
+					smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_NOT_TARGETABLE|
 						E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
 						;
 					smoke_screen->element_type = EET_WATER;

@@ -514,10 +514,16 @@ rng_lcg(u32 seed){
 struct RNG{
     u32 last_seed;
 
-    f32 next(f32 max_value){
+    f32 lcg(f32 max_value){
         u32 bits_flipped = (last_seed ^ 0xffffffff); // this is my own addition so i may be introducing some problem i don't know
         last_seed =  ((8121 * bits_flipped + 28411) % 134456);
         return max_value*(f32)last_seed / 134456;
+    }
+    
+    f32 next(f32 max_value){
+        u32 temp = (last_seed << 13) ^ last_seed;
+        ++last_seed;
+        return max_value*((f32)((temp * (temp * temp * 15731 + 789221) + 1376312589) & 0x7fffffff) / 0x7fffffff);
     }
 };
 

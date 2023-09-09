@@ -983,12 +983,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(!(entity->flags & E_CAN_MANUALLY_MOVE) || (!input_vector.x && !input_vector.y) )
 			{
 				f32 target_magnitude = v3_magnitude(entity_target_direction);
-				f32 range_magnitude = calculate_total_range(entity)*2;
-				f32 new_target_magnitude = target_magnitude - range_magnitude;
-
-				if(ABS(new_target_magnitude) > 2.0f)
+				if(target_magnitude)
 				{
-					entity->normalized_accel = ((new_target_magnitude/ABS(new_target_magnitude))/target_magnitude)*entity_target_direction;
+					f32 range_magnitude = calculate_total_range(entity)*2;
+					f32 new_target_magnitude = target_magnitude - range_magnitude;
+
+					if(ABS(new_target_magnitude) > 2.0f)
+					{
+						entity->normalized_accel = ((new_target_magnitude/ABS(new_target_magnitude))/target_magnitude)*entity_target_direction;
+					}
+				}
+				else
+				{
+					entity->normalized_accel = {0,0,0};
 				}
 			}
 		}
@@ -1473,39 +1480,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 
-		#define DEFAULT_AUTOAIM_RANGE 10.0f 
-		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
-		if(entity->flags & E_AUTO_AIM_BOSS){ 
-			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
-			if((entity->flags & E_AUTO_AIM_CLOSEST) && 
-				(closest_enemy_distance < DEFAULT_AUTOAIM_RANGE) && 
-				closest_enemy_uid >= 0
-			){
-				
-				entity->target_pos = entities[closest_enemy_uid].pos;
-			}else{
-				// friendly
-				if(entity->team_uid == player_entity->team_uid){
-					if(is_handle_valid(global_boss_handle, generations)){
-						entity->target_pos = entities[global_boss_handle.index].pos;
-					}else{
-						entity->target_pos = entity->pos;
-					}
-				}else{ // enemy
-					if(is_handle_valid(global_player_handle, generations)){
-						entity->target_pos = entities[global_player_handle.index].pos;
-					}else{
-						entity->target_pos = entity->pos;
-					}
-				}
-			}
-		}else{
-			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_uid >= 0) ){
-				entity->target_pos = entities[closest_enemy_uid].pos;
-			}
-		}
-
-
 		// COOLDOWN ACTIONS 
 
 		// if it is not 0
@@ -1752,6 +1726,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 			}else{
 				entity->flags &= (~E_STICK_TO_ENTITY);
+				if(entity->flags & P_SHIELD)
+				{
+					s32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+					*index_to_kill = i;
+				}
 			}
 		}
 		else
@@ -1772,7 +1751,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				V3 target_pos = entity_boss_pos + ((final_distance_from_boss/boss_to_closest_distance)*boss_to_target_vector);
 				entity->velocity = entity->velocity + (target_pos - entity->pos)/2;
 			}
-			if(!(entity->flags & E_NOT_MOVE)){
+			if(!(entity->flags & E_NOT_MOVE))
+			{
 				entity->pos = entity->pos + (entity_dt * entity->velocity);
 			}
 		}
@@ -1795,6 +1775,45 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(!(entity->flags & E_UNCLAMP_Y)){
 			entity->pos.y = 0;
+		}
+
+		#define DEFAULT_AUTOAIM_RANGE 10.0f 
+		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
+		if(entity->flags & E_AUTO_AIM_BOSS)
+		{ 
+			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
+			if((entity->flags & E_AUTO_AIM_CLOSEST) && 
+				(closest_enemy_distance < DEFAULT_AUTOAIM_RANGE) && 
+				closest_enemy_uid >= 0
+			){
+				
+				entity->target_pos = entities[closest_enemy_uid].pos;
+			}else{
+				// friendly
+				if(entity->team_uid == player_entity->team_uid){
+					if(is_handle_valid(global_boss_handle, generations)){
+						entity->target_pos = entities[global_boss_handle.index].pos;
+					}else{
+						entity->target_pos = entity->pos;
+					}
+				}else{ // enemy
+					if(is_handle_valid(global_player_handle, generations)){
+						entity->target_pos = entities[global_player_handle.index].pos;
+					}else{
+						entity->target_pos = entity->pos;
+					}
+				}
+			}
+		}else{
+			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_uid >= 0) )
+			{
+				entity->target_pos = entities[closest_enemy_uid].pos;
+			}
+		}
+
+		if(isnan(entity->pos.x) || isnan(entity->pos.y) || isnan(entity->pos.z))
+		{
+			ASSERT(false);
 		}
 
 		if(entity->particle_emitter)
