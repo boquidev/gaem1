@@ -8,6 +8,113 @@
 #define init_type(...) void (*__VA_ARGS__)(App_memory*, Init_data* )
 
 
+struct Particle
+{
+	/* possible flags:
+			accelerate in a direction
+			accelerate inwards
+			accelerate outwards
+			rotate around creation pos
+			accelerate towards a point 
+			accelerate towards an entity
+
+	*/
+	u32 flags;
+
+	V3 position;
+	V3 velocity;
+	V3 acceleration;
+	f32 friction;
+
+	f32 lifetime;
+
+	Color color;
+	Color target_color;
+	f32 color_delta_multiplier;
+
+	f32 angle;
+	f32 angle_speed;
+	f32 angle_accel;
+	f32 angle_friction;
+
+	f32 scale;
+	f32 target_scale;
+	f32 scale_delta_multiplier;
+};
+
+struct Particle_emitter
+{
+	u32 particle_flags;
+	u32 particles_count;
+
+	f32 velocity_yrotation_rng;
+
+	f32 friction;
+	
+	V3 acceleration;
+
+	Color color_rng;
+	Color target_color;
+	f32 color_delta_multiplier;
+
+	f32 lifetime;
+
+	f32 initial_angle_rng;
+	f32 angle_speed;
+	f32 angle_initial_speed_rng;
+	f32 angle_accel;
+	f32 angle_friction;
+	
+	f32 initial_scale;
+	f32 initial_scale_rng;
+	f32 target_scale;
+	f32 scale_delta_multiplier;
+
+	void emit_particle(Particle* particle, V3 position, V3 initial_velocity, Color color, RNG* rng)
+	{
+		particle->flags = particle_flags;
+		particle->position = position;
+		particle->velocity = v3_rotate_y(initial_velocity, rng->next(velocity_yrotation_rng)-(velocity_yrotation_rng/2));
+		particle->acceleration = acceleration;
+		particle->friction = friction;
+
+		particle->color = {
+			color.r + (rng->next(color_rng.r)-(color_rng.r/2)),
+			color.g + (rng->next(color_rng.g)-(color_rng.g/2)),
+			color.b + (rng->next(color_rng.b)-(color_rng.b/2)),
+			color.a
+		};
+		particle->target_color = target_color;
+		particle->color_delta_multiplier = color_delta_multiplier;
+
+		particle->lifetime = lifetime;
+
+		particle->angle = rng->next(initial_angle_rng) - (initial_angle_rng/2);
+		particle->angle_speed = angle_speed + (rng->next(angle_initial_speed_rng) - (angle_initial_speed_rng/2));
+		particle->angle_accel = angle_accel;
+		particle->angle_friction = angle_friction;
+
+		particle->scale = initial_scale + rng->next(initial_scale_rng) - (initial_scale_rng/2);
+		particle->target_scale = target_scale;
+		particle->scale_delta_multiplier = scale_delta_multiplier;
+	}
+};
+
+internal Particle* 
+get_new_particle(Particle* particles, u32 max_particles, u32 last_used_index)
+{
+	UNTIL(i, max_particles)
+	{
+		u32 current_index = (last_used_index+i) % max_particles;
+		if(!particles[current_index].flags)
+		{
+			return &particles[current_index]; 
+		}
+	}
+	ASSERT(false); // max particles reached
+	return 0;
+}
+
 // scale must be 1,1,1 by default
 
 // struct Tex_uid{
@@ -195,6 +302,8 @@ struct Entity{
 			OBJECT3D_STRUCTURE
 		};
 	};
+	Particle_emitter* particle_emitter;
+	f32 particle_timer;
 };
 global_variable Entity nil_entity = {0}; 
 
@@ -365,6 +474,7 @@ struct Textures{
 	
 	u32 test_tex_uid;
 	u32 font_atlas_uid;
+	// u32 PARTICLES_TEXTURE_ATLAS;
 };
 
 struct VShaders{
@@ -390,16 +500,6 @@ struct Sounds{
 	u32 pe_uid;
 	u32 pa_uid;
 	u32 psss_uid;
-};
-
-struct Particle{
-	u32 flags;
-	V3 position;
-	V3 velocity;
-	V3 acceleration;
-	f32 friction;
-	f32 lifetime;
-	Color color;
 };
 
 struct Level_properties{
@@ -498,6 +598,7 @@ struct App_memory
 
 	Particle* particles;
 	u32 particles_max;
+	u32 last_used_particle_index;
 };
 
 internal void 
@@ -768,7 +869,9 @@ default_wall(Entity* out, App_memory* memory){
 }
 
 
-enum RENDERER_REQUEST_TYPE_FLAGS{
+enum RENDERER_REQUEST_TYPE_FLAGS
+{//TODO: invert the order so that i can set render pipeline in the same request as rendering an object
+//for that i would need to unwrap the Renderer_request union into a full size struct
 	REQUEST_FLAG_RENDER_OBJECT 		= 1 << 0,
 	REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN		= 1 << 1,
 	REQUEST_FLAG_RENDER_IMAGE_TO_WORLD		= 1 << 2,
@@ -776,6 +879,8 @@ enum RENDERER_REQUEST_TYPE_FLAGS{
 	REQUEST_FLAG_SET_PS					= 1 << 4,
 	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 5,
 	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 6,
+	REQUEST_FLAG_RENDER_PARTICLES		= 1 << 7, //TODO: turn this into instancing
+
 	//TODO: instancing request type
 	//TODO: set texture or mesh request type for instancing
 };
@@ -831,7 +936,6 @@ printo_world(App_memory* memory,Int2 screen_size, LIST(Renderer_request, render_
 			object->scale = {30*normalized_scale.x, 30*normalized_scale.y, 1};
 
 			object->pos = {xpos, pos.y, pos.z};
-			object->rotation = {PI32/4,0,0};
 			object->color = color;
 
 			request->object3d.texinfo_uid = memory->font_tex_infos_uids[char_index];

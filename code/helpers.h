@@ -273,6 +273,13 @@ static union {
 
 		UI_LAST_FLAG;
 	};
+
+	struct {
+		u32
+		PARTICLE_ACTIVE,
+		
+		PARTICLE_LAST_FLAG;
+	};
 };
 
 // THIS APPLIES TO ANY TEXTURE NOT JUST FONTS
@@ -302,6 +309,29 @@ union Color
 internal Color
 operator *(f32 scalar, Color color){
 	return {scalar*color.r, scalar*color.g, scalar*color.b, scalar*color.a};
+}
+
+internal Color
+color_difference(Color c1, Color c2)
+{
+	return {c1.r-c2.r, c1.g-c2.g, c1.b-c2.b, c1.a-c2.a};
+}
+
+internal Color
+operator -(Color c1, Color c2)
+{
+	return color_difference(c1, c2);
+}
+
+internal Color
+color_addition(Color c1, Color c2)
+{
+	return {c1.r+c2.r, c1.g+c2.g, c1.b+c2.b, c1.a+c2.a};
+}
+internal Color
+operator +(Color c1, Color c2)
+{
+	return color_addition(c1, c2);
 }
 
 internal Color

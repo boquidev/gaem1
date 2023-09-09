@@ -254,6 +254,11 @@ v3_difference(V3 v1, V3 v2){
     return result;
 }
 internal V3
+operator -(V3 v)
+{
+    return {-v.x, -v.y, -v.z};
+}
+internal V3
 operator -(V3 v1, V3 v2){
     return v3_difference(v1, v2);
 }
@@ -509,7 +514,7 @@ rng_lcg(u32 seed){
 struct RNG{
     u32 last_seed;
 
-    f32 rng_next(f32 max_value){
+    f32 next(f32 max_value){
         u32 bits_flipped = (last_seed ^ 0xffffffff); // this is my own addition so i may be introducing some problem i don't know
         last_seed =  ((8121 * bits_flipped + 28411) % 134456);
         return max_value*(f32)last_seed / 134456;

@@ -6,6 +6,7 @@
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
 global_variable RNG rng;
+global_variable Particle_emitter global_default_particle_emitter;
 
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size)
 {
@@ -634,7 +635,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// target player
 			// protect boss
 		u64 extra_flags = 0;
-		u32 dice = (u32)(rng.rng_next(4));
+		u32 dice = (u32)(rng.next(4));
 		f32 speed_multiplier = 1.0f;
 
 		//TODO: this should be level specific
@@ -661,19 +662,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		new_entity->flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION|
 			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
 
-		dice = (u32)(rng.rng_next((f32)memory->level_properties.possible_elements_count));
+		dice = (u32)(rng.next((f32)memory->level_properties.possible_elements_count));
 		new_entity->element_type = memory->level_properties.possible_elements[dice];
 
 		new_entity->color = {1,1,1,1};
 		new_entity->scale = {1.0f,1.0f,1.0f};
 
-		new_entity->speed = speed_multiplier * (0.9f + rng.rng_next(0.2f)) * memory->level_properties.spawned_entities_speed;
+		new_entity->speed = speed_multiplier * (0.9f + rng.next(0.2f)) * memory->level_properties.spawned_entities_speed;
 		new_entity->friction = 5.0f;
 		new_entity->weight = 1.0f;
 		new_entity->max_health = memory->level_properties.spawned_entities_health;
 		new_entity->health = new_entity->max_health;
 		new_entity->action_power = memory->level_properties.spawned_entities_attack_damage;
-		new_entity->action_cd_total_time = (0.9f + rng.rng_next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
+		new_entity->action_cd_total_time = (0.9f + rng.next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
 		new_entity->action_range = 4.0f;
 		new_entity->aura_radius = 3.0f;
 
@@ -681,7 +682,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		new_entity->team_uid = boss_entity->team_uid;
 
 		V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
-		f32 random_angle = rng.rng_next(PI32) - (PI32/2);
+		f32 random_angle = rng.next(PI32) - (PI32/2);
 		new_entity->pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 		
 		// this is basically useless
@@ -1543,6 +1544,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					UNTIL(current_action_i, repetitions)
 					{
 						Entity* new_bullet; PUSH_BACK(entities_to_create, memory->temp_arena, new_bullet);
+						new_bullet->particle_emitter = &global_default_particle_emitter;
 
 						new_bullet->flags = 
 							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE|
@@ -1793,6 +1795,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(!(entity->flags & E_UNCLAMP_Y)){
 			entity->pos.y = 0;
+		}
+
+		if(entity->particle_emitter)
+		{
+			UNTIL(current_particle, entity->particle_emitter->particles_count)
+			{
+				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, memory->last_used_particle_index);
+				entity->particle_emitter->emit_particle(new_particle, entity->pos, -0.5f*(entity->velocity), {1.0f,0.0f,0.0f,1}, &rng);
+			}
 		}
 
 
@@ -2159,7 +2170,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 			request->scale = {1,1,1};
-			request->pos = selected_entity->looking_direction + selected_entity->pos;
+			request->pos = selected_entity->target_pos;
 			request->mesh_uid = memory->meshes.icosphere_mesh_uid;
 			request->texinfo_uid = memory->textures.white_tex_uid;
 			request->color = {1,0,0,0.15f};
@@ -2182,6 +2193,48 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		request->mesh_uid = memory->meshes.blank_entity_mesh_uid;
 		request->texinfo_uid = memory->textures.white_tex_uid;
 		request->rotation.y = -PI32/2;
+	}
+
+	// UPDATING AND RENDERING PARTICLES
+
+	UNTIL(i, memory->particles_max)
+	{
+		if(!memory->particles[i].flags) continue;
+		Particle* particle = &memory->particles[i];
+
+		//UPDATING
+
+		particle->velocity = particle->velocity + memory->delta_time * calculate_delta_velocity(particle->velocity, particle->acceleration, particle->friction);
+		particle->position = particle->position + (memory->delta_time*particle->velocity);
+
+		particle->scale = particle->scale + (particle->scale_delta_multiplier * memory->delta_time/particle->lifetime)*(particle->target_scale - particle->scale);
+		
+		particle->angle_speed = particle->angle_speed + memory->delta_time*((particle->angle_accel) - (particle->angle_friction*particle->angle_speed));
+		particle->angle = particle->angle + particle->angle_speed;
+
+		particle->color = color_addition(particle->color, (particle->color_delta_multiplier*memory->delta_time/particle->lifetime)*(color_difference(particle->target_color, particle->color)));
+		particle->color.a = MAX(0.01f, particle->color.a);
+
+
+		particle->lifetime -= memory->delta_time;
+		if(particle->lifetime <= 0 || particle->scale <= 0 )
+		{
+			*particle = {0};
+		}else{
+
+			// RENDERING 
+
+			PUSH_BACK(render_list, memory->temp_arena, request);
+			request->type_flags = REQUEST_FLAG_RENDER_PARTICLES;
+			request->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+			request->texinfo_uid = memory->textures.white_tex_uid;
+			
+			request->scale = {particle->scale, particle->scale, particle->scale};
+			request->pos = particle->position;
+			request->rotation = {0, particle->angle, 0};
+			request->color = particle->color;
+			
+		}
 	}
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
@@ -2539,7 +2592,35 @@ void init(App_memory* memory, Init_data* init_data){
 		PUSH_ASSET_REQUEST;
 	}
 
+	memory->particles_max = 1000;
+	memory->particles = ARENA_PUSH_STRUCTS(memory->permanent_arena, Particle, memory->particles_max);
 
+	
+	// INITIALIZING PARTICLE EMITTERS
+	
+	global_default_particle_emitter.particle_flags = PARTICLE_ACTIVE;
+	global_default_particle_emitter.particles_count = 1;
+	global_default_particle_emitter.velocity_yrotation_rng = PI32;
+	global_default_particle_emitter.friction = 10.0f;
+	
+	global_default_particle_emitter.acceleration = {0,10.0f, 0};
+	
+	global_default_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
+	global_default_particle_emitter.target_color = {1,1,1,1};
+	global_default_particle_emitter.color_delta_multiplier = 1.0f;
+
+	global_default_particle_emitter.lifetime = 0.3f;
+
+	global_default_particle_emitter.initial_angle_rng = PI32;
+	global_default_particle_emitter.angle_speed = 0;
+	global_default_particle_emitter.angle_initial_speed_rng = 20.0f;
+	global_default_particle_emitter.angle_accel = 0;
+	global_default_particle_emitter.angle_friction = 4.0f;
+	
+	global_default_particle_emitter.initial_scale = 0.2f;
+	global_default_particle_emitter.target_scale = 0.0f;
+	global_default_particle_emitter.scale_delta_multiplier = 1.0f;
+	global_default_particle_emitter.initial_scale_rng = 0;
 
 /*
 	// CREATING CONSTANT_BUFFER

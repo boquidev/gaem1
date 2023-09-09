@@ -1362,8 +1362,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					XMMATRIX object_transform_matrix = (
 						(
 							XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
-							XMMatrixRotationX(object->rotation.x) *
-							XMMatrixRotationY(object->rotation.y) *
+							XMMatrixRotationX(memory.camera_rotation.x) * // this is normally  PI32/4
+							XMMatrixRotationY(memory.camera_rotation.y) *
 							XMMatrixRotationZ(object->rotation.z) *
 							XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z)
 						) * view_matrix * projection_matrix
@@ -1380,7 +1380,35 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
 				
-				}else{
+				}
+				else if(request->type_flags & REQUEST_FLAG_RENDER_PARTICLES)
+				{
+					Object3d* object = &request->object3d;
+					ASSERT(object->color.a);
+					ASSERT(object->scale.x && object->scale.y && object->scale.z);
+
+					XMMATRIX object_transform_matrix = (
+						(
+							XMMatrixScaling(object->scale.x,object->scale.y,object->scale.z)*
+							XMMatrixRotationX(memory.camera_rotation.x) * 
+							XMMatrixRotationY(memory.camera_rotation.y) *
+							XMMatrixRotationZ(object->rotation.z) *
+							XMMatrixTranslation(object->pos.x,object->pos.y, object->pos.z)
+						));
+					Dx_mesh* object_mesh; LIST_GET(meshes_list, object->mesh_uid, object_mesh);
+					Tex_info* texinfo; LIST_GET(memory.tex_infos, object->texinfo_uid, texinfo);
+					Dx11_texture_view** texture_view; LIST_GET(textures_list, texinfo->texview_uid, texture_view);
+
+					dx11_modify_resource(dx, object_texrect_buffer.buffer, &texinfo->texrect, sizeof(Rect));
+					
+					dx11_bind_texture_view(dx, texture_view);
+					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
+
+					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
+				
+				}
+				else
+				{
 					if(request->type_flags & REQUEST_FLAG_SET_VS){
 						Vertex_shader* vertex_shader; LIST_GET(vertex_shaders_list, request->vshader_uid, vertex_shader);
 						dx11_bind_vs(dx, vertex_shader->shader);
