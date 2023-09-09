@@ -391,4 +391,8 @@ find_next_available_playback(Audio_playback* list){
 	return result;
 }
 
-
+internal V3
+calculate_delta_velocity(V3 velocity, V3 acceleration, f32 friction)
+{// acceleration should be (paralysis_multiplier*entity->speed*(!entity->freezing_time_left)*entity->normalized_accel)
+	return  (acceleration - (friction*velocity));
+}

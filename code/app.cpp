@@ -998,8 +998,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(!(entity->flags & E_SKIP_DYNAMICS))
 		{
 			f32 paralysis_multiplier = (entity->element_effect & EET_ELECTRIC) ? 0.1f : 1.0f;
-			V3 acceleration = ((paralysis_multiplier*entity->speed*(!entity->freezing_time_left)*entity->normalized_accel)-(entity->friction*entity->velocity));
-			entity->velocity = entity->velocity + (entity_dt*acceleration);
+			V3 result_acceleration = calculate_delta_velocity(
+				entity->velocity, 
+				paralysis_multiplier*entity->speed*(!entity->freezing_time_left)*entity->normalized_accel, 
+				entity->friction);
+
+			entity->velocity = entity->velocity + (entity_dt*result_acceleration);
 			f32 min_threshold = 0.1f;
 
 			// UPDATING LOOKING DIRECTION

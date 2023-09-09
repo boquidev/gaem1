@@ -392,6 +392,16 @@ struct Sounds{
 	u32 psss_uid;
 };
 
+struct Particle{
+	u32 flags;
+	V3 position;
+	V3 velocity;
+	V3 acceleration;
+	f32 friction;
+	f32 lifetime;
+	Color color;
+};
+
 struct Level_properties{
 	f32 boss_health;
 	f32 boss_action_cooldown;
@@ -485,6 +495,9 @@ struct App_memory
 	s32 debug_active_entities_count;
 
 	u32 frame_random_number;
+
+	Particle* particles;
+	u32 particles_max;
 };
 
 internal void 
