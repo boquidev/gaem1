@@ -395,13 +395,14 @@ struct Sounds{
 struct Level_properties{
 	f32 boss_health;
 	f32 boss_action_cooldown;
-	u32 possible_elements_count;
-	u16 possible_elements [10];
 	
 	f32 spawned_entities_attack_cd;
 	f32 spawned_entities_attack_damage;
 	f32 spawned_entities_speed;
 	f32 spawned_entities_health;
+	
+	u32 possible_elements_count;
+	u16 possible_elements [10];
 };
 
 struct App_memory

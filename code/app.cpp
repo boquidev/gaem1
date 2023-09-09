@@ -65,20 +65,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				50.0f,
 				10.0f,
-				1,
-				{0},
 				3.0f,
 				5.0f,
 				15.0f,
+				20.0f,
+
+				1,
+				{0},
 			},
 			{
 				100.0f,
 				5.0f,
-				5,
-				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER},
 				1.5f,
 				10.0f,
-				30.0f
+				30.0f,
+				40.0f,
+
+				5,
+				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER},
 			},
 		};
 
@@ -87,6 +91,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		Level_properties* current_level_init = &levels_init[memory->current_level];
 
 		memory->level_properties = *current_level_init;		
+		memory->boss_action_current_time = 0; 
 
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
@@ -224,13 +229,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	
 	s32 ui_last = 0;
 
-	if(input->L == 1){
+	if(input->R == 1){
 		// memory->radial_menu_pos = input->cursor_pixels_pos;
 		memory->radial_menu_pos.x = CLAMP(MENU_RADIUS, input->cursor_pixels_pos.x, client_size.x - (MENU_RADIUS));
 		memory->radial_menu_pos.y = CLAMP(MENU_RADIUS+25, input->cursor_pixels_pos.y, client_size.y - (25+MENU_RADIUS));
 	}
 
-	if(input->L > 0){
+	if(input->R > 0){
 
 		u64 possible_upgrades[] = {
 			E_SHOOT,
@@ -342,7 +347,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(possible_upgrades[i] & E_TOXIC_EMITTER) // toxic emitter
 					{
 						if(entities[memory->selected_uid].flags & E_TOXIC_EMITTER){
-							entities[memory->selected_uid].flags &= possible_upgrades[i] ^ 0xffffffffffffffff;
+							entities[memory->selected_uid].flags &= ~possible_upgrades[i];
 						}else{
 							entities[memory->selected_uid].flags |= possible_upgrades[i];
 						}
@@ -395,7 +400,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	}
 
-	if(input->L > 0)
+	if(input->R > 0)
 	{
 		ENTITY_ELEMENT_TYPE possible_types_to_select[] = {
 			EET_HEAL,
@@ -451,7 +456,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							}
 							else // default case
 							{
-								entities[memory->selected_uid].flags &= (E_HEALER ^ 0xffffffffffffffff); 
+								entities[memory->selected_uid].flags &= (~E_HEALER); 
 							}
 						}
 					}
@@ -606,8 +611,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	//PROCESSING BOSS ENTITY
 
-
-	memory->boss_action_current_time += world_delta_time;
+	if(is_handle_valid(global_boss_handle, generations))
+	{
+		memory->boss_action_current_time += world_delta_time;
+	}
 	if(memory->boss_action_current_time >= memory->level_properties.boss_action_cooldown)
 	{
 		memory->boss_action_current_time -= memory->level_properties.boss_action_cooldown;
@@ -635,13 +642,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		new_entity->color = {1,1,1,1};
 		new_entity->scale = {1.0f,1.0f,1.0f};
 
-		new_entity->speed = memory->level_properties.spawned_entities_speed;
+		new_entity->speed = (0.9f + rng.rng_next(0.2f)) * memory->level_properties.spawned_entities_speed;
 		new_entity->friction = 5.0f;
 		new_entity->weight = 1.0f;
-		new_entity->max_health = 40.0f;
+		new_entity->max_health = memory->level_properties.spawned_entities_health;
 		new_entity->health = new_entity->max_health;
 		new_entity->action_power = memory->level_properties.spawned_entities_attack_damage;
-		new_entity->action_cd_total_time = (rng.rng_next(0.2f)-0.1f+1.0f) * memory->level_properties.spawned_entities_attack_cd;
+		new_entity->action_cd_total_time = (0.9f + rng.rng_next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
 		new_entity->action_range = 4.0f;
 		new_entity->aura_radius = 3.0f;
 
@@ -759,7 +766,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				s32* entity_index; PUSH_BACK(entities_to_kill, memory->temp_arena, entity_index);
 				*entity_index = i;
-				entity->flags &= (0xffffffffffffffff ^ E_SELECTABLE);
+				entity->flags &= (~E_SELECTABLE);
 			}
 		}
 
@@ -1703,7 +1710,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					entity->looking_direction = entity->target_pos - entity->pos;
 				}
 			}else{
-				entity->flags &= (0xffffffffffffffff ^ E_STICK_TO_ENTITY);
+				entity->flags &= (~E_STICK_TO_ENTITY);
 			}
 		}else{ // DEFAULT CASE APPLY VELOCITY
 			if(!(entity->flags & E_NOT_MOVE)){
@@ -1798,7 +1805,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	// DECIDE WHOS THE SELECTED ENTITY 
 
-	if(!is_cursor_in_ui && !input->L){
+	if(!is_cursor_in_ui && !input->R){
 		if(input->cursor_primary == 1){
 			memory->clicked_uid = hot_entity_uid;
 			memory->selected_uid = -1;
@@ -1831,7 +1838,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			//TODO: better put a boolean that indicates that this entity will drop all held entities 
 			// generations[memory->selected_uid]++;	
 			selected_entity->is_grabbing = false;
-
 		}
 		if(input->F == -1)
 		{
@@ -1851,7 +1857,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					entity_to_grab->pos.x - selected_entity->pos.x,
 					-(entity_to_grab->pos.z - selected_entity->pos.z)
 					};
-				f32 angle_offset = v2_angle(selected_entity->looking_direction.x, selected_entity->looking_direction.z);
+				f32 angle_offset = v2_angle(
+					selected_entity->target_pos.x - selected_entity->pos.x, 
+					selected_entity->target_pos.z - selected_entity->pos.z);
 				entity_to_grab->relative_angle = v2_angle(relative_distance) + angle_offset;
 			}
 		}
@@ -2329,7 +2337,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	User_input* input = memory->input;
 	if(
-		(input->L) && (
+		(input->R) && (
 			input->cursor_pixels_pos.x != memory->radial_menu_pos.x ||
 			input->cursor_pixels_pos.y != memory->radial_menu_pos.y
 		)
