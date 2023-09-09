@@ -238,6 +238,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->R > 0){
 
 		u64 possible_upgrades[] = {
+			E_DEFEND_BOSS,
 			E_SHOOT,
 			E_GENERATE_RESOURCE,
 			E_HAS_SHIELD,
@@ -264,6 +265,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		};
 
 		char* button_text[] = {
+			"DEFEND",
 			"shoot",
 			"resource farm",
 			"add shield",
@@ -291,6 +293,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		s32 upgrade_costs[] = 
 		{
+			0,
 			10,
 			15,
 			20,
@@ -630,19 +633,41 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// target closest
 			// target player
 			// protect boss
-		u64 extra_flags = E_SHOOT|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET;
-		u32 dice = (u32)(rng.rng_next((f32)memory->level_properties.possible_elements_count));
+		u64 extra_flags = 0;
+		u32 dice = (u32)(rng.rng_next(4));
+		f32 speed_multiplier = 1.0f;
 
-		new_entity->element_type = memory->level_properties.possible_elements[dice];
+		//TODO: this should be level specific
+		switch(dice)
+		{
+			case 0:
+			{
+				extra_flags |= E_DEFEND_BOSS|E_AUTO_AIM_CLOSEST|E_HAS_SHIELD|E_SHOOT;
+			}break;
+			case 1:
+			{
+				extra_flags |= E_AUTO_AIM_BOSS|E_SHOOT|E_FOLLOW_TARGET;
+				speed_multiplier = 2.0f;
+			}break;
+			case 2:
+			case 3:
+			default:
+			{
+				extra_flags |= E_AUTO_AIM_CLOSEST|E_SHOOT|E_FOLLOW_TARGET;	
+			}
+			break;
+		}
 
 		new_entity->flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION|
 			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
 
+		dice = (u32)(rng.rng_next((f32)memory->level_properties.possible_elements_count));
+		new_entity->element_type = memory->level_properties.possible_elements[dice];
 
 		new_entity->color = {1,1,1,1};
 		new_entity->scale = {1.0f,1.0f,1.0f};
 
-		new_entity->speed = (0.9f + rng.rng_next(0.2f)) * memory->level_properties.spawned_entities_speed;
+		new_entity->speed = speed_multiplier * (0.9f + rng.rng_next(0.2f)) * memory->level_properties.spawned_entities_speed;
 		new_entity->friction = 5.0f;
 		new_entity->weight = 1.0f;
 		new_entity->max_health = memory->level_properties.spawned_entities_health;
@@ -674,7 +699,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// MAIN ENTITY UPDATE LOOP
 
 	memory->debug_active_entities_count = 0;
-	f32 closest_t = {0};
+	f32 closest_t = {0}; // this is used for raycasting
 	b32 first_intersection = false;
 	if(memory->closest_entity.index == (u32)memory->selected_uid){
 		memory->closest_entity = {0};
@@ -835,7 +860,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					Entity* new_shield; PUSH_BACK(entities_to_create, memory->temp_arena, new_shield);
 
 					new_shield->flags = 
-						E_VISIBLE|E_NOT_TARGETABLE|E_RECEIVES_DAMAGE|P_SHIELD|
+						E_VISIBLE|E_NOT_TARGETABLE|E_RECEIVES_DAMAGE|P_SHIELD|E_IGNORE_ALLIES|
 						E_TOXIC_DAMAGE_INMUNE|E_STICK_TO_ENTITY|E_SKIP_DYNAMICS
 						// E_IGNORE_ALLIES
 					;
@@ -1160,7 +1185,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				if(
 					entity2->flags & E_DOES_DAMAGE &&
-					entity->parent_handle != entity2->parent_handle &&
+					// entity->parent_handle != entity2->parent_handle &&
 					(
 						!(entity2->flags & E_SKIP_PARENT_COLLISION) ||
 						entity2->parent_handle.index != i ||
@@ -1202,7 +1227,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					{
 						if(entity->flags & P_SHIELD)
 						{
-							entity->health -= 1;
+							entity->health -= entity2->total_power;
 							if(entity->health <= 0){
 								s32* index_to_kill;
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
@@ -1686,6 +1711,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_STICK_TO_ENTITY)
 		{
+			//TODO: that is_grabbing property i need to re check if it's necessary to simplify this condition
 			if(is_handle_valid(entity->entity_to_stick, generations) && (
 					entities[entity->entity_to_stick.index].is_grabbing ||
 					entity->flags & E_MELEE_HITBOX ||
@@ -1712,7 +1738,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}else{
 				entity->flags &= (~E_STICK_TO_ENTITY);
 			}
-		}else{ // DEFAULT CASE APPLY VELOCITY
+		}
+		else
+		{ // DEFAULT CASE APPLY VELOCITY
+			if(entity->flags & E_DEFEND_BOSS)
+			{
+				V3 entity_boss_pos;
+				if(entity->team_uid == player_entity->team_uid)
+				{
+					entity_boss_pos = player_entity->pos;
+				}else{
+					entity_boss_pos = boss_entity->pos;
+				}
+				V3 boss_to_target_vector = entity->target_pos - entity_boss_pos;
+				f32 boss_to_closest_distance = v3_magnitude(boss_to_target_vector);
+				#define MAX_DEFEND_DISTANCE_FROM_BOSS 5.0f
+				f32 final_distance_from_boss = CLAMP(0, boss_to_closest_distance/2 ,MAX_DEFEND_DISTANCE_FROM_BOSS);
+				V3 target_pos = entity_boss_pos + ((final_distance_from_boss/boss_to_closest_distance)*boss_to_target_vector);
+				entity->velocity = entity->velocity + (target_pos - entity->pos);
+			}
 			if(!(entity->flags & E_NOT_MOVE)){
 				entity->pos = entity->pos + (entity_dt * entity->velocity);
 			}
