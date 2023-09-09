@@ -1719,12 +1719,21 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				)
 			){
 				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
-				V3 owner_target_direction = sticked_entity->target_pos - sticked_entity->pos;
-				f32 offset_angle = v2_angle({owner_target_direction.x, owner_target_direction.z});
+				V3 owner_target_vector = sticked_entity->target_pos - sticked_entity->pos;
+				f32 offset_angle = v2_angle({owner_target_vector.x, owner_target_vector.z});
+
+				f32 relative_distance;
+				if(entity->flags & P_SHIELD)
+				{
+					f32 owner_target_distance = v3_magnitude(owner_target_vector);
+					relative_distance = CLAMP(0.1f, owner_target_distance/2, entity->scale.x + sticked_entity->scale.x);
+				}else{
+					relative_distance = 0.5f + entity->scale.x + sticked_entity->scale.x;
+				}
 
 				V3 final_relative_pos = 
 					v3_rotate_y(
-						{0.5f + entity->scale.x + sticked_entity->scale.x, 0, 0}, 
+						{relative_distance, 0, 0}, 
 						entity->relative_angle - offset_angle
 					);
 				entity->pos = entity->pos + (15*world_delta_time * (sticked_entity->pos + final_relative_pos - entity->pos));
@@ -1755,7 +1764,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				#define MAX_DEFEND_DISTANCE_FROM_BOSS 5.0f
 				f32 final_distance_from_boss = CLAMP(0, boss_to_closest_distance/2 ,MAX_DEFEND_DISTANCE_FROM_BOSS);
 				V3 target_pos = entity_boss_pos + ((final_distance_from_boss/boss_to_closest_distance)*boss_to_target_vector);
-				entity->velocity = entity->velocity + (target_pos - entity->pos);
+				entity->velocity = entity->velocity + (target_pos - entity->pos)/2;
 			}
 			if(!(entity->flags & E_NOT_MOVE)){
 				entity->pos = entity->pos + (entity_dt * entity->velocity);
