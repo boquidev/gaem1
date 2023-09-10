@@ -54,7 +54,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->speed = 5.0f;
 		player->friction = 4.0f;
 		player->weight = 10.0f;
-		player->type = ENTITY_UNIT;
 
 		player->mesh_uid = memory->meshes.player_mesh_uid;
 		player->texinfo_uid = memory->textures.white_tex_uid;
@@ -107,7 +106,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
 		boss->team_uid = 1;
-		boss->type = ENTITY_BOSS;
 		boss->creation_delay = 0.2f;
 
 		boss->action_power = 1.0f;
@@ -122,11 +120,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
 		boss->texinfo_uid = memory->textures.default_tex_uid;
 
-		memory->unit_creation_costs[UNIT_SHOOTER] = 20; // 20
-		memory->unit_creation_costs[UNIT_TANK] = 15;
-		memory->unit_creation_costs[UNIT_SPAWNER] = 40;
-		memory->unit_creation_costs[UNIT_MELEE] = 5;
-
 		//TODO: turn this into handles
 		memory->selected_uid = -1;
 		memory->ui_selected_uid = -1;
@@ -138,6 +131,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	Entity* entities = memory->entities;
 	u32* generations = memory->entity_generations;
 	Ui_element* ui_elements = memory->ui_elements;
+	
+	if(input->debug_speed_up_delta_time == 1)
+	{
+		memory->delta_time *= 1.5f;
+	}
+	if(input->debug_slow_down_delta_time == 1)
+	{
+		memory->delta_time /= 1.5f;
+	}
 	f32 world_delta_time = memory->delta_time;
 
 	Entity* player_entity = &entities[memory->player_uid];
@@ -515,6 +517,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	
 	// GAME PAUSED SO SKIP UPDATING
+	if(input->debug_increase_spawn_charges == 1)
+	{
+		memory->team_spawn_charges[0]++;
+	}
 
 	if(input->pause == 1) memory->is_paused = !memory->is_paused;
 
@@ -578,41 +584,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	LIST(s32, entities_to_kill) = {0};
 	LIST(Entity, entities_to_create) = {0};
 
-	
-	if(0){
-		Entity* wall = 0;
-		wall = &entities[5];
-		default_wall(wall, memory);
-		wall->scale = {1,1,45};
-		wall->pos = {-29, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
-		wall->team_uid = 0xffff;
-		
-		wall = &entities[6];
-		default_wall(wall, memory);
-		wall->scale = {1,1,45};
-		wall->pos = {28, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
-		wall->team_uid = 0xffff;
-		
-		wall = &entities[7];
-		default_wall(wall, memory);
-		wall->scale = {56,1,1};
-		wall->pos = {-28, 0, -23};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
-		wall->team_uid = 0xffff;
-
-		wall = &entities[8];
-		default_wall(wall, memory);
-		wall->scale = {56,1,1};
-		wall->pos = {-28, 0, 21};
-		wall->color = {0.3f,0.3f,0.3f,1};
-		wall->rotation = {0,0,0};
-		wall->team_uid = 0xffff;
-	}
 
 	//PROCESSING BOSS ENTITY
 
@@ -1564,8 +1535,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						new_bullet->lifetime = 5.0f;
 						new_bullet->weight = 0.1f;
-						// this is obsolete but useful for debug
-						new_bullet->type = ENTITY_PROJECTILE;
+
 						new_bullet->mesh_uid = memory->meshes.ball_mesh_uid;
 						new_bullet->texinfo_uid = memory->textures.white_tex_uid;
 						new_bullet->color = {0.6f,0.6f,0.6f,1};
@@ -2036,60 +2006,70 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	}
 	else
 	{
-		if( input->cursor_secondary > 0 )
+		if(input->cursor_secondary == 1)
 		{
-			//TODO: preview new entity to spawn
-			V3 relative_cursor_pos = cursor_y0_pos - player_entity->pos;
-			f32 relative_cursor_pos_magnitude = v3_magnitude(relative_cursor_pos);
-			if(relative_cursor_pos_magnitude > player_entity->action_range){
-				f32 temp_multiplier = player_entity->action_range / relative_cursor_pos_magnitude;
-				memory->new_entity_pos = player_entity->pos + (temp_multiplier * relative_cursor_pos);
-			}else{
-				memory->new_entity_pos = cursor_y0_pos;
-			}
+			memory->creating_entity = 1;
 		}
-		else if( input->cursor_secondary == -1)
+
+		if(memory->creating_entity)
 		{
-			if(memory->team_spawn_charges[0])
+			if( input->cursor_secondary > 0 )
 			{
-				memory->team_spawn_charges[0]--;
-				
-				u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
-				Entity* new_entity = &entities[e_index];
-
-				// default_melee(new_entity, memory);
-				new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION|
-					E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
-
-				new_entity->color = {1,1,1,1};
-				new_entity->scale = {1.0f,1.0f,1.0f};
-
-				new_entity->speed = 40.0f;
-				new_entity->friction = 5.0f;
-				new_entity->weight = 1.0f;
-				new_entity->max_health = 40.f;
-				new_entity->health = new_entity->max_health;
-				new_entity->action_power = 10.0f;
-				new_entity->action_cd_total_time = 1.0f;
-				new_entity->action_range = 4.0f;
-				new_entity->aura_radius = 3.0f;
-
-				new_entity->parent_handle = global_player_handle;
-				new_entity->team_uid = player_entity->team_uid;
-
-				new_entity->pos = memory->new_entity_pos;
-				
-				// this is basically useless
-				if(new_entity->team_uid == player_entity->team_uid){//friendly
-					new_entity->target_pos = boss_entity->pos;
-				}else{//enemy
-					new_entity->target_pos = player_entity->pos;
+				//TODO: preview new entity to spawn
+				V3 relative_cursor_pos = cursor_y0_pos - player_entity->pos;
+				f32 relative_cursor_pos_magnitude = v3_magnitude(relative_cursor_pos);
+				if(relative_cursor_pos_magnitude > player_entity->action_range){
+					f32 temp_multiplier = player_entity->action_range / relative_cursor_pos_magnitude;
+					memory->new_entity_pos = player_entity->pos + (temp_multiplier * relative_cursor_pos);
+				}else{
+					memory->new_entity_pos = cursor_y0_pos;
 				}
-				
-				new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
-				new_entity->texinfo_uid = memory->textures.test_tex_uid;	
 			}
+			else if( input->cursor_secondary == -1)
+			{
+				memory->creating_entity = 0;
+				if(memory->team_spawn_charges[0])
+				{
+					memory->team_spawn_charges[0]--;
+					
+					u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+					Entity* new_entity = &entities[e_index];
+					memory->selected_uid = e_index;
 
+					// default_melee(new_entity, memory);
+					new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION|
+						E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
+
+					new_entity->color = {1,1,1,1};
+					new_entity->scale = {1.0f,1.0f,1.0f};
+
+					new_entity->speed = 40.0f;
+					new_entity->friction = 5.0f;
+					new_entity->weight = 1.0f;
+					new_entity->max_health = 40.f;
+					new_entity->health = new_entity->max_health;
+					new_entity->action_power = 10.0f;
+					new_entity->action_cd_total_time = 1.0f;
+					new_entity->action_range = 4.0f;
+					new_entity->aura_radius = 3.0f;
+
+					new_entity->parent_handle = global_player_handle;
+					new_entity->team_uid = player_entity->team_uid;
+
+					new_entity->pos = memory->new_entity_pos;
+					
+					// this is basically useless
+					if(new_entity->team_uid == player_entity->team_uid){//friendly
+						new_entity->target_pos = boss_entity->pos;
+					}else{//enemy
+						new_entity->target_pos = player_entity->pos;
+					}
+					
+					new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
+					new_entity->texinfo_uid = memory->textures.test_tex_uid;	
+				}
+
+			}	
 		}
 	}
 	
@@ -2287,6 +2267,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	}
 
 	// UPDATING AND RENDERING PARTICLES
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_SET_PS;
+	request->pshader_uid = memory->pshaders.circle_pshader_uid;
 
 	UNTIL(i, memory->particles_max)
 	{
@@ -2337,8 +2320,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	UNTIL(i, MAX_ENTITIES)
 	{
-		if((memory->entities[i].flags & E_VISIBLE) && 
-			(memory->entities[i].type != ENTITY_OBSTACLE)
+		if((memory->entities[i].flags & E_VISIBLE)
 		){
 			f32 health_offset = memory->entities[i].health - (s32)(memory->entities[i].health);
 			String health_string = number_to_string((s32)memory->entities[i].health+(!!health_offset), memory->temp_arena);
@@ -2375,132 +2357,6 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		printo_screen(memory, screen_size, render_list,
 			concat_strings(string("selected_entity_value: "), current_entity_value, memory->temp_arena), {-1, .8f}, {1,1,0,1}
 		);
-	}
-
-	{
-		
-		Tex_info* texinfo;
-
-		Object3d template_object = {0};
-		template_object.mesh_uid = memory->meshes.plane_mesh_uid;
-		f32 scale_tex = 5;
-
-		f32 unselected_alpha = 0.4f;
-		Color unselected_color = { 1.0f, 1.0f, 1.0f, unselected_alpha};
-		Color insuficient_res_color = { 1.0f, 0.5f, 0.5f, unselected_alpha};
-
-
-
-		V3 current_pos = {-0.6f, -0.8f, 0.2f};
-		Renderer_request* requests [7];
-		PUSH_BACK(render_list, memory->temp_arena, requests[0]);
-		requests[0]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
-		requests[0]->object3d = template_object;
-		requests[0]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('0')];
-
-		LIST_GET(memory->tex_infos, requests[0]->texinfo_uid, texinfo);
-		V2 normalized_scale;
-		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
-		requests[0]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
-
-		requests[0]->object3d.pos = current_pos;
-		requests[0]->object3d.color = unselected_color;
-
-		u32 resources_value = memory->teams_resources[0];
-
-		current_pos.x += 0.2f;
-		String cost_string;
-		u32 current_creation_cost = memory->unit_creation_costs[memory->possible_entities[1]];
-		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
-		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
-
-		PUSH_BACK(render_list, memory->temp_arena, requests[1]);
-		requests[1]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
-		requests[1]->object3d = template_object;
-		requests[1]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('1')];
-
-		LIST_GET(memory->tex_infos, requests[1]->texinfo_uid, texinfo);
-		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
-		requests[1]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
-
-		requests[1]->object3d.pos = current_pos;
-		if(resources_value >= current_creation_cost)
-			requests[1]->object3d.color = unselected_color;
-		else
-			requests[1]->object3d.color = insuficient_res_color;
-			
-
-
-
-		current_pos.x += 0.2f;
-		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[2]];
-		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
-		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
-
-		PUSH_BACK(render_list, memory->temp_arena, requests[2]);
-		requests[2]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
-		requests[2]->object3d = template_object;
-		requests[2]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('2')];
-		
-		LIST_GET(memory->tex_infos, requests[2]->texinfo_uid, texinfo);
-		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
-		requests[2]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
-
-		requests[2]->object3d.pos = current_pos;
-		if(resources_value >= current_creation_cost)
-			requests[2]->object3d.color = unselected_color;
-		else
-			requests[2]->object3d.color = insuficient_res_color;
-
-
-
-		current_pos.x += 0.2f;
-		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[3]];
-		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
-		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
-
-		PUSH_BACK(render_list, memory->temp_arena, requests[3]);
-		requests[3]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
-		requests[3]->object3d = template_object;
-		requests[3]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('3')];
-		
-		LIST_GET(memory->tex_infos, requests[3]->texinfo_uid, texinfo);
-		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
-		requests[3]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
-
-		requests[3]->object3d.pos = current_pos;
-		if(resources_value >= current_creation_cost)
-			requests[3]->object3d.color = unselected_color;
-		else
-			requests[3]->object3d.color = insuficient_res_color;
-
-
-
-		current_pos.x += 0.2f;
-		current_creation_cost = memory->unit_creation_costs[memory->possible_entities[4]];
-		cost_string = number_to_string(current_creation_cost, memory->temp_arena);
-		printo_screen(memory, screen_size, render_list, cost_string, {current_pos.x, current_pos.y}, {1,1,0,1});
-
-		PUSH_BACK(render_list, memory->temp_arena, requests[4]);
-		requests[4]->type_flags = REQUEST_FLAG_RENDER_IMAGE_TO_SCREEN;
-		requests[4]->object3d = template_object;
-		requests[4]->object3d.texinfo_uid = memory->font_tex_infos_uids[CHAR_TO_INDEX('4')];
-		
-		LIST_GET(memory->tex_infos, requests[4]->texinfo_uid, texinfo);
-		normalized_scale = normalize_texture_size(screen_size, {texinfo->w, texinfo->h});
-		requests[4]->scale = {scale_tex*normalized_scale.x, scale_tex*normalized_scale.y, 1};
-
-		requests[4]->object3d.pos = current_pos;
-		if(resources_value >= current_creation_cost)
-			requests[4]->object3d.color = unselected_color;
-		else
-			requests[4]->object3d.color = insuficient_res_color;
-
-
-		current_pos.x += 0.2f;
-		Renderer_request* selected = requests[memory->creating_unit];
-		selected->object3d.scale = 1.3f*selected->scale;
-		selected->object3d.color.a = 1.0f;
 	}
 
 
@@ -2640,6 +2496,11 @@ void init(App_memory* memory, Init_data* init_data){
 		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
 		request.p_uid = &memory->pshaders.default_pshader_uid; 
 		request.filename = string("shaders/3d_ps.cso");
+		PUSH_ASSET_REQUEST;
+
+		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->pshaders.circle_pshader_uid;
+		request.filename = string("shaders/circle_ps.cso");
 		PUSH_ASSET_REQUEST;
 
 		request.type = CREATE_BLEND_STATE_REQUEST;

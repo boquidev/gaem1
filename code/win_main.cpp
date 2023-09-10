@@ -1018,6 +1018,16 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 							case VK_NEXT:
 								holding_inputs.debug_next_level = is_down;
 							break;
+							case VK_HOME:
+								holding_inputs.debug_increase_spawn_charges = is_down;
+							break;
+							case VK_INSERT:
+								holding_inputs.debug_speed_up_delta_time = is_down;
+							break;
+							case VK_DELETE:
+								holding_inputs.debug_slow_down_delta_time = is_down;
+							break;
+
 							default:
 							break;
 

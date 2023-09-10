@@ -137,28 +137,6 @@ struct  Object3d{
 
 #define MAX_ENTITIES 5000
 #define MAX_UI 100
-enum ENTITY_TYPE{
-	ENTITY_FORGOR_TO_ASSIGN_TYPE,
-	ENTITY_UNIT,
-	ENTITY_BOSS,
-	ENTITY_PROJECTILE,
-	ENTITY_SHIELD, // this is a type of entity and not of unit because it doesn't have collision responses
-	ENTITY_OBSTACLE,
-
-
-	ENTITY_UNKNOWN,
-	ENTITY_COUNT
-};
-enum UNIT_TYPE{
-	UNIT_NOT_A_UNIT,
-	UNIT_TANK,
-	UNIT_SHOOTER,
-	UNIT_SPAWNER,
-	UNIT_MELEE,
-
-	UNIT_UNKNOWN,
-	UNIT_COUNT
-};
 
 struct Element_handle
 {
@@ -216,8 +194,6 @@ struct Entity{
 
 	f32 fog_debuff_time_left;
 
-	ENTITY_TYPE type;
-	UNIT_TYPE unit_type;
 	COLLIDER_TYPE collider_type;
 
 	f32 lifetime;
@@ -436,6 +412,11 @@ struct User_input
 
 			s32 debug_next_level;
 			s32 debug_previous_level;
+			
+			s32 debug_increase_spawn_charges;
+
+			s32 debug_speed_up_delta_time;
+			s32 debug_slow_down_delta_time;
 		};
 		s32 buttons[40];//TODO: narrow this number to the amount of posible buttons
 	};
@@ -484,6 +465,7 @@ struct VShaders{
 struct PShaders{
 	u32 default_pshader_uid;
 	u32 ui_pshader_uid;
+	u32 circle_pshader_uid;
 };
 
 struct Blend_states{
@@ -559,11 +541,8 @@ struct App_memory
 	f32 add_resource_total_cd;
 	s32 team_spawn_charges[2];
 
+	b32 creating_entity;
 	V3 new_entity_pos;
-	
-	u32 creating_unit; // this is an index of the unit being created
-	UNIT_TYPE possible_entities[7];
-	s32 unit_creation_costs[UNIT_COUNT];
 
 	Entity* entities;
 
@@ -778,95 +757,6 @@ global_variable u64
 	E_WALL_FLAGS = 
 		E_VISIBLE|E_HAS_COLLIDER|E_SKIP_UPDATING|E_NOT_TARGETABLE;
 
-internal void
-default_shooter(Entity* out, App_memory* memory){
-	default_object3d(out);
-	out->flags = E_SHOOTER_FLAGS;
-	out->type = ENTITY_UNIT;
-	out->unit_type = UNIT_SHOOTER;
-	out->speed = 50.0f;
-	out->friction = 4.0f;
-	out->max_health = 3;
-	out->health = out->max_health;
-	out->action_cd_total_time = 2.0f;
-	out->action_count = 5;
-	out->action_angle = TAU32/8;
-	out->mesh_uid = memory->meshes.shooter_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-internal void
-default_tank(Entity* out, App_memory* memory){
-	default_object3d(out);
-	out->flags = E_TANK_FLAGS;
-	out->speed = 40.0f;
-	out->friction = 4.0f;
-	out->type = ENTITY_UNIT;
-	out->unit_type = UNIT_TANK;
-	out->max_health = 4;
-	out->health = out->max_health;
-	out->action_cd_total_time = 5.0f;
-	out->mesh_uid = memory->meshes.tank_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-	
-internal void
-default_shield(Entity* out, App_memory* memory){
-	out->flags = E_SHIELD_FLAGS;
-	out->scale = {2,2,2};
-	out->color = {1,1,1,0.5f};
-	out->speed = 100.0f;
-	out->friction = 4.0f;
-	out->type = ENTITY_SHIELD;
-	out->max_health = 8;
-	out->health = out->max_health;
-	out->action_cd_total_time = 0.0f;
-	out->mesh_uid = memory->meshes.shield_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-
-internal void
-default_spawner(Entity* out, App_memory* memory){
-	default_object3d(out);
-	out->flags = E_SPAWNER_FLAGS;
-	out->type = ENTITY_UNIT;
-	out->unit_type = UNIT_SPAWNER;
-	out->speed = 30.0f;
-	out->friction = 4.0f;
-	out->max_health = 2;
-	out->action_cd_total_time = 2.0f;
-	out->action_range = 5.0f;
-	out->action_count = 2;
-	out->action_angle = TAU32/2;
-	out->mesh_uid = memory->meshes.spawner_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-
-
-internal void
-default_melee(Entity* out, App_memory* memory){
-	out->flags = E_MELEE_FLAGS;
-
-	out->color = {1,1,1,1};
-	out->scale = {0.5f,0.5f,0.5f};
-
-	out->unit_type = UNIT_MELEE;
-	out->speed = 60.0f;
-	out->friction = 10.0f;
-	out->max_health = 4;
-	out->health = out->max_health;
-	out->action_cd_total_time = 1.0f;
-	out->action_power = 1;
-	out->mesh_uid = memory->meshes.melee_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
-
-internal void
-default_wall(Entity* out, App_memory* memory){
-	out->flags = E_WALL_FLAGS;
-	out->type = ENTITY_OBSTACLE;
-	out->mesh_uid = memory->meshes.cube_mesh_uid;
-	out->texinfo_uid = memory->textures.white_tex_uid;
-}
 
 
 enum RENDERER_REQUEST_TYPE_FLAGS
