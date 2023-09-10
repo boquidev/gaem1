@@ -45,6 +45,8 @@ struct Audio_output{
 	LPDIRECTSOUNDBUFFER buffer;
 };
 
+global_variable Dx_mesh* screen_quad_mesh;
+
 #define ASSERMSG(msg) case msg:ASSERT(false); break;
 LRESULT CALLBACK
 win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -740,6 +742,28 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		}
 	}
 
+	{
+		memory.meshes.centered_plane_mesh_uid = LIST_SIZE(meshes_list);
+		PUSH_BACK(meshes_list, permanent_arena, screen_quad_mesh);
+
+		global_variable f32 screen_quad [] = {
+			-1.0f, 1.0f, 0, 	0, 0, 	0,0,-1.0f,
+			1.0f, 1.0f, 0, 	1, 0,		0,0,-1.0f,
+			-1.0f, -1.0f, 0, 	0, 1,		0,0,-1.0f,
+			1.0f, -1.0f, 0, 	1, 1,		0,0,-1.0f
+		};
+		u16 indices [] = {0,1,2, 2,1,3};
+
+		Mesh_primitive quad_primitive = {0};
+		quad_primitive.vertices = screen_quad;
+		quad_primitive.vertex_size = sizeof(f32)*8;
+		quad_primitive.vertex_count = 4;
+		quad_primitive.indices = indices;
+		quad_primitive.indices_count = 6;
+
+		*screen_quad_mesh = dx11_init_mesh(dx, &quad_primitive, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	}
+
 	
 	// CREATING CONSTANT BUFFER
 	// OBJECT TRANSFORM CONSTANT BUFFER
@@ -786,7 +810,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
-	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_NONE);
+	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
 
 
 #if DEBUGMODE

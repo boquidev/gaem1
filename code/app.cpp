@@ -2651,7 +2651,6 @@ void init(App_memory* memory, Init_data* init_data){
 			{string(":ball_mesh:"), &memory->meshes.ball_mesh_uid},
 			{string(":centered_cube_mesh:"), &memory->meshes.centered_cube_mesh_uid},
 			{string(":cube_mesh:"), &memory->meshes.cube_mesh_uid},
-			{string(":centered_plane_mesh:"), &memory->meshes.centered_plane_mesh_uid},
 			{string(":plane_mesh:"), &memory->meshes.plane_mesh_uid},
 			{string(":icosphere_mesh:"), &memory->meshes.icosphere_mesh_uid},
 			{string(":player_mesh:"), &memory->meshes.player_mesh_uid},

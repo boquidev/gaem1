@@ -973,7 +973,8 @@ internal void
 parse_assets_serialization_file(
 	App_memory* memory, File_data file, 
 	String_index_pair string_index_pairs[], u32 pairs_count,
-	LIST(String, filenames)){
+	LIST(String, filenames))
+{
 	char* scan = (char*)file.data;
 	String key = string(":asset:");
 	UNTIL(i, file.size - key.length){
