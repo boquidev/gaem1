@@ -49,6 +49,7 @@ struct Particle_emitter
 
 	f32 emit_cooldown;
 
+	V3 initial_pos_offset;
 	f32 velocity_yrotation_rng;
 	f32 friction;
 	V3 acceleration;
@@ -73,7 +74,7 @@ struct Particle_emitter
 	void emit_particle(Particle* particle, V3 position, V3 initial_velocity, Color color, RNG* rng)
 	{
 		particle->flags = particle_flags;
-		particle->position = position;
+		particle->position = initial_pos_offset + position;
 		particle->velocity = v3_rotate_y(initial_velocity, rng->next(velocity_yrotation_rng)-(velocity_yrotation_rng/2));
 		particle->acceleration = acceleration;
 		particle->friction = friction;
@@ -461,11 +462,13 @@ struct Textures{
 struct VShaders{
 	u32 default_vshader_uid;
 	u32 ui_vshader_uid;
+	u32 postprocessing_vshader_uid;
 };
 struct PShaders{
 	u32 default_pshader_uid;
 	u32 ui_pshader_uid;
 	u32 circle_pshader_uid;
+	u32 postprocessing_pshader_uid;
 };
 
 struct Blend_states{
@@ -770,6 +773,7 @@ enum RENDERER_REQUEST_TYPE_FLAGS
 	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 5,
 	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 6,
 	REQUEST_FLAG_RENDER_PARTICLES		= 1 << 7, //TODO: turn this into instancing
+	REQUEST_FLAG_POSTPROCESSING 		= 1 << 8 
 
 	//TODO: instancing request type
 	//TODO: set texture or mesh request type for instancing

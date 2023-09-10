@@ -786,7 +786,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
-	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
+	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_NONE);
 
 
 #if DEBUGMODE
@@ -846,6 +846,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				}
 				dx->render_target_view = 0;
 			}
+			if(dx->pre_processing_render_target_texture)
+			{
+				dx->pre_processing_render_target_texture->Release();
+				dx->pre_processing_render_target_texture = 0;
+				dx->pre_processing_render_target_view->Release();
+				dx->pre_processing_render_target_view = 0;
+			}
 			
 			//TODO: be careful with 8k monitors
 			if(global_client_size.x > 0 && global_client_size.y > 0 &&
@@ -856,6 +863,25 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				memory.aspect_ratio = 16.0f/9;
 				hr = dx->swap_chain->ResizeBuffers(0, global_client_size.x, global_client_size.y, DXGI_FORMAT_UNKNOWN, 0);
 				ASSERTHR(hr);
+
+
+				D3D11_TEXTURE2D_DESC td = {0};
+				td.Width = global_client_size.x;       // Width of the texture in pixels
+				td.Height = global_client_size.y;     // Height of the texture in pixels
+				td.MipLevels = 1;             // Number of mip-map levels
+				td.ArraySize = 1;             // Number of textures in the array
+				td.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Format of the texture (e.g., RGBA)
+				td.SampleDesc.Count = 1;      // Number of multisamples per pixel (usually 1 for a render target)
+				td.SampleDesc.Quality = 0;    // Quality level of multisampling
+				td.Usage = D3D11_USAGE_DEFAULT; // How the texture will be used (D3D11_USAGE_DEFAULT is common for render targets)
+				td.BindFlags = D3D11_BIND_SHADER_RESOURCE|D3D11_BIND_RENDER_TARGET; // Flags specifying how the texture will be bound (as a render target in this case)
+				td.CPUAccessFlags = 0;        // CPU access flags (usually 0 for GPU-only textures)
+				td.MiscFlags = 0;             // Miscellaneous flags (usually 0)
+
+				dx->device->CreateTexture2D(&td, 0, &dx->pre_processing_render_target_texture);
+
+				dx->device->CreateRenderTargetView(dx->pre_processing_render_target_texture, 0, &dx->pre_processing_render_target_view);
+
 
 				dx11_create_render_target_view(dx, &dx->render_target_view);
 
@@ -1258,8 +1284,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		if(dx->render_target_view)
 		{
-			// apparently always need to clear this buffers before rendering to them
+			// skip this for trippy results
+			dx->context->ClearRenderTargetView(dx->pre_processing_render_target_view, (float*)&bg_color);
 			dx->context->ClearRenderTargetView(dx->render_target_view, (float*)&bg_color);
+			
 			FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 				dx->context->ClearDepthStencilView(
 					current_ds->view, 
@@ -1267,7 +1295,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					1, 0);   
 			}
 			//TODO: this should be done by the render requests from the app layer
-			dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencils_list[0]->view);
+			dx11_bind_render_target_view(dx, &dx->pre_processing_render_target_view, depth_stencils_list[0]->view);
 			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
 			dx11_bind_sampler(dx, &dx->sampler);
 
@@ -1420,6 +1448,54 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
 				
+				}
+				else if(request->type_flags & REQUEST_FLAG_POSTPROCESSING) // POST PROCESSING EFFECTS
+				{
+					Depth_stencil* custom_depth_stencil;
+					LIST_GET(depth_stencils_list, 1, custom_depth_stencil);
+					dx11_bind_render_target_view(dx, &dx->render_target_view, custom_depth_stencil->view);
+
+					Dx11_texture_view* shader_resource_view = nullptr;
+					D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
+
+					// Set the format of the texture (match this with the format of your render target texture)
+					srvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Replace with your format if different
+
+					// Specify the type of view (typically Texture2D)
+					srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+
+					// Configure the resource range
+					srvd.Texture2D.MostDetailedMip = 0; // Start from the first mip level
+					srvd.Texture2D.MipLevels = 1;      // Use all available mip levels
+
+					dx->device->CreateShaderResourceView(dx->pre_processing_render_target_texture, &srvd, &shader_resource_view);
+
+					dx11_bind_texture_view(dx, &shader_resource_view);
+
+					Vertex_shader* vertex_shader;
+					LIST_GET(vertex_shaders_list, memory.vshaders.postprocessing_vshader_uid, vertex_shader);
+					dx11_bind_vs(dx, vertex_shader->shader);
+
+					Dx11_pixel_shader** pixel_shader; 
+					LIST_GET(pixel_shaders_list, memory.pshaders.postprocessing_pshader_uid, pixel_shader);
+					dx11_bind_ps(dx, *pixel_shader);
+
+					// depth buffer 
+					// blend
+					// set the other srv
+					
+
+					dx->context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+					
+					Dx_mesh* quad_mesh;
+					LIST_GET(meshes_list,memory.meshes.centered_plane_mesh_uid, quad_mesh);
+
+					dx11_bind_vertex_buffer(dx, quad_mesh->vertex_buffer, quad_mesh->vertex_size);
+
+					dx->context->Draw(4, 0);
+
+					
+					shader_resource_view->Release();
 				}
 				else
 				{

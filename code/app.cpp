@@ -6,7 +6,9 @@
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
 global_variable RNG rng;
+
 global_variable Particle_emitter global_default_particle_emitter;
+global_variable Particle_emitter global_freeze_particle_emitter;
 
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size)
 {
@@ -1792,34 +1794,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		u16 current_element = EE_REACTIVE_ELEMENTS & (entity->element_effect | entity->element_type);
 
-		if(current_element)
+		if(entity->freezing_time_left)
+		{
+			entity->particle_emitter = &global_freeze_particle_emitter;
+		}
+		else if(current_element)
 		{
 			entity->particle_emitter = &global_default_particle_emitter;
-			// switch(current_element)
-			// {
-			// 	case EET_WATER:
-			// 	{
-
-			// 	}break;
-			// 	case EET_HEAT:
-			// 	{
-
-			// 	}break;
-			// 	case EET_COLD:
-			// 	{
-
-			// 	}break;
-			// 	case EET_ELECTRIC:
-			// 	{
-
-			// 	}break;
-			// 	case EET_HEAL:
-			// 	{
-
-			// 	}break;
-			// 	default:
-			// 		ASSERT(false);
-			// }
 		}else{
 			entity->particle_emitter = 0;
 		}
@@ -1833,14 +1814,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(entity->particle_timer >= entity->particle_emitter->emit_cooldown)
 			{
 				entity->particle_timer -= entity->particle_emitter->emit_cooldown;
+				f32 particle_initial_speed = 20.0f;
 				UNTIL(current_particle, entity->particle_emitter->particles_count)
 				{
-					Color particles_color = {1,1,1,1};
+					Color particles_color = {1,1,1,0.1f};
 					switch(current_element)
 					{
 						case EET_WATER:
 						{
-							particles_color = {0, 0.4f, 0.8f, 1};
+							particles_color = {0, 0.3f, 0.6f, 1};
 						}break;
 						case EET_HEAT:
 						{
@@ -1848,21 +1830,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}break;
 						case EET_COLD:
 						{
-							particles_color = {0.4f, 0.5f, 1, 1};
+							particles_color = {0.7f, 0.7f, 1, 1};
 						}break;
 						case EET_ELECTRIC:
 						{
-							particles_color = {2, 2, 0, 1};
+							particles_color = {1, 1, 0, 1};
 						}break;
 						case EET_HEAL:
 						{
 							particles_color = {0,1,0,1};
 						}break;
+						case 0:
+						{
+							particle_initial_speed = 5.0f;
+						}break;
 						default:
 							ASSERT(false);
 					}
 					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, memory->last_used_particle_index);
-					entity->particle_emitter->emit_particle(new_particle, entity->pos, {20.0f,0,0}, particles_color, &rng);
+					entity->particle_emitter->emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &rng);
 				}
 			}
 		}
@@ -2147,13 +2133,13 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
 			if(memory->entities[i].freezing_time_left)
-			{
+			{				
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 				request->object3d.color = {0.3f, 0.9f, 1.0f, 0.3f};
 				request->object3d.pos = memory->entities[i].pos;
 				request->object3d.scale = {1,1,1};
-				request->object3d.rotation = {PI32/4, PI32/4, 0};
+				request->object3d.rotation = {PI32/4, PI32/4, PI32/4};
 
 				request->object3d.mesh_uid = memory->meshes.centered_cube_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
@@ -2294,7 +2280,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		if(particle->lifetime <= 0 || particle->scale <= 0 )
 		{
 			*particle = {0};
-		}else{
+		}
+		else
+		{
 
 			// RENDERING 
 
@@ -2310,6 +2298,14 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			
 		}
 	}
+
+	// FINISHED RENDERING WORLD
+	
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_POSTPROCESSING;
+
+
+	// RENDER USER INTERFACES
 
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_SET_DEPTH_STENCIL|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_PS;
@@ -2490,7 +2486,6 @@ void init(App_memory* memory, Init_data* init_data){
 		request.p_uid = &memory->vshaders.default_vshader_uid;
 		request.filename = string("shaders/3d_vs.cso");
 		request.ied = {ie_count, ie_names, ie_sizes};
-		
 		PUSH_ASSET_REQUEST;
 
 		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
@@ -2502,6 +2497,18 @@ void init(App_memory* memory, Init_data* init_data){
 		request.p_uid = &memory->pshaders.circle_pshader_uid;
 		request.filename = string("shaders/circle_ps.cso");
 		PUSH_ASSET_REQUEST;
+		
+		request.type = VERTEX_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->vshaders.postprocessing_vshader_uid;
+		request.filename = string("shaders/pp_vs.cso");
+		request.ied = {ie_count, ie_names, ie_sizes};
+		PUSH_ASSET_REQUEST;
+		
+		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->pshaders.postprocessing_pshader_uid;
+		request.filename = string("shaders/pp_ps.cso");
+		PUSH_ASSET_REQUEST;
+		
 
 		request.type = CREATE_BLEND_STATE_REQUEST;
 		request.p_uid = &memory->blend_states.default_blend_state_uid;
@@ -2550,10 +2557,13 @@ void init(App_memory* memory, Init_data* init_data){
 	
 	// INITIALIZING PARTICLE EMITTERS
 	
+	// default particle emitter
+	
 	global_default_particle_emitter.particle_flags = PARTICLE_ACTIVE;
 	global_default_particle_emitter.particles_count = 1;
 	global_default_particle_emitter.emit_cooldown = memory->delta_time*2;
 
+	global_default_particle_emitter.initial_pos_offset = {0,0,0};
 	global_default_particle_emitter.velocity_yrotation_rng = TAU32;
 	global_default_particle_emitter.friction = 10.0f;
 	
@@ -2575,6 +2585,35 @@ void init(App_memory* memory, Init_data* init_data){
 	global_default_particle_emitter.target_scale = 0.0f;
 	global_default_particle_emitter.scale_delta_multiplier = 1.0f;
 	global_default_particle_emitter.initial_scale_rng = 0;
+	
+	// freeze particle emitter
+	
+	global_freeze_particle_emitter.particle_flags = PARTICLE_ACTIVE;
+	global_freeze_particle_emitter.particles_count = 1;
+	global_freeze_particle_emitter.emit_cooldown = 0.3f;
+
+	global_freeze_particle_emitter.initial_pos_offset = {0, 2.0f, 0};
+	global_freeze_particle_emitter.velocity_yrotation_rng = TAU32;
+	global_freeze_particle_emitter.friction = 2.0f;
+	
+	global_freeze_particle_emitter.acceleration = {0,-5.0f, 0};
+	
+	global_freeze_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
+	global_freeze_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+	global_freeze_particle_emitter.color_delta_multiplier = 1.0f;
+
+	global_freeze_particle_emitter.particle_lifetime = 2.5f;
+
+	global_freeze_particle_emitter.initial_angle_rng = PI32;
+	global_freeze_particle_emitter.angle_speed = 0;
+	global_freeze_particle_emitter.angle_initial_speed_rng = 20.0f;
+	global_freeze_particle_emitter.angle_accel = 0;
+	global_freeze_particle_emitter.angle_friction = 4.0f;
+	
+	global_freeze_particle_emitter.initial_scale = 0.2f;
+	global_freeze_particle_emitter.target_scale = 0.0f;
+	global_freeze_particle_emitter.scale_delta_multiplier = 1.0f;
+	global_freeze_particle_emitter.initial_scale_rng = 0;
 
 /*
 	// CREATING CONSTANT_BUFFER

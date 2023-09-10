@@ -57,6 +57,10 @@ struct D3D
 
 	Dx11_rasterizer_state* rasterizer_state;
 	Dx11_sampler_state* sampler;
+	
+	ID3D11Texture2D* pre_processing_render_target_texture;
+	Dx11_render_target_view* pre_processing_render_target_view;
+
 	Dx11_render_target_view* render_target_view;
 };
 
@@ -394,12 +398,16 @@ dx11_create_texture_view(D3D* dx, Surface* texture, ID3D11ShaderResourceView** t
 	desc.ArraySize = 1;
 	desc.MipLevels = 1;
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	desc.SampleDesc = {1, 0};
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	
 	Dx11_subresource_data init_data = {0};
 	init_data.pSysMem = texture->data;
 	init_data.SysMemPitch = texture->width * sizeof(u32);
+
+
 	ID3D11Texture2D* texture2D;
 	hr = dx->device->CreateTexture2D(&desc, &init_data, &texture2D);
 	ASSERTHR(hr);
