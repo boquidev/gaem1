@@ -448,6 +448,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						{
 							entities[memory->selected_uid].element_type = 0;
+							entities[memory->selected_uid].element_effect = 0;
 
 							if(!(entity_element_flags & possible_types_to_select[i]))
 							{
@@ -1816,12 +1817,83 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			ASSERT(false);
 		}
 
+		
+		// ASSIGNING A PARTICLE EMITTER IF IT HAS AN ELEMENT APPLIED TO IT
+
+		u16 current_element = EE_REACTIVE_ELEMENTS & (entity->element_effect | entity->element_type);
+
+		if(current_element)
+		{
+			entity->particle_emitter = &global_default_particle_emitter;
+			// switch(current_element)
+			// {
+			// 	case EET_WATER:
+			// 	{
+
+			// 	}break;
+			// 	case EET_HEAT:
+			// 	{
+
+			// 	}break;
+			// 	case EET_COLD:
+			// 	{
+
+			// 	}break;
+			// 	case EET_ELECTRIC:
+			// 	{
+
+			// 	}break;
+			// 	case EET_HEAL:
+			// 	{
+
+			// 	}break;
+			// 	default:
+			// 		ASSERT(false);
+			// }
+		}else{
+			entity->particle_emitter = 0;
+		}
+
+
+		// EMITTING PARTICLES
+
 		if(entity->particle_emitter)
 		{
-			UNTIL(current_particle, entity->particle_emitter->particles_count)
+			entity->particle_timer += world_delta_time;
+			if(entity->particle_timer >= entity->particle_emitter->emit_cooldown)
 			{
-				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, memory->last_used_particle_index);
-				entity->particle_emitter->emit_particle(new_particle, entity->pos, -0.5f*(entity->velocity), {1.0f,0.0f,0.0f,1}, &rng);
+				entity->particle_timer -= entity->particle_emitter->emit_cooldown;
+				UNTIL(current_particle, entity->particle_emitter->particles_count)
+				{
+					Color particles_color = {1,1,1,1};
+					switch(current_element)
+					{
+						case EET_WATER:
+						{
+							particles_color = {0, 0.4f, 0.8f, 1};
+						}break;
+						case EET_HEAT:
+						{
+							particles_color = {1, 0.4f, 0, 1};
+						}break;
+						case EET_COLD:
+						{
+							particles_color = {0.4f, 0.5f, 1, 1};
+						}break;
+						case EET_ELECTRIC:
+						{
+							particles_color = {2, 2, 0, 1};
+						}break;
+						case EET_HEAL:
+						{
+							particles_color = {0,1,0,1};
+						}break;
+						default:
+							ASSERT(false);
+					}
+					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, memory->last_used_particle_index);
+					entity->particle_emitter->emit_particle(new_particle, entity->pos, {20.0f,0,0}, particles_color, &rng);
+				}
 			}
 		}
 
@@ -2619,16 +2691,18 @@ void init(App_memory* memory, Init_data* init_data){
 	
 	global_default_particle_emitter.particle_flags = PARTICLE_ACTIVE;
 	global_default_particle_emitter.particles_count = 1;
-	global_default_particle_emitter.velocity_yrotation_rng = PI32;
+	global_default_particle_emitter.emit_cooldown = memory->delta_time*2;
+
+	global_default_particle_emitter.velocity_yrotation_rng = TAU32;
 	global_default_particle_emitter.friction = 10.0f;
 	
 	global_default_particle_emitter.acceleration = {0,10.0f, 0};
 	
 	global_default_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
-	global_default_particle_emitter.target_color = {1,1,1,1};
-	global_default_particle_emitter.color_delta_multiplier = 1.0f;
+	global_default_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+	global_default_particle_emitter.color_delta_multiplier = 0.5f;
 
-	global_default_particle_emitter.lifetime = 0.3f;
+	global_default_particle_emitter.particle_lifetime = 0.3f;
 
 	global_default_particle_emitter.initial_angle_rng = PI32;
 	global_default_particle_emitter.angle_speed = 0;

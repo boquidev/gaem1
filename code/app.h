@@ -47,17 +47,17 @@ struct Particle_emitter
 	u32 particle_flags;
 	u32 particles_count;
 
-	f32 velocity_yrotation_rng;
+	f32 emit_cooldown;
 
+	f32 velocity_yrotation_rng;
 	f32 friction;
-	
 	V3 acceleration;
 
 	Color color_rng;
 	Color target_color;
 	f32 color_delta_multiplier;
 
-	f32 lifetime;
+	f32 particle_lifetime;
 
 	f32 initial_angle_rng;
 	f32 angle_speed;
@@ -87,7 +87,7 @@ struct Particle_emitter
 		particle->target_color = target_color;
 		particle->color_delta_multiplier = color_delta_multiplier;
 
-		particle->lifetime = lifetime;
+		particle->lifetime = particle_lifetime;
 
 		particle->angle = rng->next(initial_angle_rng) - (initial_angle_rng/2);
 		particle->angle_speed = angle_speed + (rng->next(angle_initial_speed_rng) - (angle_initial_speed_rng/2));

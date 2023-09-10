@@ -248,6 +248,24 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	memory.temp_arena = temp_arena;
 	memory.permanent_arena = permanent_arena;
 	
+
+	// FRAME CAPPING SETUP
+
+	
+	UINT desired_scheduler_ms = 1;
+	b32 sleep_is_granular = (timeBeginPeriod(desired_scheduler_ms) == TIMERR_NOERROR);
+
+	LARGE_INTEGER pcf_result;
+	QueryPerformanceFrequency(&pcf_result);
+	s64 performance_counter_frequency = pcf_result.QuadPart;
+
+	//TODO: maybe in the future use GetDeviceCaps() to get the monitor hz
+	int monitor_refresh_hz = 60;
+	memory.delta_time = 1.0f/monitor_refresh_hz;
+	
+	memory.update_hz = (f32)monitor_refresh_hz;
+	f32 target_seconds_per_frame = 1.0f / memory.update_hz;
+	
 	// GETTING CLIENT SIZES
 	// Int2 global_client_size = win_get_client_sizes(global_main_window);
 	// if(global_client_size.y) 
@@ -403,6 +421,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	init_data.meshes_serialization = win_read_file(string("data/meshes_init.txt"),temp_arena);
 	init_data.textures_serialization = win_read_file(string("data/textures_init.txt"),temp_arena);
 	init_data.sounds_serialization = win_read_file(string("data/sounds_init.txt"), temp_arena);
+	
 	app.init(&memory, &init_data);
 	
 	LIST(Dx11_texture_view*, textures_list) = {0};
@@ -769,21 +788,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_sampler(dx, &dx->sampler);
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
 
-
-	// FRAME CAPPING SETUP
-	UINT desired_scheduler_ms = 1;
-	b32 sleep_is_granular = (timeBeginPeriod(desired_scheduler_ms) == TIMERR_NOERROR);
-
-	LARGE_INTEGER pcf_result;
-	QueryPerformanceFrequency(&pcf_result);
-	s64 performance_counter_frequency = pcf_result.QuadPart;
-
-	//TODO: maybe in the future use GetDeviceCaps() to get the monitor hz
-	int monitor_refresh_hz = 60;
-	memory.delta_time = 1.0f/monitor_refresh_hz;
-	
-	memory.update_hz = (f32)monitor_refresh_hz;
-	f32 target_seconds_per_frame = 1.0f / memory.update_hz;
 
 #if DEBUGMODE
 	u64 last_cycles_count = __rdtsc();
