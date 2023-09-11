@@ -844,7 +844,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		// HANDLE WINDOW RESIZING
 		Int2 current_client_size = win_get_client_sizes(global_main_window);
-		if(!dx->render_target_view || global_client_size.x != current_client_size.x || global_client_size.y != current_client_size.y)
+		if(!dx->rtv[0] || global_client_size.x != current_client_size.x || global_client_size.y != current_client_size.y)
 		{
 			s32 new_width = current_client_size.x;
 			s32 new_height = current_client_size.y;
@@ -861,21 +861,22 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// u32 new_window_width = new_client_size.right - new_client_size.left;
 			// u32 new_window_height = new_client_size.bottom - new_client_size.top;
 			// success = SetWindowPos(global_main_window, 0, 0, 0, new_window_width, new_window_height,SWP_NOMOVE);
-			if(dx->render_target_view)
+			if(dx->rtv[0])
 			{
-				dx->render_target_view->Release();
+				dx->rtv[0]->Release();
+				dx->rtv[0] = 0;
 				FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 					current_ds->view->Release();
 					current_ds->view = 0;
 				}
-				dx->render_target_view = 0;
+
 			}
-			if(dx->pre_processing_render_target_texture)
+			if(dx->rtv[1])
 			{
 				dx->pre_processing_render_target_texture->Release();
 				dx->pre_processing_render_target_texture = 0;
-				dx->pre_processing_render_target_view->Release();
-				dx->pre_processing_render_target_view = 0;
+				dx->rtv[1]->Release();
+				dx->rtv[1] = 0;
 			}
 			
 			//TODO: be careful with 8k monitors
@@ -904,10 +905,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 				dx->device->CreateTexture2D(&td, 0, &dx->pre_processing_render_target_texture);
 
-				dx->device->CreateRenderTargetView(dx->pre_processing_render_target_texture, 0, &dx->pre_processing_render_target_view);
+				dx->device->CreateRenderTargetView(dx->pre_processing_render_target_texture, 0, &dx->rtv[1]);
 
 
-				dx11_create_render_target_view(dx, &dx->render_target_view);
+				dx11_create_render_target_view(dx, &dx->rtv[0]);
+
 
 				FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 					dx11_create_depth_stencil_view(dx, &current_ds->view, global_client_size.x, global_client_size.y);
@@ -1306,11 +1308,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		// ACTUALLY RENDER
 
 
-		if(dx->render_target_view)
+		if(dx->rtv[0])
 		{
 			// skip this for trippy results
-			dx->context->ClearRenderTargetView(dx->pre_processing_render_target_view, (float*)&bg_color);
-			dx->context->ClearRenderTargetView(dx->render_target_view, (float*)&bg_color);
+			dx->context->ClearRenderTargetView(dx->rtv[1], (float*)&bg_color);
+			dx->context->ClearRenderTargetView(dx->rtv[0], (float*)&bg_color);
 			
 			FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 				dx->context->ClearDepthStencilView(
@@ -1319,7 +1321,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					1, 0);   
 			}
 			//TODO: this should be done by the render requests from the app layer
-			dx11_bind_render_target_view(dx, &dx->pre_processing_render_target_view, depth_stencils_list[0]->view);
+			dx11_bind_render_target_view(dx, &dx->rtv[1], depth_stencils_list[0]->view);
 			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
 			dx11_bind_sampler(dx, &dx->sampler);
 
@@ -1477,9 +1479,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				{
 					Depth_stencil* custom_depth_stencil;
 					LIST_GET(depth_stencils_list, 1, custom_depth_stencil);
-					dx11_bind_render_target_view(dx, &dx->render_target_view, custom_depth_stencil->view);
+					dx11_bind_render_target_view(dx, &dx->rtv[0], custom_depth_stencil->view);
 
-					Dx11_texture_view* shader_resource_view = nullptr;
+					Dx11_texture_view* shader_resource_view = 0;
 					D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
 
 					// Set the format of the texture (match this with the format of your render target texture)
@@ -1511,10 +1513,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 					dx->context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 					
-					Dx_mesh* quad_mesh;
-					LIST_GET(meshes_list,memory.meshes.centered_plane_mesh_uid, quad_mesh);
 
-					dx11_bind_vertex_buffer(dx, quad_mesh->vertex_buffer, quad_mesh->vertex_size);
+					dx11_bind_vertex_buffer(dx, screen_quad_mesh->vertex_buffer, screen_quad_mesh->vertex_size);
 
 					dx->context->Draw(4, 0);
 
@@ -1536,7 +1536,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					}if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
 						Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);
 						dx11_bind_depth_stencil_state(dx, depth_stencil->state);
-						dx11_bind_render_target_view(dx, &dx->render_target_view, depth_stencil->view);
+						dx11_bind_render_target_view(dx, &dx->rtv[request->render_target_view_uid], depth_stencil->view);
 					}
 				}
 			}
@@ -1612,8 +1612,14 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx->swap_chain->Release();
 	dx->rasterizer_state->Release();
 	dx->sampler->Release();
-	if(dx->render_target_view)
-		dx->render_target_view->Release();
+	if(dx->rtv[0])
+	{
+		dx->rtv[0]->Release();
+	}
+	if(dx->rtv[1])
+	{
+		dx->rtv[1]->Release();
+	}
 
 	object_buffer.buffer->Release();
 	view_buffer.buffer->Release();

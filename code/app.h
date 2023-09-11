@@ -475,6 +475,11 @@ struct Blend_states{
 	u32 default_blend_state_uid;
 };
 
+struct Render_target_views
+{
+	u32 default_rtv;
+	u32 post_processing_rtv;
+};
 struct Depth_stencils{
 	u32 default_depth_stencil_uid;
 	u32 ui_depth_stencil_uid;
@@ -518,6 +523,7 @@ struct App_memory
 	PShaders pshaders;
 
 	Blend_states blend_states;
+	Render_target_views render_target_views;
 	Depth_stencils depth_stencils;
 
 	f32 fov;
@@ -790,6 +796,7 @@ struct Renderer_request{
 			u32 vshader_uid;
 			u32 pshader_uid;
 			u32 blend_state_uid;
+			u32 render_target_view_uid;
 			u32 depth_stencil_uid;	
 		};
 	};
@@ -885,6 +892,7 @@ enum Asset_request_type{
 	MESH_FROM_FILE_REQUEST,
 	CREATE_BLEND_STATE_REQUEST,
 	CREATE_DEPTH_STENCIL_REQUEST,
+	CREATE_RENDER_TARGET_VIEW,
 	SOUND_FROM_FILE_REQUEST,
 
 	TEX_FROM_SURFACE_REQUEST,

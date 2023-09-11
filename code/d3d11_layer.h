@@ -48,6 +48,12 @@ typedef ID3D11ShaderResourceView			Dx11_texture_view;
 typedef ID3D11DepthStencilView 			Dx11_depth_stencil_view;
 typedef D3D11_VIEWPORT						Dx11_viewport;
 
+enum RTVS
+{
+	RTV_POSTPROCESSING,
+	RTV_FINAL,
+};
+
 struct D3D
 {
 	Dx11_device* device;
@@ -59,9 +65,8 @@ struct D3D
 	Dx11_sampler_state* sampler;
 	
 	ID3D11Texture2D* pre_processing_render_target_texture;
-	Dx11_render_target_view* pre_processing_render_target_view;
 
-	Dx11_render_target_view* render_target_view;
+	Dx11_render_target_view* rtv[2];
 };
 
 enum CONSTANT_BUFFER_REGISTER_INDEX
