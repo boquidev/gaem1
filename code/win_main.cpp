@@ -765,8 +765,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	}
 
 	
-	// CREATING CONSTANT BUFFER
-	// OBJECT TRANSFORM CONSTANT BUFFER
+	// CREATING CONSTANT BUFFERS
+
+
+
+	// THIS ARE FOR THE VERTEX SHADER U DUMB FUCKER
+
+
+
+	// OBJECT TRANSFORM CONSTANT BUFFERS
 	D3D_constant_buffer object_buffer = {0};
 	dx11_create_and_bind_constant_buffer(
 		dx, &object_buffer, sizeof(XMMATRIX), OBJECT_BUFFER_REGISTER_INDEX, 0
@@ -807,6 +814,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx11_create_and_bind_constant_buffer(
 		dx, &camera_pos_buffer, sizeof(V4), CAMERA_POS_BUFFER_REGISTER_INDEX, 0
 	);
+
+	D3D_constant_buffer screen_dimensions_buffer = {0};
+	dx11_create_constant_buffer(dx, &screen_dimensions_buffer, 2*sizeof(V2), SCREEN_DIMENSIONS_REGISTER_INDEX, 0);
+	dx->context->PSSetConstantBuffers(0, 1, &screen_dimensions_buffer.buffer);
+
 
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
@@ -898,6 +910,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				hr = dx->swap_chain->ResizeBuffers(0, global_client_size.x, global_client_size.y, DXGI_FORMAT_UNKNOWN, 0);
 				ASSERTHR(hr);
 
+				V2 client_dimensions = {(f32)global_client_size.x, (f32)global_client_size.y};
+
+				dx11_modify_resource(dx, screen_dimensions_buffer.buffer, &client_dimensions, sizeof(V2));
 
 				D3D11_TEXTURE2D_DESC td = {0};
 				td.Width = global_client_size.x;       // Width of the texture in pixels
