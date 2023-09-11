@@ -479,6 +479,7 @@ struct Render_target_views
 {
 	u32 default_rtv;
 	u32 post_processing_rtv;
+	u32 depth_rtv;
 };
 struct Depth_stencils{
 	u32 default_depth_stencil_uid;

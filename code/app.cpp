@@ -2068,12 +2068,10 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
 	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|
-		REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
+		REQUEST_FLAG_SET_BLEND_STATE;
 	request->vshader_uid = memory->vshaders.default_vshader_uid;
 	request->pshader_uid = memory->pshaders.default_pshader_uid;
 	request->blend_state_uid = memory->blend_states.default_blend_state_uid;
-	request->render_target_view_uid = memory->render_target_views.post_processing_rtv;
-	request->depth_stencil_uid = memory->depth_stencils.default_depth_stencil_uid;
 
 	LIST(Renderer_request, delayed_render_list) = {0};
 	LIST(Renderer_request, delayed_render_list2) = {0};
@@ -2552,9 +2550,9 @@ void init(App_memory* memory, Init_data* init_data){
 		request.enable_depth = false;
 		PUSH_ASSET_REQUEST;
 
-		memory->render_target_views.default_rtv = 0;
-		memory->render_target_views.post_processing_rtv = 1;
-
+		memory->render_target_views.default_rtv = 2;
+		memory->render_target_views.post_processing_rtv = 0;
+		memory->render_target_views.depth_rtv = 1;
 	}
 
 	memory->particles_max = 1000;

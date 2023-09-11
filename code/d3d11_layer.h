@@ -51,6 +51,7 @@ typedef D3D11_VIEWPORT						Dx11_viewport;
 enum RTVS
 {
 	RTV_POSTPROCESSING,
+	RTV_DEPTH,
 	RTV_FINAL,
 };
 
@@ -65,8 +66,9 @@ struct D3D
 	Dx11_sampler_state* sampler;
 	
 	ID3D11Texture2D* pre_processing_render_target_texture;
+	ID3D11Texture2D* depth_render_target_texture;
 
-	Dx11_render_target_view* rtv[2];
+	Dx11_render_target_view* render_targets_list[3];
 };
 
 enum CONSTANT_BUFFER_REGISTER_INDEX

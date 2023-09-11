@@ -43,6 +43,9 @@ struct PSINPUT
 	float4 color : COLOR0;
 
 	float3 vertex_world_pos : COLOR1;
+	
+	// w value of camera is 1 or 0 depending on if perspective is on or off
+	// it's kind of dumb and that calculation should be done just once in the cpu
 	float4 camera_world_pos : COLOR2;
 };
 
@@ -61,9 +64,13 @@ PSINPUT vs( VSINPUT input )
 	result.color = object_color;	
 	result.normal = mul( (float3x3)object_transform , input.normal);
 	float4x4 world_rotation = world_view;
-	result.camera_world_pos.xyz = normalize(mul(float4(0,0,1,1), world_rotation).xyz);
-	result.camera_world_pos.xyz = lerp(result.camera_world_pos.xyz, camera_pos.xyz, camera_pos.w);
-	result.camera_world_pos.w = camera_pos.w;
+
+	// maybe get this from cpu
+	// result.camera_world_pos.xyz = normalize(mul(float4(0,0,1,1), world_rotation).xyz);
+	// result.camera_world_pos.xyz = lerp(result.camera_world_pos.xyz, camera_pos.xyz, camera_pos.w);
+	// result.camera_world_pos.w = camera_pos.w;
+	result.camera_world_pos = camera_pos;
+
 	result.vertex_world_pos = vertex_world_pos.xyz;
 	return result;
 }
@@ -74,25 +81,43 @@ Texture2D<float4> texture0 : register(t0);
 
 sampler sampler0 : register(s0);
 
-float4 ps( PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
+// Output color information to the first render target (e.g., RT0)
+// float4 ColorOutput : SV_Target0;
+// Output depth information to the second render target (e.g., RT1)
+// float DepthOutput : SV_Target1;
+
+struct PSOUTPUT
 {
-	float3 N = normalize(input.normal);
+	float4 color : SV_Target0;
+	float4 depth : SV_Target1;
+};
+
+PSOUTPUT ps( PSINPUT input, uint tid : SV_PrimitiveID)
+{
+	PSOUTPUT result;
 	float4 texcolor = texture0.Sample( sampler0, input.texcoord );
 	float result_alpha = texcolor.a*input.color.a;
 	clip(result_alpha-0.0001f);
-	float4 result = float4(
+	result.color = float4(
 		texcolor.r * (0.5+input.color.r)/1.5, 
 		texcolor.g * (0.5+input.color.g)/1.5,
 		texcolor.b * (0.5+input.color.b)/1.5,
 		result_alpha);
 
-	result.rgb *=   ( (N.x+N.y+N.z+3)/3 );
+	/*
+	float3 N = normalize(input.normal);
+	result.color.rgb *=   ( (N.x+N.y+N.z+3)/3 );
 	float3 camera_to_vertex = normalize(input.vertex_world_pos - input.camera_world_pos.xyz);
 	float3 camera_vector = lerp(input.camera_world_pos.xyz, camera_to_vertex, input.camera_world_pos.w);
 
 	float fresnel = 1.5 + dot(camera_vector, N);
 
-	result.rgb *= fresnel;
+	result.color.rgb *= fresnel;
+	*/
+
+	float pixel_value = 1-(length(input.vertex_world_pos-input.camera_world_pos.xyz)/100);
+	result.depth = float4(pixel_value, pixel_value, pixel_value, 1);
+	// result.depth = float4(1,1,1,1);
 
 	// weird outline (just works in perspective view and with smooth meshes)
 

@@ -810,6 +810,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
+	//CULL
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
 
 
@@ -844,7 +845,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 		// HANDLE WINDOW RESIZING
 		Int2 current_client_size = win_get_client_sizes(global_main_window);
-		if(!dx->rtv[0] || global_client_size.x != current_client_size.x || global_client_size.y != current_client_size.y)
+		if(!dx->render_targets_list[RTV_FINAL] || global_client_size.x != current_client_size.x || global_client_size.y != current_client_size.y)
 		{
 			s32 new_width = current_client_size.x;
 			s32 new_height = current_client_size.y;
@@ -861,22 +862,30 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			// u32 new_window_width = new_client_size.right - new_client_size.left;
 			// u32 new_window_height = new_client_size.bottom - new_client_size.top;
 			// success = SetWindowPos(global_main_window, 0, 0, 0, new_window_width, new_window_height,SWP_NOMOVE);
-			if(dx->rtv[0])
+			if(dx->render_targets_list[RTV_FINAL])
 			{
-				dx->rtv[0]->Release();
-				dx->rtv[0] = 0;
+				dx->render_targets_list[RTV_FINAL]->Release();
+				dx->render_targets_list[RTV_FINAL] = 0;
 				FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 					current_ds->view->Release();
 					current_ds->view = 0;
 				}
 
 			}
-			if(dx->rtv[1])
+			if(dx->render_targets_list[RTV_POSTPROCESSING])
 			{
 				dx->pre_processing_render_target_texture->Release();
 				dx->pre_processing_render_target_texture = 0;
-				dx->rtv[1]->Release();
-				dx->rtv[1] = 0;
+				dx->render_targets_list[RTV_POSTPROCESSING]->Release();
+				dx->render_targets_list[RTV_POSTPROCESSING] = 0;
+			}
+			if(dx->render_targets_list[RTV_DEPTH])
+			{
+				dx->depth_render_target_texture->Release();
+				dx->depth_render_target_texture = 0;
+				dx->render_targets_list[RTV_DEPTH]->Release();
+				dx->render_targets_list[RTV_DEPTH] = 0;
+				
 			}
 			
 			//TODO: be careful with 8k monitors
@@ -905,10 +914,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 				dx->device->CreateTexture2D(&td, 0, &dx->pre_processing_render_target_texture);
 
-				dx->device->CreateRenderTargetView(dx->pre_processing_render_target_texture, 0, &dx->rtv[1]);
+				dx->device->CreateTexture2D(&td, 0, &dx->depth_render_target_texture);
+
+				dx->device->CreateRenderTargetView(dx->pre_processing_render_target_texture, 0, &dx->render_targets_list[RTV_POSTPROCESSING]);
+				dx->device->CreateRenderTargetView(dx->depth_render_target_texture, 0, &dx->render_targets_list[RTV_DEPTH]);
 
 
-				dx11_create_render_target_view(dx, &dx->rtv[0]);
+				dx11_create_render_target_view(dx, &dx->render_targets_list[RTV_FINAL]);
 
 
 				FOREACH(Depth_stencil, current_ds, depth_stencils_list){
@@ -1308,11 +1320,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		// ACTUALLY RENDER
 
 
-		if(dx->rtv[0])
+		if(dx->render_targets_list[RTV_FINAL])
 		{
+			Color black_color = {0,0,0,0};
 			// skip this for trippy results
-			dx->context->ClearRenderTargetView(dx->rtv[1], (float*)&bg_color);
-			dx->context->ClearRenderTargetView(dx->rtv[0], (float*)&bg_color);
+			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_POSTPROCESSING], (float*)&bg_color);
+			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_FINAL], (float*)&bg_color);
+			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_DEPTH], (float*)&black_color);
 			
 			FOREACH(Depth_stencil, current_ds, depth_stencils_list){
 				dx->context->ClearDepthStencilView(
@@ -1321,7 +1335,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					1, 0);   
 			}
 			//TODO: this should be done by the render requests from the app layer
-			dx11_bind_render_target_view(dx, &dx->rtv[1], depth_stencils_list[0]->view);
+			
+			dx->context->OMSetRenderTargets(2, dx->render_targets_list, depth_stencils_list[0]->view); 
+
 			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
 			dx11_bind_sampler(dx, &dx->sampler);
 
@@ -1477,11 +1493,16 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 				}
 				else if(request->type_flags & REQUEST_FLAG_POSTPROCESSING) // POST PROCESSING EFFECTS
 				{
-					Depth_stencil* custom_depth_stencil;
-					LIST_GET(depth_stencils_list, 1, custom_depth_stencil);
-					dx11_bind_render_target_view(dx, &dx->rtv[0], custom_depth_stencil->view);
 
-					Dx11_texture_view* shader_resource_view = 0;
+					//TODO: check if i can just use the first one
+
+					Depth_stencil* aux_depth_stencil;
+					LIST_GET(depth_stencils_list, 1, aux_depth_stencil);
+					
+					dx->context->OMSetRenderTargets(1, &dx->render_targets_list[RTV_FINAL], aux_depth_stencil->view); 
+					// dx11_bind_render_target_view(dx, &dx->render_[0], aux_depth_stencil->view);
+
+					Dx11_texture_view* color_resource_view = 0;
 					D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
 
 					// Set the format of the texture (match this with the format of your render target texture)
@@ -1494,9 +1515,15 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					srvd.Texture2D.MostDetailedMip = 0; // Start from the first mip level
 					srvd.Texture2D.MipLevels = 1;      // Use all available mip levels
 
-					dx->device->CreateShaderResourceView(dx->pre_processing_render_target_texture, &srvd, &shader_resource_view);
+					// dx->device->CreateShaderResourceView(dx->pre_processing_render_target_texture, &srvd, &shader_resource_view);
+					dx->device->CreateShaderResourceView(dx->pre_processing_render_target_texture, &srvd, &color_resource_view);
 
-					dx11_bind_texture_view(dx, &shader_resource_view);
+					Dx11_texture_view* depth_resource_view = 0;
+					dx->device->CreateShaderResourceView(dx->depth_render_target_texture, &srvd, &depth_resource_view);
+
+					Dx11_texture_view* shader_resource_views [2] = {color_resource_view, depth_resource_view};
+					
+					dx->context->PSSetShaderResources(0,2, shader_resource_views);
 
 					Vertex_shader* vertex_shader;
 					LIST_GET(vertex_shaders_list, memory.vshaders.postprocessing_vshader_uid, vertex_shader);
@@ -1506,11 +1533,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					LIST_GET(pixel_shaders_list, memory.pshaders.postprocessing_pshader_uid, pixel_shader);
 					dx11_bind_ps(dx, *pixel_shader);
 
-					// depth buffer 
-					// blend
-					// set the other srv
-					
-
 					dx->context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 					
 
@@ -1518,8 +1540,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 					dx->context->Draw(4, 0);
 
-					
-					shader_resource_view->Release();
+					Dx11_texture_view* nullSRV[] = {nullptr, nullptr};
+					dx->context->PSSetShaderResources(0, 2, nullSRV);
+
+					color_resource_view->Release();
+					depth_resource_view->Release();
 				}
 				else
 				{
@@ -1533,10 +1558,11 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					}if(request->type_flags & REQUEST_FLAG_SET_BLEND_STATE){
 						Dx11_blend_state** blend_state; LIST_GET(blend_states_list, request->blend_state_uid, blend_state);
 						dx11_bind_blend_state(dx, *blend_state);
-					}if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
+					}
+					if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
 						Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);
 						dx11_bind_depth_stencil_state(dx, depth_stencil->state);
-						dx11_bind_render_target_view(dx, &dx->rtv[request->render_target_view_uid], depth_stencil->view);
+						dx11_bind_render_target_view(dx, &dx->render_targets_list[request->render_target_view_uid], depth_stencil->view);
 					}
 				}
 			}
@@ -1612,13 +1638,17 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	dx->swap_chain->Release();
 	dx->rasterizer_state->Release();
 	dx->sampler->Release();
-	if(dx->rtv[0])
+	if(dx->render_targets_list[0])
 	{
-		dx->rtv[0]->Release();
+		dx->render_targets_list[0]->Release();
 	}
-	if(dx->rtv[1])
+	if(dx->render_targets_list[1])
 	{
-		dx->rtv[1]->Release();
+		dx->render_targets_list[1]->Release();
+	}
+	if(dx->render_targets_list[2])
+	{
+		dx->render_targets_list[2]->Release();
 	}
 
 	object_buffer.buffer->Release();
