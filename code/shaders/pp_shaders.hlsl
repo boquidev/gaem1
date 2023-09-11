@@ -83,8 +83,10 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID ) : SV_TARGET
    float threshold = 0.5f; // Adjust as needed
    
 
-   float min_value = 0.9f;
-   float dif = 0.1f;
+   // higher value means less discrimination between similar depths
+   // lower value means more sensitivity between similar depths
+   float min_value = 0.1f;
+   float dif = 0.001f;
    float multiplier = 1.0f/dif; 
    
 
@@ -97,7 +99,9 @@ float4 ps( PSINPUT input, uint tid : SV_PrimitiveID ) : SV_TARGET
    float4 original_color = color_texture.Sample(sampler0, input.texcoord);
 
    result = lerp(original_color, float4(0,0,0,1), interpolator);
-   // result = float4(interpolator, 0,0,1);
+   // clip(magnitude-min_value);
+   // result = (magnitude > min_value) ? float4(0,0,0,1) : float4(1,1,1,1);
+   // result = depth_texture.Sample(sampler0, input.texcoord );
 
 
 

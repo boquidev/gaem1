@@ -99,16 +99,16 @@ PSOUTPUT ps( PSINPUT input, uint tid : SV_PrimitiveID)
 		texcolor.b * (0.5+input.color.b)/1.5,
 		result_alpha);
 
-	/*
 	float3 N = normalize(input.normal);
 	result.color.rgb *=   ( (N.x+N.y+N.z+3)/3 );
 	float3 camera_to_vertex = normalize(input.vertex_world_pos - input.camera_world_pos.xyz);
-	float3 camera_vector = lerp(input.camera_world_pos.xyz, camera_to_vertex, input.camera_world_pos.w);
+	// float3 camera_vector = lerp(input.camera_world_pos.xyz, camera_to_vertex, input.camera_world_pos.w);
+	float3 camera_vector = camera_to_vertex;
 
 	float fresnel = 1.5 + dot(camera_vector, N);
 
 	result.color.rgb *= fresnel;
-	*/
+	
 
 	float pixel_value = 1-(length(input.vertex_world_pos-input.camera_world_pos.xyz)/100);
 	result.depth = float4(pixel_value, pixel_value, pixel_value, 1);
