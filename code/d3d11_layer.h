@@ -518,12 +518,6 @@ dx11_bind_depth_stencil_state(D3D* dx, Dx11_depth_stencil_state* depth_stencil_s
 {
 	dx->context->OMSetDepthStencilState(depth_stencil_state, 0);
 }
-internal void // this needs the depth_stencil_view already created
-dx11_bind_render_target_view(D3D* dx, Dx11_render_target_view** render_target_view, Dx11_depth_stencil_view* depth_stencil_view)
-{
-	//TODO: i think this fixed it
-	dx->context->OMSetRenderTargets(1, render_target_view, depth_stencil_view); 
-}
 
 internal void
 dx11_modify_resource(D3D* dx, Dx11_resource* resource, void* data, u32 size)

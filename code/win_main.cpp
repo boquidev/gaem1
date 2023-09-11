@@ -1336,7 +1336,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			}
 			//TODO: this should be done by the render requests from the app layer
 			
-			dx->context->OMSetRenderTargets(2, dx->render_targets_list, depth_stencils_list[0]->view); 
+			// dx->context->OMSetRenderTargets(1, &dx->render_targets_list[RTV_FINAL], depth_stencils_list[0]->view); 
 
 			dx11_bind_rasterizer_state(dx, dx->rasterizer_state);
 			dx11_bind_sampler(dx, &dx->sampler);
@@ -1562,7 +1562,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
 						Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);
 						dx11_bind_depth_stencil_state(dx, depth_stencil->state);
-						dx11_bind_render_target_view(dx, &dx->render_targets_list[request->render_target_view_uid], depth_stencil->view);
+						
+						Dx11_render_target_view* rtviews_to_bind [] = {dx->render_targets_list[request->render_target_view_uid], dx->render_targets_list[RTV_DEPTH]};
+						dx->context->OMSetRenderTargets(2, rtviews_to_bind, depth_stencil->view); 
 					}
 				}
 			}
