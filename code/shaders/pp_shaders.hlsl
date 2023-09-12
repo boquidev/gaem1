@@ -12,16 +12,16 @@ struct VSINPUT
 };
 
 
-struct PSINPUT
+struct PS_IN
 {
 	float4 pixel_pos : SV_POSITION;
 	float2 texcoord : TEXCOORD;
 };
 
 
-PSINPUT vs( VSINPUT input )
+PS_IN vs( VSINPUT input )
 {
-   PSINPUT result;
+   PS_IN result;
    result.pixel_pos = float4(input.vertex_pos, 1.0f);
    result.texcoord = input.texcoord;
    return result;
@@ -52,7 +52,7 @@ Texture2D<float4> depth_texture : register(t1);
 
 sampler sampler0 : register(s0);
 
-float4 ps( PSINPUT input, uint tid : SV_PrimitiveID ) : SV_TARGET
+float4 ps( PS_IN input, uint tid : SV_PrimitiveID ) : SV_TARGET
 {
    float4 result;
 

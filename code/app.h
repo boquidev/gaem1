@@ -780,7 +780,10 @@ enum RENDERER_REQUEST_TYPE_FLAGS
 	REQUEST_FLAG_SET_BLEND_STATE		= 1 << 5,
 	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 6,
 	REQUEST_FLAG_RENDER_PARTICLES		= 1 << 7, //TODO: turn this into instancing
-	REQUEST_FLAG_POSTPROCESSING 		= 1 << 8 
+	REQUEST_FLAG_SET_DEPTH_WRITING 	= 1 << 8,
+
+
+	REQUEST_FLAG_POSTPROCESSING 		= 1 << 30,
 
 	//TODO: instancing request type
 	//TODO: set texture or mesh request type for instancing
@@ -799,6 +802,7 @@ struct Renderer_request{
 			u32 blend_state_uid;
 			u32 render_target_view_uid;
 			u32 depth_stencil_uid;	
+			f32 depth_writing;
 		};
 	};
 };

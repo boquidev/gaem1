@@ -30,7 +30,7 @@ struct VSINPUT
 	float3 normal : NORMAL;
 };
 
-struct PSINPUT
+struct PS_IN
 {
 	float4 pixel_pos : SV_POSITION;
 	float2 texcoord : TEXCOORD;
@@ -44,9 +44,9 @@ struct PSINPUT
 	float4 camera_world_pos : COLOR2;
 };
 
-PSINPUT vs( VSINPUT input )
+PS_IN vs( VSINPUT input )
 {
-	PSINPUT result;
+	PS_IN result;
 
 	float4 vertex_world_pos = mul(object_transform, float4( input.vertex_pos, 1.0f ) );
 	float4 pos_from_camera = mul( world_view, vertex_world_pos);
@@ -81,15 +81,15 @@ sampler sampler0 : register(s0);
 // Output depth information to the second render target (e.g., RT1)
 // float DepthOutput : SV_Target1;
 
-struct PSOUTPUT
+struct PS_OUT
 {
 	float4 color : SV_Target0;
 	float4 depth : SV_Target1;
 };
 
-PSOUTPUT ps( PSINPUT input, uint tid : SV_PrimitiveID)
+PS_OUT ps( PS_IN input, uint tid : SV_PrimitiveID)
 {
-	PSOUTPUT result;
+	PS_OUT result;
 	float4 texcolor = texture0.Sample( sampler0, input.texcoord );
 	float result_alpha = texcolor.a*input.color.a;
 	clip(result_alpha-0.0001f);
@@ -111,7 +111,7 @@ PSOUTPUT ps( PSINPUT input, uint tid : SV_PrimitiveID)
 	
 
 	float pixel_value = 1-(length(input.vertex_world_pos-input.camera_world_pos.xyz)/100);
-	result.depth = float4(pixel_value, pixel_value, pixel_value, 1);
+	result.depth = input.camera_world_pos.w * float4(pixel_value, pixel_value, pixel_value, 1);
 	// result.depth = float4(1,1,1,1);
 
 	// weird outline (just works in perspective view and with smooth meshes)

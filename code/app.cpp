@@ -1792,7 +1792,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		
 		// ASSIGNING A PARTICLE EMITTER IF IT HAS AN ELEMENT APPLIED TO IT
 
-		u16 current_element = EE_REACTIVE_ELEMENTS & (entity->element_effect | entity->element_type);
+		u16 current_element = entity->element_type ? entity->element_type : entity->element_effect;
 
 		if(entity->freezing_time_left)
 		{
@@ -2067,13 +2067,14 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 {
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
-	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|
+	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_DEPTH_WRITING|
 		REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
 	request->vshader_uid = memory->vshaders.default_vshader_uid;
 	request->pshader_uid = memory->pshaders.default_pshader_uid;
 	request->blend_state_uid = memory->blend_states.default_blend_state_uid;
 	request->depth_stencil_uid = memory->depth_stencils.default_depth_stencil_uid;
 	request->render_target_view_uid = memory->render_target_views.post_processing_rtv;
+	request->depth_writing = 1.0f;
 
 	LIST(Renderer_request, delayed_render_list) = {0};
 	LIST(Renderer_request, delayed_render_list2) = {0};
@@ -2198,17 +2199,6 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 	}
 
-	FOREACH(Renderer_request, current_render_request, delayed_render_list){
-		//TODO: not pushback but use the already saved request in the delay list (???)
-		PUSH_BACK(render_list, memory->temp_arena, request);
-		*request = *current_render_request;
-	}
-	FOREACH(Renderer_request, current_render_request, delayed_render_list2){
-		//TODO: not pushback but use the already saved request in the delay list (???)
-		PUSH_BACK(render_list, memory->temp_arena, request);
-		*request = *current_render_request;
-	}
-
 	if(memory->selected_uid >= 0){
 		Entity* selected_entity = &memory->entities[memory->selected_uid];
 
@@ -2264,20 +2254,22 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		Particle* particle = &memory->particles[i];
 
 		//UPDATING
+		if(!memory->is_paused)
+		{
+			particle->velocity = particle->velocity + memory->delta_time * calculate_delta_velocity(particle->velocity, particle->acceleration, particle->friction);
+			particle->position = particle->position + (memory->delta_time*particle->velocity);
 
-		particle->velocity = particle->velocity + memory->delta_time * calculate_delta_velocity(particle->velocity, particle->acceleration, particle->friction);
-		particle->position = particle->position + (memory->delta_time*particle->velocity);
+			particle->scale = particle->scale + (particle->scale_delta_multiplier * memory->delta_time/particle->lifetime)*(particle->target_scale - particle->scale);
+			
+			particle->angle_speed = particle->angle_speed + memory->delta_time*((particle->angle_accel) - (particle->angle_friction*particle->angle_speed));
+			particle->angle = particle->angle + particle->angle_speed;
 
-		particle->scale = particle->scale + (particle->scale_delta_multiplier * memory->delta_time/particle->lifetime)*(particle->target_scale - particle->scale);
-		
-		particle->angle_speed = particle->angle_speed + memory->delta_time*((particle->angle_accel) - (particle->angle_friction*particle->angle_speed));
-		particle->angle = particle->angle + particle->angle_speed;
-
-		particle->color = color_addition(particle->color, (particle->color_delta_multiplier*memory->delta_time/particle->lifetime)*(color_difference(particle->target_color, particle->color)));
-		particle->color.a = MAX(0.01f, particle->color.a);
+			particle->color = color_addition(particle->color, (particle->color_delta_multiplier*memory->delta_time/particle->lifetime)*(color_difference(particle->target_color, particle->color)));
+			particle->color.a = MAX(0.01f, particle->color.a);
 
 
-		particle->lifetime -= memory->delta_time;
+			particle->lifetime -= memory->delta_time;
+		}
 		if(particle->lifetime <= 0 || particle->scale <= 0 )
 		{
 			*particle = {0};
@@ -2299,12 +2291,32 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			
 		}
 	}
+	// RENDER AURAS
+	
+	PUSH_BACK(render_list, memory->temp_arena, request);
+	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_DEPTH_WRITING;
+	request->pshader_uid = memory->pshaders.default_pshader_uid;
+	request->vshader_uid = memory->vshaders.default_vshader_uid;
+	request->depth_writing = 0.0f;
+	
+	// DELAYED RENDER LISTS
 
-	// FINISHED RENDERING WORLD
+	FOREACH(Renderer_request, current_render_request, delayed_render_list){
+		//TODO: not pushback but use the already saved request in the delay list (???)
+		PUSH_BACK(render_list, memory->temp_arena, request);
+		*request = *current_render_request;
+	}
+	FOREACH(Renderer_request, current_render_request, delayed_render_list2){
+		//TODO: not pushback but use the already saved request in the delay list (???)
+		PUSH_BACK(render_list, memory->temp_arena, request);
+		*request = *current_render_request;
+	}
+
+	// POST PROCESSING
 	
 	PUSH_BACK(render_list, memory->temp_arena, request);
 	request->type_flags = REQUEST_FLAG_POSTPROCESSING;
-
+	
 
 	// RENDER USER INTERFACES
 

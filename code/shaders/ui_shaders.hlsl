@@ -22,15 +22,15 @@ struct VSINPUT
 	float2 texcoord : TEXCOORD;
 };
 
-struct PSINPUT
+struct PS_IN
 {
 	float4 vertex_pos : SV_POSITION;
 	float2 texcoord : TEXCOORD;
 	float4 color : COLOR0;
 };
 
-PSINPUT vs(VSINPUT input){
-	PSINPUT result;
+PS_IN vs(VSINPUT input){
+	PS_IN result;
 
 	result.vertex_pos = mul(object_transform , float4(input.vertex_pos, 1));
 	result.color = object_color;
@@ -45,7 +45,7 @@ Texture2D<float4> texture0 : register(t0);
 
 sampler sampler0 : register(s0);
 
-float4 ps(PSINPUT input, uint tid : SV_PrimitiveID) : SV_TARGET
+float4 ps(PS_IN input, uint tid : SV_PrimitiveID) : SV_TARGET
 {
 	float4 texcolor = texture0.Sample( sampler0, input.texcoord );
 

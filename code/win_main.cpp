@@ -822,6 +822,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	// CREATING  D3D PIPELINES
 	dx11_create_sampler(dx, &dx->sampler);
+	
 	//CULL
 	dx11_create_rasterizer_state(dx, &dx->rasterizer_state, D3D11_FILL_SOLID, D3D11_CULL_BACK);
 
@@ -1502,8 +1503,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					
 					dx11_bind_texture_view(dx, texture_view);
 					dx11_modify_resource(dx, object_color_buffer.buffer, &object->color, sizeof(Color));
-
-					dx11_draw_mesh(dx, object_buffer.buffer, object_mesh, &object_transform_matrix);
+					
+					dx11_modify_resource(dx, object_buffer.buffer, &object_transform_matrix, sizeof(object_transform_matrix));
+					
+					dx->context->IASetPrimitiveTopology( object_mesh->topology );
+					dx11_bind_vertex_buffer(dx, object_mesh->vertex_buffer, object_mesh->vertex_size);
+					
+					dx->context->Draw(4, 0);
 				
 				}
 				else if(request->type_flags & REQUEST_FLAG_POSTPROCESSING) // POST PROCESSING EFFECTS
@@ -1573,6 +1579,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					}if(request->type_flags & REQUEST_FLAG_SET_BLEND_STATE){
 						Dx11_blend_state** blend_state; LIST_GET(blend_states_list, request->blend_state_uid, blend_state);
 						dx11_bind_blend_state(dx, *blend_state);
+					}
+					if(request->type_flags & REQUEST_FLAG_SET_DEPTH_WRITING){
+						camera_pos.w = request->depth_writing;
+						dx11_modify_resource(dx, camera_pos_buffer.buffer, &camera_pos, sizeof(V4));
 					}
 					if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
 						Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);
