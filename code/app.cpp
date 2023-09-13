@@ -1840,7 +1840,44 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(entity->gravity_field_time_left)
 		{
-			//TODO: emit toxic particles
+			f32 dice = rng->next(10);
+			if(dice < 1)
+			{
+				
+				f32 gravity_field_radius =  SQRT(entity->gravity_field_time_left)*3;
+
+				
+				f32 pos_offset_angle = rng->next(TAU32);
+				V3 pos_offset = v3_rotate_y({gravity_field_radius,0,0}, pos_offset_angle);
+
+				Particle_emitter particle_emitter;
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE|PARTICLE_ACCEL_TOWARDS_TARGET_ENTITY,
+					1,
+					0,
+					pos_offset,
+					0,
+					0,
+					0,
+					{0,0,0},
+					{0},
+					{0,0,0,1},
+					1.0f,
+					1.5f,
+					0,0,0,0,0,
+					0.4f,
+					0,
+					0.01f,
+					1.0f
+				);
+
+				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+				particle_emitter.emit_particle(new_particle,
+					entity->pos, {0}, {.0f,.0f,.0f,1}, rng
+				);
+
+				new_particle->target_entity_h = {i, generations[i]};
+			}
 		}
 
 		// EMITTING PARTICLES
@@ -2336,7 +2373,16 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		//UPDATING
 		if(!memory->is_paused)
 		{
-			particle->velocity = particle->velocity + memory->delta_time * calculate_delta_velocity(particle->velocity, particle->acceleration, particle->friction);
+			V3 accel = particle->acceleration;
+			
+			if(particle->flags & PARTICLE_ACCEL_TOWARDS_TARGET_ENTITY)
+			{
+				if(is_handle_valid(particle->target_entity_h, memory->entity_generations))
+				{
+					accel = memory->entities[particle->target_entity_h.index].pos - particle->position;
+				}
+			}
+			particle->velocity = particle->velocity + memory->delta_time * calculate_delta_velocity(particle->velocity, accel, particle->friction);
 			particle->position = particle->position + (memory->delta_time*particle->velocity);
 
 			particle->scale = particle->scale + (particle->scale_delta_multiplier * memory->delta_time/particle->lifetime)*(particle->target_scale - particle->scale);

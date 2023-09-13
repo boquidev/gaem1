@@ -286,8 +286,9 @@ static union {
 	};
 
 	struct {
-		u32
+		u64
 		PARTICLE_ACTIVE,
+		PARTICLE_ACCEL_TOWARDS_TARGET_ENTITY,
 		
 		PARTICLE_LAST_FLAG;
 	};

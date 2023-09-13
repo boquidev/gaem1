@@ -7,6 +7,28 @@
 #define render_type(...) void (*__VA_ARGS__)(App_memory*, LIST(Renderer_request,), Int2 )
 #define init_type(...) void (*__VA_ARGS__)(App_memory*, Init_data* )
 
+#define MAX_ENTITIES 5000
+#define MAX_UI 100
+
+struct Element_handle
+{
+	u32 index;
+	u32 generation; // this value updates when the entity is deleted
+};
+typedef Element_handle Entity_handle;
+
+internal b32 
+operator ==(Element_handle h1, Element_handle h2){
+	return ((h1.index || h1.generation) && (h2.index || h2.generation)) && (h1.index == h2.index && h1.generation == h2.generation);
+}
+internal b32
+operator !=(Element_handle h1, Element_handle h2){
+	return (!(h1.index || h1.generation) || !(h2.index || h2.generation)) || (h1.index != h2.index || h1.generation != h2.generation);
+}
+internal b32 
+compare_entity_handles(Element_handle h1, Element_handle h2){
+	return h1 == h2;
+}
 
 struct Particle
 {
@@ -40,12 +62,14 @@ struct Particle
 	f32 scale;
 	f32 target_scale;
 	f32 scale_delta_multiplier;
+
+	Entity_handle target_entity_h;
 };
 
 
 struct Particle_emitter
 {
-	u32 particle_flags;
+	u64 particle_flags;
 	u32 particles_count;
 
 	f32 emit_cooldown;
@@ -77,7 +101,7 @@ struct Particle_emitter
 
 	//TODO: this would be something metaprogramming could help with
 	void fill_data(
-		u32 _particle_flags,
+		u64 _particle_flags,
 		u32 _particles_count,
 
 		f32 _emit_cooldown,
@@ -138,7 +162,7 @@ struct Particle_emitter
 
 	void emit_particle(Particle* particle, V3 position, V3 initial_velocity, Color color, RNG* rng)
 	{
-		particle->flags = particle_flags;
+		particle->flags = (u32)particle_flags;
 		particle->position = initial_pos_offset + position;
 		V3 final_initial_velocity = (1-rng->next(initial_speed_rng))*initial_velocity;
 		particle->velocity = v3_rotate_y(final_initial_velocity, 
@@ -205,28 +229,6 @@ struct  Object3d{
 	OBJECT3D_STRUCTURE
 };
 
-#define MAX_ENTITIES 5000
-#define MAX_UI 100
-
-struct Element_handle
-{
-	u32 index;
-	u32 generation; // this value updates when the entity is deleted
-};
-typedef Element_handle Entity_handle;
-
-internal b32 
-operator ==(Element_handle h1, Element_handle h2){
-	return ((h1.index || h1.generation) && (h2.index || h2.generation)) && (h1.index == h2.index && h1.generation == h2.generation);
-}
-internal b32
-operator !=(Element_handle h1, Element_handle h2){
-	return (!(h1.index || h1.generation) || !(h2.index || h2.generation)) || (h1.index != h2.index || h1.generation != h2.generation);
-}
-internal b32 
-compare_entity_handles(Element_handle h1, Element_handle h2){
-	return h1 == h2;
-}
 
 enum COLLIDER_TYPE{
 	// for now it is imposible to forger about the collider type okei?
@@ -399,10 +401,10 @@ last_inactive_entity(Entity entities[]){
 
 //TODO: use this
 internal b32
-is_handle_valid(Element_handle handle, u32 entity_generations[])
+is_handle_valid(Element_handle handle, u32 handle_generations[])
 {
 	if(!handle.index && !handle.generation) return false;
-	else return entity_generations[handle.index] == handle.generation;
+	else return handle_generations[handle.index] == handle.generation;
 }
 
 internal Entity*
