@@ -52,6 +52,7 @@ struct Particle_emitter
 
 	V3 initial_pos_offset;
 	f32 velocity_yrotation_rng;
+	f32 initial_speed_rng;
 	f32 friction;
 	V3 acceleration;
 
@@ -83,6 +84,7 @@ struct Particle_emitter
 
 		V3 _initial_pos_offset,
 		f32 _velocity_yrotation_rng,
+		f32 _initial_speed_rng,
 		f32 _friction,
 		V3 _acceleration,
 
@@ -111,6 +113,7 @@ struct Particle_emitter
 
 		->initial_pos_offset = _initial_pos_offset,
 		->velocity_yrotation_rng = _velocity_yrotation_rng,
+		->initial_speed_rng = _initial_speed_rng,
 		->friction = _friction,
 		->acceleration = _acceleration,
 
@@ -137,7 +140,9 @@ struct Particle_emitter
 	{
 		particle->flags = particle_flags;
 		particle->position = initial_pos_offset + position;
-		particle->velocity = v3_rotate_y(initial_velocity, rng->next(velocity_yrotation_rng)-(velocity_yrotation_rng/2));
+		V3 final_initial_velocity = (1-rng->next(initial_speed_rng))*initial_velocity;
+		particle->velocity = v3_rotate_y(final_initial_velocity, 
+			rng->next(velocity_yrotation_rng)-(velocity_yrotation_rng/2));
 		particle->acceleration = acceleration;
 		particle->friction = friction;
 
@@ -854,6 +859,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						{0},
 						0,
 						0,
+						0,
 						{0},
 						{0},
 						{1.0f, 0, 0, 0},
@@ -872,6 +878,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						0,
 						{0},
 						TAU32,
+						0,
 						10.0f,
 						{0, 20.0f, 0},
 						{0},
@@ -890,7 +897,31 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 
 				}break;
 				case EET_HEAT|EET_ELECTRIC:{
-					entity->toxic_time_left = 5.0f;
+					entity->toxic_time_left = 8.0f;
+
+					Particle_emitter particle_emitter;
+					particle_emitter.fill_data(
+						PARTICLE_ACTIVE, 
+						20, 
+						0,
+						{0},
+						TAU32,
+						1.0f,
+						10.0f,
+						{0,20.0f,0},
+						{0},
+						{1,0,1,0},
+						1.0f,
+						1.5f,
+						0,0,0,0,0,
+						0.2f, 0, 0.5f,1.0f
+					);
+					UNTIL(particle_count, particle_emitter.particles_count)
+					{
+						particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+							entity->pos, {50.0f, 0,0}, {0.5f,0,1,1}, &memory->rng
+						);
+					}
 
 				}break;
 				case EET_COLD|EET_ELECTRIC:{

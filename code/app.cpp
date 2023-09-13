@@ -1318,7 +1318,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				
 				// TOXIC ENTITIES INFECTING
 
-				#define DEFAULT_TOXIC_RADIUS 2.5f
+				#define DEFAULT_TOXIC_RADIUS 4.5f
 				if((entity2->flags & E_TOXIC_EMITTER) && 
 					!(entity->flags & E_TOXIC_EMITTER) &&
 					!(entity->flags & P_SHIELD)
@@ -1405,7 +1405,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					!(entity->flags & E_SKIP_PARENT_COLLISION) ||
 					entity->parent_handle.index != j ||
 					entity->parent_handle.generation != generations[j]
-				) && ( // THIS IS SO THAT PIERCING PROJECTILES DON'T DIE IF THEY INFLICTED DAMAGE TO THE ENTITY
+				) && ( // this is so that piercing projectiles don't die
 					!(entity->flags & E_DOES_DAMAGE) ||
 					!(entity2->flags & E_RECEIVES_DAMAGE)
 				)
@@ -2167,11 +2167,11 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				}else{
 					toxic_radius = DEFAULT_TOXIC_RADIUS;
 				}
-				request->object3d.scale = v3_multiply(toxic_radius, {1,0.5f,1});
+				request->object3d.scale = {toxic_radius,toxic_radius,toxic_radius};
 				request->object3d.color = {0.2f, 0.0f , 0.4f, 0.3f};
-				// request->object3d.rotation = {PI32/2,0,0};
+				request->object3d.rotation = {PI32/2,0,0};
 				
-				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
 			if(memory->entities[i].flags & E_HEALER)
