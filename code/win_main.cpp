@@ -1225,7 +1225,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		
 		SYSTEMTIME st;
 		GetSystemTime(&st);
-		memory.frame_random_number = (u32)((((f64)st.wMilliseconds/999) + ((f64)st.wSecond/60000)) * 0xffffffff);
+		memory.rng.last_seed = (u32)((((f64)st.wMilliseconds/999) + ((f64)st.wSecond/60000)) * 0xffffffff);
 		app.update(&memory, playback_list, sample_t, global_client_size);
 
 

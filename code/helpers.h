@@ -263,6 +263,7 @@ static union {
 		E_TOXIC_EMITTER,
 		E_TOXIC_DAMAGE_INMUNE,
 		
+		E_EMIT_PARTICLES,
 
 		E_LAST_FLAG;
 	};

@@ -102,17 +102,19 @@ struct Particle_emitter
 };
 
 internal Particle* 
-get_new_particle(Particle* particles, u32 max_particles, u32 last_used_index)
+get_new_particle(Particle* particles, u32 max_particles, u32* last_used_index)
 {
+	u32 current_index = *last_used_index;
 	UNTIL(i, max_particles)
 	{
-		u32 current_index = (last_used_index+i) % max_particles;
+		current_index = (current_index+1) % max_particles;
 		if(!particles[current_index].flags)
 		{
 			return &particles[current_index]; 
 		}
 	}
 	ASSERT(false); // max particles reached
+	*last_used_index = current_index;
 	return 0;
 }
 
@@ -279,7 +281,7 @@ struct Entity{
 			OBJECT3D_STRUCTURE
 		};
 	};
-	Particle_emitter* particle_emitter;
+
 	f32 particle_timer;
 };
 global_variable Entity nil_entity = {0}; 
@@ -528,6 +530,8 @@ struct App_memory
 	Render_target_views render_target_views;
 	Depth_stencils depth_stencils;
 
+	RNG rng;
+
 	f32 fov;
 	f32 aspect_ratio;
 	V3 camera_pos;
@@ -585,8 +589,6 @@ struct App_memory
 
 	s32 debug_active_entities_count;
 
-	u32 frame_random_number;
-
 	Particle* particles;
 	u32 particles_max;
 	u32 last_used_particle_index;
@@ -609,6 +611,30 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 		{
 			u16 reaction = elemental_damage | current_element;
 			b32 reaction_ocurred = true;
+			
+			Particle_emitter particle_emitter = {0};
+			particle_emitter.particle_flags = PARTICLE_ACTIVE;
+			particle_emitter.particles_count = 1;
+			particle_emitter.emit_cooldown = memory->delta_time*2;
+
+			particle_emitter.velocity_yrotation_rng = TAU32;
+			particle_emitter.friction = 10.0f;
+			
+			particle_emitter.acceleration = {0,10.0f, 0};
+			
+			particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
+			particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+			particle_emitter.color_delta_multiplier = 0.5f;
+
+			particle_emitter.particle_lifetime = 0.3f;
+
+			particle_emitter.initial_angle_rng = PI32;
+			particle_emitter.angle_initial_speed_rng = 20.0f;
+			particle_emitter.angle_friction = 4.0f;
+			
+			particle_emitter.initial_scale = 0.2f;
+			particle_emitter.target_scale = 0.0f;
+			particle_emitter.scale_delta_multiplier = 1.0f;
 			switch(reaction)
 			{
 				case EET_WATER|EET_HEAT:{
@@ -627,7 +653,14 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					smoke_screen->lifetime = 4.8f;
 
 					smoke_screen->pos = entity->pos;
-					
+
+					UNTIL(i, 5)
+					{
+						Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+						// Color particles_color = {0.5f, 0.5f, 0.5f, 1};
+						Color particles_color = {1,0,0,1};
+						particle_emitter.emit_particle(new_particle, entity->pos, {20.0f,10.0f,0}, particles_color, &memory->rng);
+					}
 				}break;
 				case EET_WATER|EET_COLD:{
 					entity->freezing_time_left = 5.0f;

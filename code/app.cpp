@@ -5,17 +5,12 @@
 
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
-global_variable RNG rng;
 
-global_variable Particle_emitter global_default_particle_emitter;
-global_variable Particle_emitter global_freeze_particle_emitter;
 
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size)
 {
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
-		
-		rng.last_seed = memory->frame_random_number;
 		
 		set_mem(memory->entities, MAX_ENTITIES*sizeof(Entity), 0);
 		set_mem(memory->entity_generations, MAX_ENTITIES*sizeof(u32), 0);
@@ -32,8 +27,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		global_player_handle.generation = memory->entity_generations[memory->player_uid];
 		Entity* player = &memory->entities[memory->player_uid];
 		default_object3d(player);
-		player->flags = E_VISIBLE|E_SPAWN_ENTITIES|E_AUTO_AIM_BOSS|
-			E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE;
+		player->flags = E_VISIBLE|E_SPAWN_ENTITIES|E_AUTO_AIM_BOSS
+			|E_EMIT_PARTICLES
+			|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE
+			;
 		player->pos = {-25, 0, 0};
 		player->max_health = 100;
 		player->health = player->max_health;
@@ -98,8 +95,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
 		boss->flags = 
-			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|E_NOT_MOVE|
-			E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_SPAWN_ENTITIES;
+			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|E_NOT_MOVE
+			|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_SPAWN_ENTITIES
+			|E_EMIT_PARTICLES
+			;
 
 		boss->speed = 60.0f;
 		boss->friction = 10.0f;
@@ -133,6 +132,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	Entity* entities = memory->entities;
 	u32* generations = memory->entity_generations;
 	Ui_element* ui_elements = memory->ui_elements;
+	RNG* rng = &memory->rng;
 	
 	if(input->debug_speed_up_delta_time == 1)
 	{
@@ -611,7 +611,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// target player
 			// protect boss
 		u64 extra_flags = 0;
-		u32 dice = (u32)(rng.next(4));
+		u32 dice = (u32)(rng->next(4));
 		f32 speed_multiplier = 1.0f;
 
 		//TODO: this should be level specific
@@ -635,22 +635,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			break;
 		}
 
-		new_entity->flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION|
-			E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
+		new_entity->flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION
+			|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
+			|E_EMIT_PARTICLES
+			;
 
-		dice = (u32)(rng.next((f32)memory->level_properties.possible_elements_count));
+		dice = (u32)(rng->next((f32)memory->level_properties.possible_elements_count));
 		new_entity->element_type = memory->level_properties.possible_elements[dice];
 
 		new_entity->color = {1,1,1,1};
 		new_entity->scale = {1.0f,1.0f,1.0f};
 
-		new_entity->speed = speed_multiplier * (0.9f + rng.next(0.2f)) * memory->level_properties.spawned_entities_speed;
+		new_entity->speed = speed_multiplier * (0.9f + rng->next(0.2f)) * memory->level_properties.spawned_entities_speed;
 		new_entity->friction = 5.0f;
 		new_entity->weight = 1.0f;
 		new_entity->max_health = memory->level_properties.spawned_entities_health;
 		new_entity->health = new_entity->max_health;
 		new_entity->action_power = memory->level_properties.spawned_entities_attack_damage;
-		new_entity->action_cd_total_time = (0.9f + rng.next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
+		new_entity->action_cd_total_time = (0.9f + rng->next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
 		new_entity->action_range = 4.0f;
 		new_entity->aura_radius = 3.0f;
 
@@ -658,7 +660,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		new_entity->team_uid = boss_entity->team_uid;
 
 		V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
-		f32 random_angle = rng.next(PI32) - (PI32/2);
+		f32 random_angle = rng->next(PI32) - (PI32/2);
 		new_entity->pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 		
 		// this is basically useless
@@ -1280,6 +1282,36 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								Entity* parent = entity_from_handle(entity2->parent_handle, entities, generations);
 								parent->health = CLAMP(0, parent->health+damage_dealt, parent->max_health);
 							}
+							
+							Particle_emitter particle_emitter = {0};
+							particle_emitter.particle_flags = PARTICLE_ACTIVE;
+							particle_emitter.particles_count = 1;
+							particle_emitter.emit_cooldown = memory->delta_time*2;
+
+							particle_emitter.velocity_yrotation_rng = TAU32;
+							particle_emitter.friction = 10.0f;
+							
+							particle_emitter.acceleration = {0,10.0f, 0};
+							
+							particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
+							particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+							particle_emitter.color_delta_multiplier = 0.5f;
+
+							particle_emitter.particle_lifetime = 0.3f;
+
+							particle_emitter.initial_angle_rng = PI32;
+							particle_emitter.angle_initial_speed_rng = 20.0f;
+							particle_emitter.angle_friction = 4.0f;
+							
+							particle_emitter.initial_scale = 0.2f;
+							particle_emitter.target_scale = 0.0f;
+							particle_emitter.scale_delta_multiplier = 0.5f;
+
+							UNTIL(particle_index, 10)
+							{
+								Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+								particle_emitter.emit_particle(new_particle, entity2->pos, {50,0,0}, {1,1,1,1}, rng);
+							}
 						}
 					}
 				}
@@ -1494,12 +1526,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					UNTIL(current_action_i, repetitions)
 					{
 						Entity* new_bullet; PUSH_BACK(entities_to_create, memory->temp_arena, new_bullet);
-						new_bullet->particle_emitter = &global_default_particle_emitter;
 
 						new_bullet->flags = 
 							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE|
 							E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
-							E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY
+							E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY|E_EMIT_PARTICLES
 							//|E_RECEIVES_DAMAGE
 						;
 
@@ -1798,26 +1829,44 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->freezing_time_left)
 		{
-			entity->particle_emitter = &global_freeze_particle_emitter;
+			//TODO: emit freezing particles
 		}
-		else if(current_element)
-		{
-			entity->particle_emitter = &global_default_particle_emitter;
-		}else{
-			entity->particle_emitter = 0;
-		}
-
 
 		// EMITTING PARTICLES
 
-		if(entity->particle_emitter)
+		if(entity->flags & E_EMIT_PARTICLES)
 		{
+			Particle_emitter particle_emitter = {0};
+			particle_emitter.particle_flags = PARTICLE_ACTIVE;
+			particle_emitter.particles_count = 1;
+			particle_emitter.emit_cooldown = memory->delta_time*2;
+
+			particle_emitter.velocity_yrotation_rng = TAU32;
+			particle_emitter.friction = 10.0f;
+			
+			particle_emitter.acceleration = {0,10.0f, 0};
+			
+			particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
+			particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+			particle_emitter.color_delta_multiplier = 0.5f;
+
+			particle_emitter.particle_lifetime = 0.3f;
+
+			particle_emitter.initial_angle_rng = PI32;
+			particle_emitter.angle_initial_speed_rng = 20.0f;
+			particle_emitter.angle_friction = 4.0f;
+			
+			particle_emitter.initial_scale = 0.2f;
+			particle_emitter.target_scale = 0.0f;
+			particle_emitter.scale_delta_multiplier = 1.0f;
+
 			entity->particle_timer += world_delta_time;
-			if(entity->particle_timer >= entity->particle_emitter->emit_cooldown)
+
+			if(entity->particle_timer >= particle_emitter.emit_cooldown)
 			{
-				entity->particle_timer -= entity->particle_emitter->emit_cooldown;
+				entity->particle_timer -= particle_emitter.emit_cooldown;
 				f32 particle_initial_speed = 20.0f;
-				UNTIL(current_particle, entity->particle_emitter->particles_count)
+				UNTIL(current_particle, particle_emitter.particles_count)
 				{
 					Color particles_color = {1,1,1,0.1f};
 					switch(current_element)
@@ -1845,12 +1894,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						case 0:
 						{
 							particle_initial_speed = 5.0f;
+							particles_color = {0.5f,0.5f,0.5f,1};
 						}break;
 						default:
 							ASSERT(false);
 					}
-					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, memory->last_used_particle_index);
-					entity->particle_emitter->emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &rng);
+					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+					particle_emitter.emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &memory->rng);
 				}
 			}
 		}
@@ -2025,8 +2075,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					memory->selected_uid = e_index;
 
 					// default_melee(new_entity, memory);
-					new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION|
-						E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT;
+					new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION
+						|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
+						|E_EMIT_PARTICLES
+						;
 
 					new_entity->color = {1,1,1,1};
 					new_entity->scale = {1.0f,1.0f,1.0f};
@@ -2346,7 +2398,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	UNTIL(i, MAX_ENTITIES)
 	{
-		if((memory->entities[i].flags & E_VISIBLE)
+		if((memory->entities[i].flags & E_RECEIVES_DAMAGE)
 		){
 			f32 health_offset = memory->entities[i].health - (s32)(memory->entities[i].health);
 			String health_string = number_to_string((s32)memory->entities[i].health+(!!health_offset), memory->temp_arena);
@@ -2598,61 +2650,61 @@ void init(App_memory* memory, Init_data* init_data){
 	
 	// default particle emitter
 	
-	global_default_particle_emitter.particle_flags = PARTICLE_ACTIVE;
-	global_default_particle_emitter.particles_count = 1;
-	global_default_particle_emitter.emit_cooldown = memory->delta_time*2;
+	// global_default_particle_emitter.particle_flags = PARTICLE_ACTIVE;
+	// global_default_particle_emitter.particles_count = 1;
+	// global_default_particle_emitter.emit_cooldown = memory->delta_time*2;
 
-	global_default_particle_emitter.initial_pos_offset = {0,0,0};
-	global_default_particle_emitter.velocity_yrotation_rng = TAU32;
-	global_default_particle_emitter.friction = 10.0f;
+	// global_default_particle_emitter.initial_pos_offset = {0,0,0};
+	// global_default_particle_emitter.velocity_yrotation_rng = TAU32;
+	// global_default_particle_emitter.friction = 10.0f;
 	
-	global_default_particle_emitter.acceleration = {0,10.0f, 0};
+	// global_default_particle_emitter.acceleration = {0,10.0f, 0};
 	
-	global_default_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
-	global_default_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
-	global_default_particle_emitter.color_delta_multiplier = 0.5f;
+	// global_default_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
+	// global_default_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+	// global_default_particle_emitter.color_delta_multiplier = 0.5f;
 
-	global_default_particle_emitter.particle_lifetime = 0.3f;
+	// global_default_particle_emitter.particle_lifetime = 0.3f;
 
-	global_default_particle_emitter.initial_angle_rng = PI32;
-	global_default_particle_emitter.angle_speed = 0;
-	global_default_particle_emitter.angle_initial_speed_rng = 20.0f;
-	global_default_particle_emitter.angle_accel = 0;
-	global_default_particle_emitter.angle_friction = 4.0f;
+	// global_default_particle_emitter.initial_angle_rng = PI32;
+	// global_default_particle_emitter.angle_speed = 0;
+	// global_default_particle_emitter.angle_initial_speed_rng = 20.0f;
+	// global_default_particle_emitter.angle_accel = 0;
+	// global_default_particle_emitter.angle_friction = 4.0f;
 	
-	global_default_particle_emitter.initial_scale = 0.2f;
-	global_default_particle_emitter.target_scale = 0.0f;
-	global_default_particle_emitter.scale_delta_multiplier = 1.0f;
-	global_default_particle_emitter.initial_scale_rng = 0;
+	// global_default_particle_emitter.initial_scale = 0.2f;
+	// global_default_particle_emitter.target_scale = 0.0f;
+	// global_default_particle_emitter.scale_delta_multiplier = 1.0f;
+	// global_default_particle_emitter.initial_scale_rng = 0;
 	
 	// freeze particle emitter
 	
-	global_freeze_particle_emitter.particle_flags = PARTICLE_ACTIVE;
-	global_freeze_particle_emitter.particles_count = 1;
-	global_freeze_particle_emitter.emit_cooldown = 0.3f;
+	// global_freeze_particle_emitter.particle_flags = PARTICLE_ACTIVE;
+	// global_freeze_particle_emitter.particles_count = 1;
+	// global_freeze_particle_emitter.emit_cooldown = 0.3f;
 
-	global_freeze_particle_emitter.initial_pos_offset = {0, 2.0f, 0};
-	global_freeze_particle_emitter.velocity_yrotation_rng = TAU32;
-	global_freeze_particle_emitter.friction = 2.0f;
+	// global_freeze_particle_emitter.initial_pos_offset = {0, 2.0f, 0};
+	// global_freeze_particle_emitter.velocity_yrotation_rng = TAU32;
+	// global_freeze_particle_emitter.friction = 2.0f;
 	
-	global_freeze_particle_emitter.acceleration = {0,-5.0f, 0};
+	// global_freeze_particle_emitter.acceleration = {0,-5.0f, 0};
 	
-	global_freeze_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
-	global_freeze_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
-	global_freeze_particle_emitter.color_delta_multiplier = 1.0f;
+	// global_freeze_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
+	// global_freeze_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+	// global_freeze_particle_emitter.color_delta_multiplier = 1.0f;
 
-	global_freeze_particle_emitter.particle_lifetime = 2.5f;
+	// global_freeze_particle_emitter.particle_lifetime = 2.5f;
 
-	global_freeze_particle_emitter.initial_angle_rng = PI32;
-	global_freeze_particle_emitter.angle_speed = 0;
-	global_freeze_particle_emitter.angle_initial_speed_rng = 20.0f;
-	global_freeze_particle_emitter.angle_accel = 0;
-	global_freeze_particle_emitter.angle_friction = 4.0f;
+	// global_freeze_particle_emitter.initial_angle_rng = PI32;
+	// global_freeze_particle_emitter.angle_speed = 0;
+	// global_freeze_particle_emitter.angle_initial_speed_rng = 20.0f;
+	// global_freeze_particle_emitter.angle_accel = 0;
+	// global_freeze_particle_emitter.angle_friction = 4.0f;
 	
-	global_freeze_particle_emitter.initial_scale = 0.2f;
-	global_freeze_particle_emitter.target_scale = 0.0f;
-	global_freeze_particle_emitter.scale_delta_multiplier = 1.0f;
-	global_freeze_particle_emitter.initial_scale_rng = 0;
+	// global_freeze_particle_emitter.initial_scale = 0.2f;
+	// global_freeze_particle_emitter.target_scale = 0.0f;
+	// global_freeze_particle_emitter.scale_delta_multiplier = 1.0f;
+	// global_freeze_particle_emitter.initial_scale_rng = 0;
 
 /*
 	// CREATING CONSTANT_BUFFER
