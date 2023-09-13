@@ -1256,7 +1256,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 
 							//TODO: not very multithready friendly
-							
+
 							//TODO: push this code to a list to process this outside the main loop
 							entity2->jump_change_direction = true; 
 							if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION

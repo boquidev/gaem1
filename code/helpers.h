@@ -149,6 +149,16 @@ struct Surface
 
 // TEMPORARILY ORPHAN 
 
+
+// STRUCT FILLER
+#define STRUCT_FILLER(name,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32,a33,a34,a35,a36,a37,a38,a39,a40) \
+	name##a1;name##a2;name##a3;name##a4;name##a5;name##a6;name##a7;name##a8;name##a9;name##a10;\
+	name##a11;name##a12;name##a13;name##a14;name##a15;name##a16;name##a17;name##a18;name##a19;name##a20;\
+	name##a21;name##a22;name##a23;name##a24;name##a25;name##a26;name##a27;name##a28;name##a29;name##a30;\
+	name##a31;name##a32;name##a33;name##a34;name##a35;name##a36;name##a37;name##a38;name##a39;name##a40;
+
+#define TEST_STRUCT(_eeee,_iiii) int aa##_iiii = _eeee
+
 //CUSTOM BITFIELD ENUMS
 #define FLAGS_ARRAY32(name) u32 name [32] = {\
 		1,name[0]*2,name[1]*2,name[2]*2,name[3]*2,name[4]*2,name[5]*2,\

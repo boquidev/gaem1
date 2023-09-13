@@ -42,6 +42,7 @@ struct Particle
 	f32 scale_delta_multiplier;
 };
 
+
 struct Particle_emitter
 {
 	u32 particle_flags;
@@ -72,6 +73,65 @@ struct Particle_emitter
 	f32 scale_delta_multiplier;
 
 	//TODO: texinfo_uid;
+
+	//TODO: this would be something metaprogramming could help with
+	void fill_data(
+		u32 _particle_flags,
+		u32 _particles_count,
+
+		f32 _emit_cooldown,
+
+		V3 _initial_pos_offset,
+		f32 _velocity_yrotation_rng,
+		f32 _friction,
+		V3 _acceleration,
+
+		Color _color_rng,
+		Color _target_color,
+		f32 _color_delta_multiplier,
+
+		f32 _particle_lifetime,
+
+		f32 _initial_angle_rng,
+		f32 _angle_speed,
+		f32 _angle_initial_speed_rng,
+		f32 _angle_accel,
+		f32 _angle_friction,
+		
+		f32 _initial_scale,
+		f32 _initial_scale_rng,
+		f32 _target_scale,
+		f32 _scale_delta_multiplier
+	){
+		STRUCT_FILLER(this, 
+		->particle_flags = _particle_flags,
+		->particles_count = _particles_count,
+
+		->emit_cooldown = _emit_cooldown,
+
+		->initial_pos_offset = _initial_pos_offset,
+		->velocity_yrotation_rng = _velocity_yrotation_rng,
+		->friction = _friction,
+		->acceleration = _acceleration,
+
+		->color_rng = _color_rng,
+		->target_color = _target_color,
+		->color_delta_multiplier = _color_delta_multiplier,
+
+		->particle_lifetime = _particle_lifetime,
+
+		->initial_angle_rng = _initial_angle_rng,
+		->angle_speed = _angle_speed,
+		->angle_initial_speed_rng = _angle_initial_speed_rng,
+		->angle_accel = _angle_accel,
+		->angle_friction = _angle_friction,
+
+		->initial_scale = _initial_scale,
+		->initial_scale_rng = _initial_scale_rng,
+		->target_scale = _target_scale,
+		->scale_delta_multiplier = _scale_delta_multiplier
+		);
+	}
 
 	void emit_particle(Particle* particle, V3 position, V3 initial_velocity, Color color, RNG* rng)
 	{
@@ -732,10 +792,11 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					particle_emitter.particle_lifetime = memory->delta_time*3;
 					
 					particle_emitter.initial_scale = 5.0f;
-
 					
 					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
 					particle_emitter.emit_particle(new_particle, entity->pos, {0,0,0}, {1,1,0,1}, &memory->rng);
+
+
 
 					particle_emitter = {0};
 
@@ -755,6 +816,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 
 					UNTIL(particle_counter, particle_emitter.particles_count)
 					{
+						
 						particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
 							entity->pos, {50.0f, 0,0}, {1,1,0,1}, &memory->rng
 						);
@@ -766,7 +828,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 
 					explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
 
-					explosion_hitbox->color = {1.0f, 0, 0, 0.3f};
+					explosion_hitbox->color = {1.0f, 1.0f, 0, 1.0f};
 					explosion_hitbox->scale = {8,8,8};
 					explosion_hitbox->creation_size = 1.0f;
 
@@ -782,6 +844,49 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 					explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
 					explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
+
+					
+					Particle_emitter particle_emitter = {0};
+					particle_emitter.fill_data(
+						PARTICLE_ACTIVE,
+						1,
+						0,
+						{0},
+						0,
+						0,
+						{0},
+						{0},
+						{1.0f, 0, 0, 0},
+						1.0f,
+						0.2f,
+						0,0,0,0,0,
+						8.0f, 0, 5.0f, 1.0f
+					);
+					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+						entity->pos, {0,0,0}, {1,1,0,1}, &memory->rng
+					);
+
+					particle_emitter.fill_data(
+						PARTICLE_ACTIVE,
+						8,
+						0,
+						{0},
+						TAU32,
+						10.0f,
+						{0, 20.0f, 0},
+						{0},
+						{1.0f,.5f,.5f,0},
+						1.0f,
+						1.0f,
+						0,0,0,0,0,
+						0.5f, 0, 1.0f,1.0f
+					);
+					UNTIL(particle_i, particle_emitter.particles_count)
+					{
+						particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+							entity->pos, {50.0f, 0,0}, {1,0.9f,0,1}, &memory->rng
+						);
+					}
 
 				}break;
 				case EET_HEAT|EET_ELECTRIC:{
