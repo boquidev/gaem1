@@ -534,6 +534,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// UPDATE 1 FRAME IF THE KEY IS TAPPED
 	if(memory->is_paused) if (input->debug_right != 1) return;
 
+	memory->time_s += memory->delta_time;
+
 	// ADD RESOURCES OVER TIME
 
 	memory->add_resource_current_time += world_delta_time;
@@ -1822,7 +1824,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					{
 						case EET_WATER:
 						{
-							particles_color = {0, 0.3f, 0.6f, 1};
+							particles_color = {0, 0.4f, 0.8f, 1};
 						}break;
 						case EET_HEAT:
 						{
@@ -2062,19 +2064,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 }
 
 
-
 void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_size)
 {
 	Renderer_request* request = 0;
 	PUSH_BACK(render_list, memory->temp_arena,request);
 	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_DEPTH_WRITING|
-		REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL;
+		REQUEST_FLAG_SET_BLEND_STATE|REQUEST_FLAG_SET_DEPTH_STENCIL|REQUEST_FLAG_SET_TIME;
 	request->vshader_uid = memory->vshaders.default_vshader_uid;
 	request->pshader_uid = memory->pshaders.default_pshader_uid;
 	request->blend_state_uid = memory->blend_states.default_blend_state_uid;
 	request->depth_stencil_uid = memory->depth_stencils.default_depth_stencil_uid;
 	request->render_target_view_uid = memory->render_target_views.post_processing_rtv;
 	request->depth_writing = 1.0f;
+	request->new_time = memory->time_s;
 
 	LIST(Renderer_request, delayed_render_list) = {0};
 	LIST(Renderer_request, delayed_render_list2) = {0};
@@ -2127,11 +2129,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 				// V3 yoffset = {0, -1, 0};
 				request->object3d.pos = memory->entities[i].pos;// + yoffset;
-				request->object3d.scale = v3_multiply(memory->entities[i].aura_radius, {1,0.5,1});
-				request->object3d.color = {0.0f, 0.5f, 0.1f, 0.3f};
-				// request->object3d.rotation = {PI32/2, 0, 0};
+				request->object3d.scale = {memory->entities[i].aura_radius,memory->entities[i].aura_radius,1};
+				request->object3d.color = {0.0f, 0.4f, 0.1f, 0.3f};
+				request->object3d.rotation = {PI32/2, 0, 0};
 
-				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+				// request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+				request->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
 			if(memory->entities[i].freezing_time_left)
@@ -2245,8 +2248,12 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// UPDATING AND RENDERING PARTICLES
 	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_SET_PS;
+	request->type_flags = REQUEST_FLAG_SET_PS
+		|REQUEST_FLAG_SET_DEPTH_WRITING
+		;
+	request->depth_writing = 0.0f;
 	request->pshader_uid = memory->pshaders.circle_pshader_uid;
+	request->depth_writing = 0.0f;
 
 	UNTIL(i, memory->particles_max)
 	{
@@ -2293,11 +2300,20 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	}
 	// RENDER AURAS
 	
+	// PUSH_BACK(render_list, memory->temp_arena, request);
+	// request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS
+	// 	|REQUEST_FLAG_SET_DEPTH_WRITING
+	// 	;
+	// request->pshader_uid = memory->pshaders.default_pshader_uid;
+	// request->vshader_uid = memory->vshaders.default_vshader_uid;
+	// request->depth_writing = 0.0f;
+
 	PUSH_BACK(render_list, memory->temp_arena, request);
-	request->type_flags = REQUEST_FLAG_SET_PS|REQUEST_FLAG_SET_VS|REQUEST_FLAG_SET_DEPTH_WRITING;
-	request->pshader_uid = memory->pshaders.default_pshader_uid;
-	request->vshader_uid = memory->vshaders.default_vshader_uid;
-	request->depth_writing = 0.0f;
+	request->type_flags = REQUEST_FLAG_SET_PS
+		;
+	request->pshader_uid = memory->pshaders.circle_wave_pshader_uid;
+	// request->depth_writing = 0.0f;
+	
 	
 	// DELAYED RENDER LISTS
 
@@ -2510,6 +2526,11 @@ void init(App_memory* memory, Init_data* init_data){
 		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
 		request.p_uid = &memory->pshaders.circle_pshader_uid;
 		request.filename = string("shaders/circle_ps.cso");
+		PUSH_ASSET_REQUEST;
+
+		request.type = PIXEL_SHADER_FROM_FILE_REQUEST;
+		request.p_uid = &memory->pshaders.circle_wave_pshader_uid;
+		request.filename = string("shaders/circle_wave_ps.cso");
 		PUSH_ASSET_REQUEST;
 		
 		request.type = VERTEX_SHADER_FROM_FILE_REQUEST;

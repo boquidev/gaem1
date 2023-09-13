@@ -761,7 +761,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		quad_primitive.indices = indices;
 		quad_primitive.indices_count = 6;
 
-		*screen_quad_mesh = dx11_init_mesh(dx, &quad_primitive, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		*screen_quad_mesh = dx11_init_mesh(dx, &quad_primitive, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	}
 
 	
@@ -816,8 +816,13 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	);
 
 	D3D_constant_buffer screen_dimensions_buffer = {0};
-	dx11_create_constant_buffer(dx, &screen_dimensions_buffer, 2*sizeof(V2), SCREEN_DIMENSIONS_REGISTER_INDEX, 0);
+	dx11_create_constant_buffer(dx, &screen_dimensions_buffer, 2*sizeof(V2), OBJECT_BUFFER_REGISTER_INDEX, 0);
 	dx->context->PSSetConstantBuffers(0, 1, &screen_dimensions_buffer.buffer);
+
+	D3D_constant_buffer time_constant_buffer = {0};
+	dx11_create_constant_buffer(dx, &time_constant_buffer, 4*sizeof(f32), OBJECT_BUFFER_REGISTER_INDEX, 0);
+	dx->context->PSSetConstantBuffers(1, 1, &time_constant_buffer.buffer);
+
 
 
 	// CREATING  D3D PIPELINES
@@ -854,7 +859,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	while(global_running)
 	{
 		arena_pop_back_size(temp_arena, temp_arena->used);
-
 
 		// HANDLE WINDOW RESIZING
 		Int2 current_client_size = win_get_client_sizes(global_main_window);
@@ -1508,8 +1512,9 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					
 					dx->context->IASetPrimitiveTopology( object_mesh->topology );
 					dx11_bind_vertex_buffer(dx, object_mesh->vertex_buffer, object_mesh->vertex_size);
-					
-					dx->context->Draw(4, 0);
+
+					dx->context->IASetIndexBuffer(object_mesh->index_buffer, DXGI_FORMAT_R16_UINT, 0);
+					dx->context->DrawIndexed(object_mesh->indices_count, 0, 0);
 				
 				}
 				else if(request->type_flags & REQUEST_FLAG_POSTPROCESSING) // POST PROCESSING EFFECTS
@@ -1555,7 +1560,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					dx11_bind_ps(dx, *pixel_shader);
 
 					dx->context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-					
 
 					dx11_bind_vertex_buffer(dx, screen_quad_mesh->vertex_buffer, screen_quad_mesh->vertex_size);
 
@@ -1583,6 +1587,10 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 					if(request->type_flags & REQUEST_FLAG_SET_DEPTH_WRITING){
 						camera_pos.w = request->depth_writing;
 						dx11_modify_resource(dx, camera_pos_buffer.buffer, &camera_pos, sizeof(V4));
+					}
+					if(request->type_flags & REQUEST_FLAG_SET_TIME)
+					{
+						dx11_modify_resource(dx, time_constant_buffer.buffer, &request->new_time, sizeof(f32));
 					}
 					if(request->type_flags & REQUEST_FLAG_SET_DEPTH_STENCIL){
 						Depth_stencil* depth_stencil; LIST_GET(depth_stencils_list, request->depth_stencil_uid, depth_stencil);

@@ -468,6 +468,7 @@ struct PShaders{
 	u32 default_pshader_uid;
 	u32 ui_pshader_uid;
 	u32 circle_pshader_uid;
+	u32 circle_wave_pshader_uid;
 	u32 postprocessing_pshader_uid;
 };
 
@@ -541,6 +542,7 @@ struct App_memory
 	f32 update_hz;
 	f32 delta_time;
 	u32 time_ms; // this goes up to 1200 hours more or less 
+	f32 time_s;
 
 	b32 is_paused;
 
@@ -781,6 +783,7 @@ enum RENDERER_REQUEST_TYPE_FLAGS
 	REQUEST_FLAG_SET_DEPTH_STENCIL	= 1 << 6,
 	REQUEST_FLAG_RENDER_PARTICLES		= 1 << 7, //TODO: turn this into instancing
 	REQUEST_FLAG_SET_DEPTH_WRITING 	= 1 << 8,
+	REQUEST_FLAG_SET_TIME 				= 1 << 9,
 
 
 	REQUEST_FLAG_POSTPROCESSING 		= 1 << 30,
@@ -803,6 +806,7 @@ struct Renderer_request{
 			u32 render_target_view_uid;
 			u32 depth_stencil_uid;	
 			f32 depth_writing;
+			f32 new_time;
 		};
 	};
 };
