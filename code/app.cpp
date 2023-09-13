@@ -1256,26 +1256,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 
 							//TODO: not very multithready friendly
+							
+							//TODO: push this code to a list to process this outside the main loop
+							entity2->jump_change_direction = true; 
+							if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
+								entity2->ignore_sphere_pos = entity->pos;
+								entity2->ignore_sphere_radius = 0.9f;
+							}else{
+								V3 difference = entity->pos - entity2->ignore_sphere_pos;
+								entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
+								entity2->ignore_sphere_radius = MAX(0.9f,entity2->ignore_sphere_radius + v3_magnitude(difference)/2);
+							}
+							entity2->ignore_sphere_target_pos = entity->pos;
+
 							entity2->health--;
 							if(entity2->health <= 0)
 							{
 								s32* index_to_kill;
 								PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 								*index_to_kill = j;
-							}
-							else
-							{
-								//TODO: push this code to a list to process this outside the main loop
-								entity2->jump_change_direction = true; 
-								if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
-									entity2->ignore_sphere_pos = entity->pos;
-									entity2->ignore_sphere_radius = 0.9f;
-								}else{
-									V3 difference = entity->pos - entity2->ignore_sphere_pos;
-									entity2->ignore_sphere_pos = entity2->ignore_sphere_pos + (difference/2);
-									entity2->ignore_sphere_radius = MAX(0.9f,entity2->ignore_sphere_radius + v3_magnitude(difference)/2);
-								}
-								entity2->ignore_sphere_target_pos = entity->pos;
 							}
 							if(entity2->flags & A_STEAL_LIFE)
 							{
@@ -2193,9 +2192,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			{				
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-				request->object3d.color = {0.3f, 0.9f, 1.0f, 0.3f};
+				request->object3d.color = {0.5f, 0.6f, 1.0f, 0.3f};
 				request->object3d.pos = memory->entities[i].pos;
-				request->object3d.scale = {1,1,1};
+				request->object3d.scale = {1.5f,1.5f,1.5f};
 				request->object3d.rotation = {PI32/4, PI32/4, PI32/4};
 
 				request->object3d.mesh_uid = memory->meshes.centered_cube_mesh_uid;
