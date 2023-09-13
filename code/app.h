@@ -926,6 +926,31 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 				}break;
 				case EET_COLD|EET_ELECTRIC:{
 					entity->gravity_field_time_left = 10.0f;
+					
+					Particle_emitter particle_emitter;
+					particle_emitter.fill_data(
+						PARTICLE_ACTIVE,
+						1,
+						0,
+						{0},
+						0,
+						0,
+						0,
+						{0},
+						{0},
+						{0,0,0,1},
+						5.0f,
+						2.0f,
+						0,0,0,0,0,
+						10.0f,
+						0,
+						0.01f,
+						5.0f
+					);
+
+					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+						entity->pos, {0}, {1,1,1,1}, &memory->rng
+					);
 				}break;
 				// THE SAME ELEMENT
 				case EET_WATER:

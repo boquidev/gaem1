@@ -1377,11 +1377,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// BEING AFFECTED BY THE ENTITY'S GRAVITY FIELD
 
-			if(distance < entity2->gravity_field_time_left && entity->weight)
+			if(entity2->gravity_field_time_left)
 			{
-				f32 entity_speed = MAX(v3_magnitude(entity->velocity), 0.5F);
-				//TODO: this is independent of entity_dt 
-				entity->velocity = entity_speed * v3_normalize(entity->velocity + (distance_vector/(20*entity->weight)));
+				f32 gravity_field_radius = SQRT(entity2->gravity_field_time_left)*3;
+				if(distance < gravity_field_radius && entity->weight)
+				{
+					f32 entity_speed = MAX(v3_magnitude(entity->velocity), 0.5F);
+					//TODO: this is independent of entity_dt 
+					entity->velocity = entity_speed * v3_normalize(entity->velocity + (distance_vector/(20*entity->weight)));
+				}
 			}
 
 			// BEING AFFECTED BY THE SMOKE SCREEN
@@ -1830,6 +1834,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			//TODO: emit freezing particles
 		}
+		if(entity->toxic_time_left)
+		{
+			//TODO: emit toxic particles
+		}
+		if(entity->gravity_field_time_left)
+		{
+			//TODO: emit toxic particles
+		}
 
 		// EMITTING PARTICLES
 
@@ -2202,14 +2214,24 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			}
 			if(memory->entities[i].gravity_field_time_left)
 			{
+				PUSH_BACK(delayed_render_list2,  memory->temp_arena, request);
+				request->type_flags = REQUEST_FLAG_SET_TIME;
+				request->new_time = -memory->time_s;
+
 				PUSH_BACK(delayed_render_list2, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 				request->object3d.color = {0.0f, 0.0f, 0.0f, 0.3f};
 				request->object3d.pos = memory->entities[i].pos;
-				request->object3d.scale = v3_multiply(memory->entities[i].gravity_field_time_left, {1,0.5f,1});
+				f32 gf_radius = SQRT(memory->entities[i].gravity_field_time_left)*3;
+				request->object3d.scale = {gf_radius,gf_radius,gf_radius};
+				request->object3d.rotation = {PI32/2, 0, 0};
 
-				request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+				
+				PUSH_BACK(delayed_render_list2,  memory->temp_arena, request);
+				request->type_flags = REQUEST_FLAG_SET_TIME;
+				request->new_time = memory->time_s;
 			}
 
 			// THIS IS JUST FOR DEBUG
