@@ -1040,7 +1040,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		
 		
 		// ROTATION / LOOKING DIRECTION
-		if(!(entity->flags & E_SKIP_ROTATION)){
+		if(!(entity->flags & E_SKIP_ROTATION) && !entity->freezing_time_left){
 			// this is negative cuz +y is up while we are looking down
 			entity->rotation.y = - (v2_angle({entity->looking_direction.x, entity->looking_direction.z}) + PI32/2); 
 			entity->rotation.x = entity->velocity.z/10;
@@ -1832,7 +1832,59 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->freezing_time_left)
 		{
-			//TODO: emit freezing particles
+			f32 dice = rng->next(40);
+			if(dice < 2)
+			{
+				Color init_color;
+				Color target_color;
+				f32 color_delta;
+				f32 init_scale;
+				f32 target_scale;
+				f32 scale_delta;
+				if(dice < 1)
+				{
+					init_color = {.5f, .6f, 1.0f, 0.0f};
+					target_color = {.8f, .9f, 1.0f, 1.0f};
+					color_delta = 3.0f;
+					init_scale = 0.3f;
+					target_scale = 0.0f;
+					scale_delta = 0.8f;
+				}else{
+					init_color = {.8f, .9f, 1.0f, 1.0f};
+					target_color = {.5f, .6f, 1.0f, 0.0f};
+					color_delta = 0.2f;
+					init_scale = 0.0f;
+					target_scale = 0.2f;
+					scale_delta = 5.0f;
+				}
+
+				Particle_emitter particle_emitter;
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					1,
+					0,
+					memory->textures.ice_tex_uid,
+					{0},
+					{3.0f,3.0f,3.0f},
+					TAU32,
+					0,
+					10.0f,
+					{0},
+					{0},
+					target_color,
+					color_delta,
+					1.0f,
+					0,0,0,0,0,
+					init_scale,
+					0,
+					target_scale,
+					scale_delta
+				);
+				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+				particle_emitter.emit_particle(new_particle, entity->pos, {0}, init_color, rng);
+
+				new_particle->target_entity_h = {i, generations[i]};
+			}
 		}
 		if(entity->toxic_time_left)
 		{
@@ -1855,7 +1907,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					PARTICLE_ACTIVE|PARTICLE_ACCEL_TOWARDS_TARGET_ENTITY,
 					1,
 					0,
+					0,
 					pos_offset,
+					{0},
 					0,
 					0,
 					0,
@@ -1914,42 +1968,44 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				entity->particle_timer -= particle_emitter.emit_cooldown;
 				f32 particle_initial_speed = 20.0f;
-				UNTIL(current_particle, particle_emitter.particles_count)
+				if(entity->flags & E_DOES_DAMAGE)
 				{
-					Color particles_color = {1,1,1,0.1f};
-					switch(current_element)
-					{
-						case EET_WATER:
-						{
-							particles_color = {0, 0.4f, 0.8f, 1};
-						}break;
-						case EET_HEAT:
-						{
-							particles_color = {1, 0.4f, 0, 1};
-						}break;
-						case EET_COLD:
-						{
-							particles_color = {0.7f, 0.7f, 1, 1};
-						}break;
-						case EET_ELECTRIC:
-						{
-							particles_color = {1, 1, 0, 1};
-						}break;
-						case EET_HEAL:
-						{
-							particles_color = {0,1,0,1};
-						}break;
-						case 0:
-						{
-							particle_initial_speed = 5.0f;
-							particles_color = {0.5f,0.5f,0.5f,1};
-						}break;
-						default:
-							ASSERT(false);
-					}
-					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
-					particle_emitter.emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &memory->rng);
+					particle_initial_speed = 10.0f;
 				}
+
+				Color particles_color = {1,1,1,0.1f};
+				switch(current_element)
+				{
+					case EET_WATER:
+					{
+						particles_color = {0, 0.4f, 0.8f, 1};
+					}break;
+					case EET_HEAT:
+					{
+						particles_color = {1, 0.4f, 0, 1};
+					}break;
+					case EET_COLD:
+					{
+						particles_color = {0.7f, 0.7f, 1, 1};
+					}break;
+					case EET_ELECTRIC:
+					{
+						particles_color = {1, 1, 0, 1};
+					}break;
+					case EET_HEAL:
+					{
+						particles_color = {0,1,0,1};
+					}break;
+					case 0:
+					{
+						particles_color = {0.5f,0.5f,0.5f,1};
+						particle_initial_speed = 5.0f;
+					}break;
+					default:
+						ASSERT(false);
+				}
+				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+				particle_emitter.emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &memory->rng);
 			}
 		}
 
@@ -2128,6 +2184,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						|E_EMIT_PARTICLES
 						;
 
+					new_entity->freezing_time_left = 100.0f;
+
 					new_entity->color = {1,1,1,1};
 					new_entity->scale = {1.0f,1.0f,1.0f};
 
@@ -2241,7 +2299,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			{				
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-				request->object3d.color = {0.5f, 0.6f, 1.0f, 0.3f};
+				request->object3d.color = {0.6f, 0.7f, 1.0f, 1.0f};
 				request->object3d.pos = memory->entities[i].pos;
 				request->object3d.scale = {1.5f,1.5f,1.5f};
 				request->object3d.rotation = {PI32/4, PI32/4, PI32/4};
@@ -2379,7 +2437,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			{
 				if(is_handle_valid(particle->target_entity_h, memory->entity_generations))
 				{
-					accel = memory->entities[particle->target_entity_h.index].pos - particle->position;
+					accel = accel + (memory->entities[particle->target_entity_h.index].pos - particle->position);
 				}
 			}
 			particle->velocity = particle->velocity + memory->delta_time * calculate_delta_velocity(particle->velocity, accel, particle->friction);
@@ -2408,7 +2466,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			PUSH_BACK(render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_PARTICLES;
 			request->mesh_uid = memory->meshes.centered_plane_mesh_uid;
-			request->texinfo_uid = memory->textures.white_tex_uid;
+			request->texinfo_uid = particle->tex_uid;
 			
 			request->scale = {particle->scale, particle->scale, particle->scale};
 			request->pos = particle->position;
@@ -2836,7 +2894,8 @@ void init(App_memory* memory, Init_data* init_data){
 			{string(":default_tex:"), &memory->textures.default_tex_uid},
 			{string(":white_tex:"), &memory->textures.white_tex_uid},
 			{string(":gradient_tex:"), &memory->textures.gradient_tex_uid},
-			{string(":test_texture:"), &memory->textures.test_tex_uid}
+			{string(":test_texture:"), &memory->textures.test_tex_uid},
+			{string(":ice_tex:"), &memory->textures.ice_tex_uid}
 		};
 
 		LIST(String, textures_filenames) = {0};

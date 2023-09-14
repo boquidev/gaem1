@@ -42,6 +42,7 @@ struct Particle
 
 	*/
 	u32 flags;
+	u32 tex_uid;
 
 	V3 position;
 	V3 velocity;
@@ -71,10 +72,11 @@ struct Particle_emitter
 {
 	u64 particle_flags;
 	u32 particles_count;
-
 	f32 emit_cooldown;
+	u32 tex_uid;
 
 	V3 initial_pos_offset;
+	V3 initial_pos_rng;
 	f32 velocity_yrotation_rng;
 	f32 initial_speed_rng;
 	f32 friction;
@@ -103,10 +105,11 @@ struct Particle_emitter
 	void fill_data(
 		u64 _particle_flags,
 		u32 _particles_count,
-
 		f32 _emit_cooldown,
+		u32 _tex_uid,
 
 		V3 _initial_pos_offset,
+		V3 _initial_pos_rng,
 		f32 _velocity_yrotation_rng,
 		f32 _initial_speed_rng,
 		f32 _friction,
@@ -132,10 +135,12 @@ struct Particle_emitter
 		STRUCT_FILLER(this, 
 		->particle_flags = _particle_flags,
 		->particles_count = _particles_count,
-
 		->emit_cooldown = _emit_cooldown,
+		->tex_uid = _tex_uid,
+
 
 		->initial_pos_offset = _initial_pos_offset,
+		->initial_pos_rng = _initial_pos_rng,
 		->velocity_yrotation_rng = _velocity_yrotation_rng,
 		->initial_speed_rng = _initial_speed_rng,
 		->friction = _friction,
@@ -163,7 +168,13 @@ struct Particle_emitter
 	void emit_particle(Particle* particle, V3 position, V3 initial_velocity, Color color, RNG* rng)
 	{
 		particle->flags = (u32)particle_flags;
-		particle->position = initial_pos_offset + position;
+		particle->tex_uid = tex_uid;
+		V3 pos_result_rng = {
+			rng->next(initial_pos_rng.x)-(initial_pos_rng.x/2),
+			rng->next(initial_pos_rng.y)-(initial_pos_rng.y/2),
+			rng->next(initial_pos_rng.z)-(initial_pos_rng.z/2),
+			};
+		particle->position = position + initial_pos_offset + pos_result_rng;
 		V3 final_initial_velocity = (1-rng->next(initial_speed_rng))*initial_velocity;
 		particle->velocity = v3_rotate_y(final_initial_velocity, 
 			rng->next(velocity_yrotation_rng)-(velocity_yrotation_rng/2));
@@ -524,6 +535,7 @@ struct Textures{
 	u32 default_tex_uid;
 	u32 white_tex_uid;
 	u32 gradient_tex_uid;
+	u32 ice_tex_uid;
 	
 	u32 test_tex_uid;
 	u32 font_atlas_uid;
@@ -858,6 +870,8 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						PARTICLE_ACTIVE,
 						1,
 						0,
+						0,
+						{0},
 						{0},
 						0,
 						0,
@@ -878,6 +892,8 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						PARTICLE_ACTIVE,
 						8,
 						0,
+						0,
+						{0},
 						{0},
 						TAU32,
 						0,
@@ -906,6 +922,8 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						PARTICLE_ACTIVE, 
 						20, 
 						0,
+						0,
+						{0},
 						{0},
 						TAU32,
 						1.0f,
@@ -934,6 +952,8 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						PARTICLE_ACTIVE,
 						1,
 						0,
+						0,
+						{0},
 						{0},
 						0,
 						0,
