@@ -188,6 +188,7 @@ win_main_window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	global_variable u32 E_LAST_FLAG_BIT_POS;
 #endif
 
+
 // ENTRY POINT
 
 int WINAPI 

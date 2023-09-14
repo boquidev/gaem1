@@ -9,6 +9,9 @@
 #define MIN_S16 -32768
 #define MAX_U16 65535
 
+#define MAX_FLOAT          3.402823466e+38F        // max value
+#define MIN_FLOAT          1.175494351e-38F        // min normalized positive value
+
 
 #define PI32    3.14159265359f
 #define TAU32     6.28318530718f

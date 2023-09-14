@@ -683,7 +683,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(memory->closest_entity.index == (u32)memory->selected_uid){
 		memory->closest_entity = {0};
 	}
-	Entity_handle last_frame_closest_entity = memory->closest_entity;
+	Entity_handle last_frame_closest_entity_to_grab = memory->closest_entity;
 	memory->is_valid_grab = true;
 	UNTIL(i, MAX_ENTITIES)
 	{
@@ -981,7 +981,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// MOVEMENT / DYNAMICS
 
-		if(!(entity->flags & E_SKIP_DYNAMICS))
+		if(!(entity->flags & (E_SKIP_DYNAMICS)))
 		{
 			f32 paralysis_multiplier = (entity->element_effect & EET_ELECTRIC) ? 0.1f : 1.0f;
 			V3 result_acceleration = calculate_delta_velocity(
@@ -1050,11 +1050,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		// SUB ITERATION
 
+		// TODO:initialize distances to 0 and instead of checking if uid < 0 check for distance
 		s32 closest_enemy_uid = -1;
-		f32 closest_enemy_distance = 100000;
+		f32 closest_enemy_distance = MAX_FLOAT;
+
+		s32 closest_ally_uid = -1;
+		f32 closest_ally_distance = MAX_FLOAT;
 
 		s32 closest_jump_target_uid = -1;
-		f32 closest_jump_distance = 100000;
+		f32 closest_jump_distance = MAX_FLOAT;
 
 
 		//TODO: check if the entity i am processing here is the same that i will check when F == -1
@@ -1062,11 +1066,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		
 		b32 test_grab = false;
 		V3 grab_pos = {0};
-		if(last_frame_closest_entity.index == i)
+		if(last_frame_closest_entity_to_grab.index == i)
 		{
 			if(
 				memory->selected_uid >= 0 && 
-				is_handle_valid(last_frame_closest_entity, generations) &&
+				is_handle_valid(last_frame_closest_entity_to_grab, generations) &&
 				!(entities[memory->selected_uid].flags & E_STICK_TO_ENTITY)
 			){
 				test_grab = true;
@@ -1079,12 +1083,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}
 
-		f32 closest_entity_distance;
-		if((u32)memory->selected_uid == i && is_handle_valid(last_frame_closest_entity, generations))
+		f32 closest_entity_to_grab_distance;
+		if((u32)memory->selected_uid == i && is_handle_valid(last_frame_closest_entity_to_grab, generations))
 		{
-			closest_entity_distance = v3_magnitude(entities[last_frame_closest_entity.index].pos - entity->pos);
+			closest_entity_to_grab_distance = v3_magnitude(entities[last_frame_closest_entity_to_grab.index].pos - entity->pos);
 		}else{
-			closest_entity_distance = 100000;	
+			closest_entity_to_grab_distance = MAX_FLOAT;	
 		}
 		
 		// ALMOST ALL ENTITIES DO SOME OF THESE SO I DON'T KNOW HOW MUCH THIS OPTIMIZES ANYTHING
@@ -1118,8 +1122,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					}
 				}
 			}else{
-				// CLOSEST ENTITY TO STICK
-
+				// CLOSEST ALLY TO GRAB
+				if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
+				{
+					if(closest_ally_uid < 0){
+						closest_ally_uid = j;
+						closest_ally_distance = distance;
+					}else if(distance < closest_ally_distance){
+						closest_ally_uid = j;
+						closest_ally_distance = distance;
+					}
+				}
+				
+				// CLOSEST GRAB ENTITY 
 				if(
 					i == (u32)memory->selected_uid && 
 					!(entity2->flags & (E_STICK_TO_ENTITY|E_DOES_DAMAGE)) &&
@@ -1127,10 +1142,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					j != global_player_handle.index
 				)
 				{
-					if(distance < closest_entity_distance)
+					if(distance < closest_entity_to_grab_distance)
 					{
 						memory->closest_entity = {j, generations[j]};
-						closest_entity_distance = distance;
+						closest_entity_to_grab_distance = distance;
 					}
 				}
 
@@ -1788,18 +1803,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		#define DEFAULT_AUTOAIM_RANGE 10.0f 
 		// BOTH AUTOAIM FLAGS ARE INCOMPATIBLE WITH MANUAL AIMING
-		if(entity->flags & E_AUTO_AIM_BOSS)
+		if( entity->flags & E_AUTO_AIM_BOSS )
 		{ 
+
 			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
 			if((entity->flags & E_AUTO_AIM_CLOSEST) && 
 				(closest_enemy_distance < DEFAULT_AUTOAIM_RANGE) && 
 				closest_enemy_uid >= 0
 			){
-				
-				entity->target_pos = entities[closest_enemy_uid].pos;
+				if(entity->element_type & EET_HEAL)
+				{
+					entity->target_pos = entities[closest_ally_uid].pos;
+				}else{
+					entity->target_pos = entities[closest_enemy_uid].pos;
+				}
 			}else{
 				// friendly
-				if(entity->team_uid == player_entity->team_uid){
+				if(entity->team_uid == player_entity->team_uid || 
+					(entity->team_uid != player_entity->team_uid && 
+					entity->element_type & EET_HEAL)){
 					if(is_handle_valid(global_boss_handle, generations)){
 						entity->target_pos = entities[global_boss_handle.index].pos;
 					}else{
@@ -1816,7 +1838,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}else{
 			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_uid >= 0) )
 			{
-				entity->target_pos = entities[closest_enemy_uid].pos;
+				if(entity->element_type & EET_HEAL)
+				{
+					entity->target_pos = entities[closest_ally_uid].pos;
+				}else{
+					entity->target_pos = entities[closest_enemy_uid].pos;
+				}
 			}
 		}
 
@@ -2210,8 +2237,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
 						|E_EMIT_PARTICLES
 						;
-
-					new_entity->freezing_time_left = 100.0f;
 
 					new_entity->color = {1,1,1,1};
 					new_entity->scale = {1.0f,1.0f,1.0f};
