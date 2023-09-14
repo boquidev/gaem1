@@ -1832,7 +1832,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->freezing_time_left)
 		{
-			f32 dice = rng->next(40);
+			f32 dice = rng->next(30);
 			if(dice < 2)
 			{
 				Color init_color;
@@ -1854,7 +1854,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					target_color = {.5f, .6f, 1.0f, 0.0f};
 					color_delta = 0.2f;
 					init_scale = 0.0f;
-					target_scale = 0.2f;
+					target_scale = 0.3f;
 					scale_delta = 5.0f;
 				}
 
@@ -1888,7 +1888,34 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(entity->toxic_time_left)
 		{
-			//TODO: emit toxic particles
+			f32 dice = rng->next(2);
+			if(dice < 1)
+			{
+				Particle_emitter particle_emitter;
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					1,
+					0,
+					0,
+					{0},
+					{DEFAULT_TOXIC_RADIUS, 0, DEFAULT_TOXIC_RADIUS},
+					0,
+					0,
+					0,
+					{0,2.0f,0},
+					{0},
+					{1,0,1,0},
+					1.0f,
+					1.0f,
+					0,0,0,0,0,
+					.0f,
+					0,
+					.5f,
+					1.0f
+				);
+				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+					entity->pos, {0,10.0f, 0},{0.5f,0, 1,1}, rng);
+			}
 		}
 		if(entity->gravity_field_time_left)
 		{
@@ -2769,67 +2796,6 @@ void init(App_memory* memory, Init_data* init_data){
 
 	memory->particles_max = 1000;
 	memory->particles = ARENA_PUSH_STRUCTS(memory->permanent_arena, Particle, memory->particles_max);
-
-	
-	// INITIALIZING PARTICLE EMITTERS
-	
-	// default particle emitter
-	
-	// global_default_particle_emitter.particle_flags = PARTICLE_ACTIVE;
-	// global_default_particle_emitter.particles_count = 1;
-	// global_default_particle_emitter.emit_cooldown = memory->delta_time*2;
-
-	// global_default_particle_emitter.initial_pos_offset = {0,0,0};
-	// global_default_particle_emitter.velocity_yrotation_rng = TAU32;
-	// global_default_particle_emitter.friction = 10.0f;
-	
-	// global_default_particle_emitter.acceleration = {0,10.0f, 0};
-	
-	// global_default_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
-	// global_default_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
-	// global_default_particle_emitter.color_delta_multiplier = 0.5f;
-
-	// global_default_particle_emitter.particle_lifetime = 0.3f;
-
-	// global_default_particle_emitter.initial_angle_rng = PI32;
-	// global_default_particle_emitter.angle_speed = 0;
-	// global_default_particle_emitter.angle_initial_speed_rng = 20.0f;
-	// global_default_particle_emitter.angle_accel = 0;
-	// global_default_particle_emitter.angle_friction = 4.0f;
-	
-	// global_default_particle_emitter.initial_scale = 0.2f;
-	// global_default_particle_emitter.target_scale = 0.0f;
-	// global_default_particle_emitter.scale_delta_multiplier = 1.0f;
-	// global_default_particle_emitter.initial_scale_rng = 0;
-	
-	// freeze particle emitter
-	
-	// global_freeze_particle_emitter.particle_flags = PARTICLE_ACTIVE;
-	// global_freeze_particle_emitter.particles_count = 1;
-	// global_freeze_particle_emitter.emit_cooldown = 0.3f;
-
-	// global_freeze_particle_emitter.initial_pos_offset = {0, 2.0f, 0};
-	// global_freeze_particle_emitter.velocity_yrotation_rng = TAU32;
-	// global_freeze_particle_emitter.friction = 2.0f;
-	
-	// global_freeze_particle_emitter.acceleration = {0,-5.0f, 0};
-	
-	// global_freeze_particle_emitter.color_rng = {0.05f, 0.05f, 0.05f};
-	// global_freeze_particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
-	// global_freeze_particle_emitter.color_delta_multiplier = 1.0f;
-
-	// global_freeze_particle_emitter.particle_lifetime = 2.5f;
-
-	// global_freeze_particle_emitter.initial_angle_rng = PI32;
-	// global_freeze_particle_emitter.angle_speed = 0;
-	// global_freeze_particle_emitter.angle_initial_speed_rng = 20.0f;
-	// global_freeze_particle_emitter.angle_accel = 0;
-	// global_freeze_particle_emitter.angle_friction = 4.0f;
-	
-	// global_freeze_particle_emitter.initial_scale = 0.2f;
-	// global_freeze_particle_emitter.target_scale = 0.0f;
-	// global_freeze_particle_emitter.scale_delta_multiplier = 1.0f;
-	// global_freeze_particle_emitter.initial_scale_rng = 0;
 
 /*
 	// CREATING CONSTANT_BUFFER

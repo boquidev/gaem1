@@ -28,6 +28,7 @@ PS_OUT ps( PS_IN input, uint tid : SV_PrimitiveID)
    clip(1-length(vector_from_center));
 
    float4 texcolor = texture0.Sample(sampler0, input.texcoord);
+   clip(texcolor.a - 0.0001f);
    result.color = float4(
       texcolor.r * input.color.r,
       texcolor.g * input.color.g,
