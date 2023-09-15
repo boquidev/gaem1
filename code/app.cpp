@@ -641,7 +641,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		new_entity->health = new_entity->max_health;
 		new_entity->total_power = memory->level_properties.spawned_entities_attack_damage;
 		new_entity->action_cd_total_time = (0.9f + rng->next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
-		new_entity->action_range = 4.0f;
+		new_entity->action_range = 5.0f;
 		new_entity->aura_radius = 3.0f;
 
 		new_entity->parent_handle = global_player_handle;
@@ -997,13 +997,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_SHRINK_WITH_VELOCITY)
 		{
-			f32 speed_left = v3_magnitude(entity->velocity) / entity->speed;
-			f32 new_scale = SQRT(speed_left);
-			if(speed_left > 0.05f){
-				entity->creation_size = new_scale;
-			}else{
+			// f32 speed_left = v3_magnitude(entity->velocity) / entity->speed;
+			// f32 new_scale = SQRT(speed_left);
+			f32 minimum_speed = 1.0f;
+			f32 speed_left = v3_magnitude(entity->velocity);
+			f32 scale_multiplier = (1-(20.0f*entity_dt/(speed_left-minimum_speed)));
+			if(speed_left <= minimum_speed || 1 < scale_multiplier){
 				s32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 				*index_to_kill = i;
+			}else{
+				entity->creation_size = entity->creation_size*scale_multiplier;
 			}
 		}
 		
@@ -1642,8 +1645,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->health = new_bullet->max_health;
 
 						//speed could be by the one who shoots
-						new_bullet->speed = 60;
-						new_bullet->friction = 20.0f / calculate_total_range(entity);
+						new_bullet->speed = 80;
+						new_bullet->friction = 30.0f / calculate_total_range(entity);
 
 						new_bullet->lifetime = 5.0f;
 						new_bullet->weight = 0.1f;
@@ -2054,7 +2057,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(entity->gravity_field_time_left)
 		{
-			f32 dice = rng->next(10);
+			f32 dice = rng->next(15);
 			if(dice < 1)
 			{
 				
@@ -2086,7 +2089,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
 				particle_emitter.emit_particle(new_particle,
-					entity->pos, {0}, {.0f,.0f,.0f,1}, rng
+					entity->pos, {0}, {.2f,.2f,.2f,1}, rng
 				);
 
 				new_particle->target_entity_h = {i, generations[i]};
@@ -2358,7 +2361,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					new_entity->health = new_entity->max_health;
 					new_entity->total_power = 10.0f;
 					new_entity->action_cd_total_time = 1.0f;
-					new_entity->action_range = 4.0f;
+					new_entity->action_range = 5.0f;
 					new_entity->aura_radius = 3.0f;
 
 					new_entity->parent_handle = global_player_handle;
@@ -2477,11 +2480,11 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			{
 				PUSH_BACK(delayed_render_list2,  memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_SET_TIME;
-				request->new_time = -memory->time_s;
+				request->new_time = -1.5f*memory->time_s;
 
 				PUSH_BACK(delayed_render_list2, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-				request->object3d.color = {0.0f, 0.0f, 0.0f, 0.3f};
+				request->object3d.color = {0.1f, 0.1f, 0.1f, 0.3f};
 				request->object3d.pos = memory->entities[i].pos;
 				f32 gf_radius = memory->entities[i].gravity_field_radius;
 				request->object3d.scale = {gf_radius,gf_radius,gf_radius};
