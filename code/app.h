@@ -280,8 +280,6 @@ struct Entity{
 	f32 elemental_effect_duration;
 	f32 elemental_damage_duration; // this is used to know how much will the duration effect last when this entity does damage
 
-	f32 heat_tick_damage_cd;
-
 	f32 fog_debuff_time_left;
 
 	COLLIDER_TYPE collider_type;
@@ -321,8 +319,6 @@ struct Entity{
 
 	f32 action_range;
 
-		f32 damage_redness;
-
 	f32 aura_radius;
 
 	f32 reaction_cooldown;
@@ -330,11 +326,11 @@ struct Entity{
 	f32 generate_resource_cd;
 
 	f32 toxic_time_left;
-	f32 toxic_tick_damage_cd;
 
 	f32 freezing_time_left;
 
 	f32 gravity_field_time_left;
+	f32 gravity_field_radius;
 
 	f32 shield_cd;
 	b32 shield_active;
@@ -704,7 +700,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
 
 					smoke_screen->color = {1,1,1,0.2f};
-					smoke_screen->scale = {6,3,6};
+					smoke_screen->scale = {10,10,10};
 					smoke_screen->creation_delay = 0.3f;
 					smoke_screen->lifetime = 4.8f;
 
@@ -718,11 +714,12 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 
 					particle_emitter.velocity_yrotation_rng = TAU32;
 					particle_emitter.friction = 10.0f;
+					particle_emitter.initial_speed_rng = 0.8f;
 					
-					particle_emitter.acceleration = {0,10.0f, 0};
+					particle_emitter.acceleration = {0,20.0f, 0};
 					
 					particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
-					particle_emitter.target_color = {0.5f,0.5f,0.5f,0};
+					particle_emitter.target_color = {0.3f,0.3f,1,0};
 					particle_emitter.color_delta_multiplier = 1.0f;
 
 					particle_emitter.particle_lifetime = 1.5f;
@@ -732,15 +729,15 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					particle_emitter.angle_friction = 4.0f;
 					
 					particle_emitter.initial_scale = 0.2f;
-					particle_emitter.target_scale = 1.0f;
+					particle_emitter.target_scale = .7f;
 					particle_emitter.scale_delta_multiplier = 1.0f;
 
-					UNTIL(i, 5)
+					UNTIL(i, 20)
 					{
 						Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
 						// Color particles_color = {0.5f, 0.5f, 0.5f, 1};
-						Color particles_color = {1,1,1,1};
-						particle_emitter.emit_particle(new_particle, entity->pos, {20.0f,10.0f,0}, particles_color, &memory->rng);
+						Color particles_color = {1,0.4f,0.2f,1};
+						particle_emitter.emit_particle(new_particle, entity->pos, {100.0f,0.0f,0}, particles_color, &memory->rng);
 					}
 				}break;
 				case EET_WATER|EET_COLD:{
@@ -944,6 +941,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 				}break;
 				case EET_COLD|EET_ELECTRIC:{
 					entity->gravity_field_time_left = 10.0f;
+					entity->gravity_field_radius = 10.0f;
 					
 					Particle_emitter particle_emitter;
 					particle_emitter.fill_data(

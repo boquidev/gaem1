@@ -703,18 +703,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		switch(entity->element_effect)
 		{
+
 			case EET_COLD:
 			{
 				entity_dt = world_delta_time * 0.65f;
 			}break;
 			case EET_HEAT:
 			{
-				entity->heat_tick_damage_cd -= world_delta_time;
-				if(entity->heat_tick_damage_cd <= 0)
-				{
-					entity->heat_tick_damage_cd += 1.0f;
-					entity->health = MAX(5.0f, entity->health - 5.0F);
-				}
+				f32 heat_damage = 2.0f*world_delta_time;
+				entity->health = MAX(world_delta_time, entity->health - heat_damage);
 			}break;
 			case EET_ELECTRIC:
 			case EET_WATER:
@@ -724,13 +721,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				ASSERT(false);	
 		}
 
-
-		if(entity->flags & E_SMOKE_SCREEN){
-			entity->color = {1,1,1,0.4f};
-		}else{ // DEFAULT CASE
-			entity->color = {0.5f,0.5f,0.5f,1};
-		}
-
+		entity->color = {0.5f,0.5f,0.5f,1};
+		
 
 		// ENEMY_COLOR
 
@@ -743,7 +735,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_SHRINK_WITH_LIFETIME)
 		{
-			f32 next_scale = (1-(entity_dt/entity->lifetime));
+			f32 next_scale = (1-(0.2f*entity_dt/entity->lifetime));
 			if(next_scale > 0){
 				entity->scale = next_scale*entity->scale;
 			}
@@ -778,16 +770,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(entity->flags & E_TOXIC_EMITTER){
 			entity->toxic_time_left = 0;
 		}else if(entity->toxic_time_left){
-			if(!(entity->flags & E_TOXIC_DAMAGE_INMUNE)){
-				entity->toxic_tick_damage_cd -= world_delta_time;
-				if(entity->toxic_tick_damage_cd <= 0){
-					entity->toxic_tick_damage_cd += 2.0f;
-
-					entity->health -= 1;
-					if(entity->health <= 0){
-						s32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
-						*index_to_kill = i;
-					}
+			if(!(entity->flags & E_TOXIC_DAMAGE_INMUNE))
+			{
+				entity->health -= 5*world_delta_time;
+				if(entity->health <= 0){
+					s32* index_to_kill; PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+					*index_to_kill = i;
 				}
 			}
 		}
@@ -803,6 +791,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->gravity_field_time_left){
 			entity->gravity_field_time_left = MAX(0, entity->gravity_field_time_left - entity_dt);
+			entity->gravity_field_radius = entity->gravity_field_radius * (1-(0.2f*entity_dt/entity->gravity_field_time_left));
 		}
 
 		// SHIELD COOLDOWN
@@ -1418,15 +1407,22 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 
 			// BEING AFFECTED BY THE ENTITY'S GRAVITY FIELD
-
+			//TODO: maybe this condition is redundant cuz gravity_field_radius is the important
 			if(entity2->gravity_field_time_left)
 			{
-				f32 gravity_field_radius = SQRT(entity2->gravity_field_time_left)*3;
-				if(distance < gravity_field_radius && entity->weight)
+				if(distance < entity2->gravity_field_radius && entity->weight)
 				{
+					V3 init_velocity = entity->velocity;
 					f32 entity_speed = MAX(v3_magnitude(entity->velocity), 0.5F);
 					//TODO: this is independent of entity_dt 
 					entity->velocity = entity_speed * v3_normalize(entity->velocity + (distance_vector/(20*entity->weight)));
+					
+					if(init_velocity == entity->velocity)
+					{
+						f32 rotation_angle = rng->next(TAU32)-0.1f;
+						entity->velocity = v3_rotate_y(entity->velocity, rotation_angle);
+					}
+					
 				}
 			}
 
@@ -1903,6 +1899,44 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		u16 current_element = entity->element_type ? entity->element_type : entity->element_effect;
 
+		if(entity->flags & E_SMOKE_SCREEN){
+			entity->color = {.5f,.5f,.5f, 1};
+
+			f32 dice = rng->next(2);
+			if(dice < 2)
+			{
+					
+				Particle_emitter	particle_emitter;
+				
+				f32 entity_radius = entity->scale.x * entity->creation_size;
+				V3 initial_pos_rng = {entity_radius, 0, entity_radius};
+
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					1,
+					0,
+					0,
+					{0},
+					initial_pos_rng,
+					TAU32,
+					0,
+					0,
+					{0, 1.0f, 0},
+					{0},
+					{0.5,0.5,0.5, 0.01f},
+					1.0f,
+					0.5f,
+					0,0,0,0,0,
+					.01f,
+					0,
+					2.0f,
+					10.0f
+				);
+
+				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+				entity->pos, {1.0f,1.0f,0}, {.7f, .7f, .7f, .7f}, rng);
+			}
+		}
 		if(entity->freezing_time_left)
 		{
 			f32 dice = rng->next(30);
@@ -1996,11 +2030,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			if(dice < 1)
 			{
 				
-				f32 gravity_field_radius =  SQRT(entity->gravity_field_time_left)*3;
-
-				
 				f32 pos_offset_angle = rng->next(TAU32);
-				V3 pos_offset = v3_rotate_y({gravity_field_radius,0,0}, pos_offset_angle);
+				V3 pos_offset = v3_rotate_y({entity->gravity_field_radius,0,0}, pos_offset_angle);
 
 				Particle_emitter particle_emitter;
 				particle_emitter.fill_data(
@@ -2351,6 +2382,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			PUSH_BACK(delayed_render_list2, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 			request->object3d = memory->entities[i].object3d;
+			request->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+			request->rotation = {PI32/2,0,0};
+
 
 			f32 scale_multiplier = MAX(memory->delta_time, memory->entities[i].creation_size);
 			request->object3d.scale = scale_multiplier * request->object3d.scale;
@@ -2383,6 +2417,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				
 				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+
 			}
 			if(memory->entities[i].element_type & EET_HEAL)
 			{
@@ -2420,7 +2455,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
 				request->object3d.color = {0.0f, 0.0f, 0.0f, 0.3f};
 				request->object3d.pos = memory->entities[i].pos;
-				f32 gf_radius = SQRT(memory->entities[i].gravity_field_time_left)*3;
+				f32 gf_radius = memory->entities[i].gravity_field_radius;
 				request->object3d.scale = {gf_radius,gf_radius,gf_radius};
 				request->object3d.rotation = {PI32/2, 0, 0};
 
