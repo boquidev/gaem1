@@ -312,7 +312,7 @@ struct Entity{
 	f32 action_cd_time_passed;
 
 	union{
-		f32 action_power;	
+		f32 _action_power;	
 		f32 total_power;
 	};
 
@@ -328,8 +328,6 @@ struct Entity{
 	f32 reaction_cooldown;
 
 	f32 generate_resource_cd;
-
-	f32 healing_cd;
 
 	f32 toxic_time_left;
 	f32 toxic_tick_damage_cd;
@@ -381,8 +379,8 @@ calculate_power(Entity* entity)
 	f32 fog_multiplier = (entity->fog_debuff_time_left) ? 0.7f : 1.0f;
 	//TODO: benchmark the difference between this 2
 	// f32 healer_multiplier = 1+(-2.0f*(entity->flags & E_HEALER)/E_HEALER); 
-	f32 healer_multiplier = (entity->flags & E_HEALER) ? -1.0f : 1.0f; 
-	return entity->action_power * water_effect_multiplier * healer_multiplier * fog_multiplier;
+	f32 healer_multiplier = (entity->element_type & EET_HEAL) ? 0.5f : 1.0f; 
+	return entity->_action_power * water_effect_multiplier * healer_multiplier * fog_multiplier;
 }
 
 internal f32 

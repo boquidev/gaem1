@@ -36,7 +36,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->health = player->max_health;
 		player->team_uid = 0;
 
-		player->action_power = 1.0f;
+		player->total_power = 1.0f;
 		player->action_count = 1;
 		player->action_angle = TAU32/4;
 		player->action_cd_total_time = 2.9f;
@@ -109,7 +109,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->team_uid = 1;
 		boss->creation_delay = 0.2f;
 
-		boss->action_power = 1.0f;
+		boss->total_power = 1.0f;
 		boss->action_count = 1;
 		boss->action_angle = TAU32/4;
 		boss->action_cd_total_time = 10.5f;
@@ -363,12 +363,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							selected_entity->flags |= possible_upgrades[i];
 						}
 					}
-					else if(possible_upgrades[i] & E_HEALER) // healer
-					{
-						selected_entity->flags ^= E_HEALER; 
-						//TODO: this will be a bug if there is any other thing that turns action power 
-						// into a negative number
-					}
 					else // default case
 					{
 						selected_entity->flags ^= possible_upgrades[i];
@@ -460,15 +454,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							if(!(entity_element_flags & possible_types_to_select[i]))
 							{
 								selected_entity->element_type |= possible_types_to_select[i];
-							}
-
-							if(selected_entity->element_type == EET_HEAL) // healer
-							{
-								selected_entity->flags |= E_HEALER; 
-							}
-							else // default case
-							{
-								selected_entity->flags &= (~E_HEALER); 
 							}
 						}
 					}
@@ -654,7 +639,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		new_entity->weight = 1.0f;
 		new_entity->max_health = memory->level_properties.spawned_entities_health;
 		new_entity->health = new_entity->max_health;
-		new_entity->action_power = memory->level_properties.spawned_entities_attack_damage;
+		new_entity->total_power = memory->level_properties.spawned_entities_attack_damage;
 		new_entity->action_cd_total_time = (0.9f + rng->next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
 		new_entity->action_range = 4.0f;
 		new_entity->aura_radius = 3.0f;
@@ -775,14 +760,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				*entity_index = i;
 				entity->flags &= (~E_SELECTABLE);
 			}
-		}
-
-
-		// HEALING COOLDOWN
-
-		entity->healing_cd -= entity_dt;
-		if(entity->healing_cd <= 0){
-			entity->healing_cd = 0;
 		}
 		
 
@@ -1252,8 +1229,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 						else // DEFAULT CASE
 						{
-							f32 damage_dealt = MIN(entity->health, entity2->total_power);
-							entity->health = CLAMP(0, entity->health - entity2->total_power, entity->max_health);
+							f32 damage_dealt;
+							if(entity2->element_type & EET_HEAL){
+								damage_dealt = -1;
+							}else{
+								damage_dealt = MIN(entity->health, entity2->total_power);
+							}
+							entity->health = CLAMP(0, entity->health - damage_dealt, entity->max_health);
 							if(entity->health <= 0)
 							{
 								s32* index_to_kill;
@@ -1297,7 +1279,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							if(entity2->flags & A_STEAL_LIFE)
 							{
 								Entity* parent = entity_from_handle(entity2->parent_handle, entities, generations);
-								parent->health = CLAMP(0, parent->health+damage_dealt, parent->max_health);
+								f32 life_steal_value = MAX(damage_dealt, 0);
+								parent->health = CLAMP(0, parent->health+life_steal_value, parent->max_health);
 							}
 							
 							Particle_emitter particle_emitter = {0};
@@ -1311,7 +1294,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							particle_emitter.acceleration = {0,10.0f, 0};
 							
 							particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
-							particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+							particle_emitter.target_color = {1.0f,1.0f,1.0f,0};
 							particle_emitter.color_delta_multiplier = 0.5f;
 
 							particle_emitter.particle_lifetime = 0.3f;
@@ -1324,10 +1307,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							particle_emitter.target_scale = 0.0f;
 							particle_emitter.scale_delta_multiplier = 0.5f;
 
+							Color particles_color;
+							if(damage_dealt < 0)
+							{
+								particles_color = {.2f, 1, .2f, 1};
+							}else{
+								particles_color = {1,1,1,1};
+							}
+
 							UNTIL(particle_index, 10)
 							{
 								Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
-								particle_emitter.emit_particle(new_particle, entity2->pos, {50,0,0}, {1,1,1,1}, rng);
+								particle_emitter.emit_particle(new_particle, entity2->pos, {50,0,0}, particles_color, rng);
 							}
 						}
 					}
@@ -1354,16 +1345,49 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				// HEALING
 
-				if(entity2->flags & E_HEALER && 
-					!(entity->flags & P_SHIELD)
+				if(entity2->element_type & EET_HEAL 
+					&& !(entity->flags & P_SHIELD) 
+					&& !(entity->element_type & EET_HEAL)
 				){
-					if(distance < entity->aura_radius){
-						if(entity->healing_cd <= 0){
-							if(entity->health < entity->max_health){
-								entity->health = MIN(entity->health-calculate_power(entity2), entity->max_health);
-								entity->healing_cd += 2.0f;
+					if(distance < entity->aura_radius)
+					{	
+						if(entity->health < entity->max_health){
+							f32 healing_value = entity_dt * calculate_power(entity2);
+							entity->health = MIN(entity->health+healing_value, entity->max_health);
+
+							f32 dice = rng->next(8);
+							if(dice < 1)
+							{
+								Particle_emitter particle_emitter;
+								particle_emitter.fill_data(
+									PARTICLE_ACTIVE,
+									1,
+									0,
+									0,
+									{0},
+									{0},
+									TAU32,
+									1.0f,
+									10.0f,
+									{0,-10.0f,0},
+									{0},
+									{0,1,0,0.1f},
+									1.0f,
+									0.5f,
+									0,0,0,0,0,
+									0.1f,
+									0,
+									0.3f,
+									1.0f
+								);
+								UNTIL(particle, particle_emitter.particles_count)
+								{
+									particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+										entity->pos, {40.0f, 50.0f,0}, {0, 0.5f, 0, 1.0f}, rng);
+								}
 							}
 						}
+
 					}
 				}	
 
@@ -2273,7 +2297,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					new_entity->weight = 1.0f;
 					new_entity->max_health = 40.f;
 					new_entity->health = new_entity->max_health;
-					new_entity->action_power = 10.0f;
+					new_entity->total_power = 10.0f;
 					new_entity->action_cd_total_time = 1.0f;
 					new_entity->action_range = 4.0f;
 					new_entity->aura_radius = 3.0f;
@@ -2360,7 +2384,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->object3d.mesh_uid = memory->meshes.centered_plane_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
-			if(memory->entities[i].flags & E_HEALER)
+			if(memory->entities[i].element_type & EET_HEAL)
 			{
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;

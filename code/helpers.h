@@ -236,7 +236,6 @@ static union {
 		E_MELEE_ATTACK,
 			E_MELEE_HITBOX,
 		E_SPAWN_ENTITIES,
-		E_HEALER, //TODO: polish area healing
 		E_GENERATE_RESOURCE,
 
 		E_HAS_SHIELD,
