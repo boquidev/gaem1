@@ -1412,16 +1412,44 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				if(distance < entity2->gravity_field_radius && entity->weight)
 				{
-					V3 init_velocity = entity->velocity;
-					f32 entity_speed = MAX(v3_magnitude(entity->velocity), 0.5F);
-					//TODO: this is independent of entity_dt 
-					entity->velocity = entity_speed * v3_normalize(entity->velocity + (distance_vector/(20*entity->weight)));
-					
-					if(init_velocity == entity->velocity)
+					if(entity->flags & E_DOES_DAMAGE)
 					{
-						f32 rotation_angle = rng->next(TAU32)-0.1f;
-						entity->velocity = v3_rotate_y(entity->velocity, rotation_angle);
+
+						f32 velocity_angle = v2_angle({entity->velocity.x, entity->velocity.z});
+						f32 distance_angle = v2_angle({distance_vector.x, distance_vector.z});
+						f32 angle_difference = distance_angle-velocity_angle;
+						if(COMPARE_FLOATS(angle_difference, PI32))
+						{
+							f32 dice = rng->next(2);
+							if(dice < 1){
+								angle_difference = -PI32;
+							}
+						}
+						else if( angle_difference < (-PI32))
+						{
+							angle_difference += TAU32;
+						}
+						else if (PI32 < angle_difference)
+						{
+							angle_difference -= TAU32;
+						}
+
+						f32 delta_angle = 5.0f*world_delta_time* (angle_difference);
+						//inverted delta angle cuz of the inverted y axis angle
+						entity->velocity = v3_rotate_y(entity->velocity, -delta_angle);
+					}else{
+						entity->velocity = entity->velocity + (world_delta_time*distance_vector);
 					}
+					// V3 init_velocity = entity->velocity;
+					// f32 entity_speed = MAX(v3_magnitude(entity->velocity), 0.5F);
+					// //TODO: this is independent of entity_dt 
+					// entity->velocity = entity_speed * v3_normalize(entity->velocity + (distance_vector/(20*entity->weight)));
+					
+					// if(init_velocity == entity->velocity)
+					// {
+					// 	f32 rotation_angle = rng->next(TAU32)-0.1f;
+					// 	entity->velocity = v3_rotate_y(entity->velocity, rotation_angle);
+					// }
 					
 				}
 			}

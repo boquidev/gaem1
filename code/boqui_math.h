@@ -339,6 +339,30 @@ union Rect
     };
 };
 
+internal f32
+v2_angle_between(V2 v1, V2 v2)
+{
+    f32 dot = v2_dot(v1,v2);
+    f32 magnitudes = v2_magnitude(v1) * v2_magnitude(v2);
+
+    if(COMPARE_FLOATS(dot, -magnitudes)){
+        return PI32;
+    }
+
+    if(!magnitudes)
+    {
+        return 0;
+    }
+    f32 cos_angle = dot / magnitudes;
+    
+    f32 result = ACOSF(cos_angle);
+    if(isnan(result))
+    {
+        ASSERT(true);
+    }
+    return result;
+}
+
 internal Rect
 rect(V2 pos, V2 size)
 {

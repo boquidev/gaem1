@@ -202,6 +202,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			E_LAST_FLAG_BIT_POS++;
 		}
 	#endif
+	
 
 	RECT winrect = {0,0,1600,900};
 	AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);

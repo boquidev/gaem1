@@ -12,6 +12,10 @@
 #define MAX_FLOAT          3.402823466e+38F        // max value
 #define MIN_FLOAT          1.175494351e-38F        // min normalized positive value
 
+#define F32_MIN_THRESHOLD (1e-6)
+
+#define COMPARE_FLOATS(f1, f2) ((((f2)-F32_MIN_THRESHOLD)<=(f1)) && ((f1)<=(((f2))+F32_MIN_THRESHOLD)))
+
 
 #define PI32    3.14159265359f
 #define TAU32     6.28318530718f
