@@ -392,8 +392,8 @@ calculate_total_range(Entity* entity)
 	return (range_multiplier * entity->action_range);	
 }
 
-internal u32
-next_inactive_entity(Entity entities[], u32* last_inactive_i){
+internal Entity*
+get_new_entity(Entity entities[], u32* last_inactive_i){
 	u32 last_inactive_value = *last_inactive_i;
 	u32 i = last_inactive_value+1;
 	for(; i != last_inactive_value; i++){
@@ -403,7 +403,7 @@ next_inactive_entity(Entity entities[], u32* last_inactive_i){
 	}
 	ASSERT(i != last_inactive_value);// there was no inactive entity
 	*last_inactive_i = i;
-	return i; 
+	return &entities[i]; 
 }
 
 // this is cuz transparent objects should not be rendered before other objects cuz they would 

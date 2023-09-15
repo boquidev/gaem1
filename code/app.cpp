@@ -604,8 +604,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->boss_timer -= memory->level_properties.boss_action_cooldown;
 		boss_entity;
 		
-		u32 e_index = next_inactive_entity(entities, &memory->last_used_entity_index);
-		Entity* new_entity = &entities[e_index];
+		Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
 
 		// specific properties:
 			// speed, range, rate of fire, element, health, shield, damage
@@ -2149,8 +2148,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// CREATING ENTITIES
 
 	FOREACH(Entity, entity_properties, entities_to_create){
-		u32 e_index = next_inactive_entity(entities, &memory->last_used_entity_index);
-		entities[e_index] = *entity_properties;
+		Entity* created_entity = get_new_entity(entities, &memory->last_used_entity_index);
+		*created_entity = *entity_properties;
 	}
 
 
@@ -2257,9 +2256,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				{
 					memory->team_spawn_charges[0]--;
 					
-					u32 e_index = next_inactive_entity(entities, &memory->last_used_entity_index);
-					Entity* new_entity = &entities[e_index];
-					memory->selected_entity_h = {e_index, generations[e_index]};
+					Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+					memory->selected_entity_h = {memory->last_used_entity_index, generations[memory->last_used_entity_index]};
 
 					// default_melee(new_entity, memory);
 					new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION
