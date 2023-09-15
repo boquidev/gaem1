@@ -37,6 +37,7 @@ typedef unsigned long long u64;
 typedef char b8;
 typedef short b16;
 typedef int b32;
+typedef s64 b64;
 
 typedef float f32;
 typedef double f64;

@@ -14,6 +14,13 @@ struct Element_handle
 {
 	u32 index;
 	u32 generation; // this value updates when the entity is deleted
+
+	b32 is_valid(u32* generations)
+	{
+		// generation at index 0 must be different than 0
+		if(!index && !generation || ((s32)index) < 0) return false;
+		else return generations[index] == generation;
+	}
 };
 typedef Element_handle Entity_handle;
 
@@ -387,13 +394,14 @@ calculate_total_range(Entity* entity)
 
 internal u32
 next_inactive_entity(Entity entities[], u32* last_inactive_i){
-	u32 i = *last_inactive_i+1;
-	for(; i != *last_inactive_i; i++){
+	u32 last_inactive_value = *last_inactive_i;
+	u32 i = last_inactive_value+1;
+	for(; i != last_inactive_value; i++){
 		if(i == MAX_ENTITIES)
 			i = 0;
 		if(!entities[i].flags) break;
 	}
-	ASSERT(i != *last_inactive_i);// there was no inactive entity
+	ASSERT(i != last_inactive_value);// there was no inactive entity
 	*last_inactive_i = i;
 	return i; 
 }
@@ -408,14 +416,6 @@ last_inactive_entity(Entity entities[]){
 	}
 	ASSERT(i>=0);
 	return i;
-}
-
-//TODO: use this
-internal b32
-is_handle_valid(Element_handle handle, u32 handle_generations[])
-{
-	if(!handle.index && !handle.generation) return false;
-	else return handle_generations[handle.index] == handle.generation;
 }
 
 internal Entity*
@@ -643,11 +643,11 @@ struct App_memory
 
 	Entity* entities;
 
-	s32 clicked_uid;
-	s32 selected_uid;
-	u32 last_inactive_entity;
+	Entity_handle clicked_entity_h;
+	Entity_handle selected_entity_h;
+	u32 last_used_entity_index;
 
-	Entity_handle closest_entity;
+	Entity_handle closest_entity_to_grab_h;
 	b32 is_valid_grab;
 
 	u32* entity_generations;
@@ -657,16 +657,14 @@ struct App_memory
 	Ui_element* ui_elements;
 	s32 ui_costs [MAX_UI];
 
-	u32* ui_generations;
-
-	s32 ui_selected_uid;
+	s32 ui_pressed_uid;
 	s32 ui_clicked_uid;
 
 	u32 current_level;
 	u32 levels_count;
 
 	Level_properties level_properties;
-	f32 boss_action_current_time;//TODO: this is redundant with the boss entity properties
+	f32 boss_timer;//TODO: this is redundant with the boss entity properties
 
 	s32 debug_active_entities_count;
 

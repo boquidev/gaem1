@@ -14,15 +14,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		
 		set_mem(memory->entities, MAX_ENTITIES*sizeof(Entity), 0);
 		set_mem(memory->entity_generations, MAX_ENTITIES*sizeof(u32), 0);
+		memory->entity_generations[0] = 1;
 
 		memory->camera_rotation.x = PI32/4;
 		memory->camera_rotation.y = 0;
 		memory->camera_rotation.z = 0;
 		memory->camera_pos.y = 32.0f;
 
-		memory->last_inactive_entity = 0;
+		memory->last_used_entity_index = 0;
 
-		memory->entity_generations[0] = 1;
 		global_player_handle.index = memory->player_uid;
 		global_player_handle.generation = memory->entity_generations[memory->player_uid];
 		Entity* player = &memory->entities[memory->player_uid];
@@ -90,7 +90,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		Level_properties* current_level_init = &levels_init[memory->current_level];
 
 		memory->level_properties = *current_level_init;		
-		memory->boss_action_current_time = 0; 
+		memory->boss_timer = 0; 
 
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
@@ -122,9 +122,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->texinfo_uid = memory->textures.default_tex_uid;
 
 		//TODO: turn this into handles
-		memory->selected_uid = -1;
-		memory->ui_selected_uid = -1;
+		memory->selected_entity_h = {0};
 		memory->ui_clicked_uid = -1;
+		memory->ui_pressed_uid = -1;
 	}
 
 	User_input* input = memory->input;
@@ -133,6 +133,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	u32* generations = memory->entity_generations;
 	Ui_element* ui_elements = memory->ui_elements;
 	RNG* rng = &memory->rng;
+	
+	b32 exists_selected_entity = memory->selected_entity_h.is_valid(generations);
+	Entity* selected_entity = &entities[memory->selected_entity_h.index];
 	
 	if(input->debug_speed_up_delta_time == 1)
 	{
@@ -189,35 +192,35 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// FIND OUT WHOS THE ACTIVE ONE
 
 	
-	s32 hot_element_uid = -1;
+	s32 ui_hot_element = -1;
 	UNTIL(i, MAX_UI)
 	{
 		if(!ui_elements[i].flags) continue;
 		
 		if(ui_is_point_inside(&ui_elements[i], input->cursor_pixels_pos))
 		{
-			hot_element_uid = i;
+			ui_hot_element = i;
 		}
 	}
 
 
 	if(input->cursor_primary == 1)
 	{
-		memory->ui_selected_uid = hot_element_uid;
+		memory->ui_pressed_uid = ui_hot_element;
 	}
 	
 	if(input->cursor_primary == -1)
 	{
-		if(memory->ui_selected_uid == hot_element_uid){
-			memory->ui_clicked_uid = hot_element_uid;
-		}else{
+		if(memory->ui_pressed_uid == ui_hot_element){
+			memory->ui_clicked_uid = ui_hot_element;
+		}else{//TODO: this is probably unnecessary 
 			memory->ui_clicked_uid = -1;
 		}
-		memory->ui_selected_uid = -1;
+		memory->ui_pressed_uid = -1;
 	}else{
 		memory->ui_clicked_uid = -1;
 	}
-	b32 is_cursor_in_ui = hot_element_uid >= 0;
+	b32 is_cursor_in_ui = ui_hot_element >= 0;
 
 
 	// CLEANING LAST FRAME UI_ELEMENTS
@@ -311,11 +314,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		V2 initial_position = {0,-MENU_RADIUS};
 
 		s32 cost_multiplier = 1;
-		if(memory->selected_uid >= 0)
+		if(exists_selected_entity)
 		{
 			UNTIL(i, ARRAYCOUNT(possible_upgrades))
 			{
-				if(entities[memory->selected_uid].flags & possible_upgrades[i])
+				if(entities[memory->selected_entity_h.index].flags & possible_upgrades[i])
 				{
 					cost_multiplier *= 2;
 				}
@@ -326,8 +329,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			s32 total_cost = upgrade_costs[i] * cost_multiplier;
 
-			b32 property_already_set = memory->selected_uid >= 0 ? 
-				!((entities[memory->selected_uid].flags & possible_upgrades[i]) ^ possible_upgrades[i]) :
+			b32 property_already_set = exists_selected_entity ? 
+				!((selected_entity->flags & possible_upgrades[i]) ^ possible_upgrades[i]) :
 				false;
 			
 			if(!property_already_set)
@@ -336,7 +339,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 			if(ui_last == memory->ui_clicked_uid)
 			{
-				if(memory->selected_uid >= 0 && 
+				if(exists_selected_entity && 
 					(
 						memory->teams_resources[player_entity->team_uid] >= total_cost ||
 						property_already_set
@@ -345,30 +348,30 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(!property_already_set)
 					{
 						memory->teams_resources[player_entity->team_uid] -= total_cost;
-						entities[memory->selected_uid].total_upgrades_cost_value += upgrade_costs[i];
+						selected_entity->total_upgrades_cost_value += upgrade_costs[i];
 					}
 					else
 					{
-						entities[memory->selected_uid].total_upgrades_cost_value -= upgrade_costs[i];
+						selected_entity->total_upgrades_cost_value -= upgrade_costs[i];
 					}
 
 					if(possible_upgrades[i] & E_TOXIC_EMITTER) // toxic emitter
 					{
-						if(entities[memory->selected_uid].flags & E_TOXIC_EMITTER){
-							entities[memory->selected_uid].flags &= ~possible_upgrades[i];
+						if(selected_entity->flags & E_TOXIC_EMITTER){
+							selected_entity->flags &= ~possible_upgrades[i];
 						}else{
-							entities[memory->selected_uid].flags |= possible_upgrades[i];
+							selected_entity->flags |= possible_upgrades[i];
 						}
 					}
 					else if(possible_upgrades[i] & E_HEALER) // healer
 					{
-						entities[memory->selected_uid].flags ^= E_HEALER; 
+						selected_entity->flags ^= E_HEALER; 
 						//TODO: this will be a bug if there is any other thing that turns action power 
 						// into a negative number
 					}
 					else // default case
 					{
-						entities[memory->selected_uid].flags ^= possible_upgrades[i];
+						selected_entity->flags ^= possible_upgrades[i];
 					}
 				}
 			}
@@ -377,7 +380,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			Ui_element* ui_element = &ui_elements[ui_last++];
 			
 			
-			if(memory->selected_uid >= 0){
+			if(exists_selected_entity){
 				if(property_already_set){
 					ui_element->color = {1.0f,1.0f,1.0f,1};
 				}else{
@@ -431,16 +434,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
-			if(memory->selected_uid >= 0 && entities[memory->selected_uid].element_type)
+			if(exists_selected_entity && selected_entity->element_type)
 			{
 				memory->ui_costs[ui_last] = 10;
 			}
 
 			if(ui_last == memory->ui_clicked_uid)
 			{
-				if(memory->selected_uid >= 0)
+				if(exists_selected_entity)
 				{
-					u32 entity_element_flags = entities[memory->selected_uid].element_type;
+					u32 entity_element_flags = selected_entity->element_type;
 
 					if(!entity_element_flags || 
 						memory->teams_resources[player_entity->team_uid] >= 10
@@ -451,21 +454,21 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 
 						{
-							entities[memory->selected_uid].element_type = 0;
-							entities[memory->selected_uid].element_effect = 0;
+							selected_entity->element_type = 0;
+							selected_entity->element_effect = 0;
 
 							if(!(entity_element_flags & possible_types_to_select[i]))
 							{
-								entities[memory->selected_uid].element_type |= possible_types_to_select[i];
+								selected_entity->element_type |= possible_types_to_select[i];
 							}
 
-							if(entities[memory->selected_uid].element_type == EET_HEAL) // healer
+							if(selected_entity->element_type == EET_HEAL) // healer
 							{
-								entities[memory->selected_uid].flags |= E_HEALER; 
+								selected_entity->flags |= E_HEALER; 
 							}
 							else // default case
 							{
-								entities[memory->selected_uid].flags &= (~E_HEALER); 
+								selected_entity->flags &= (~E_HEALER); 
 							}
 						}
 					}
@@ -476,8 +479,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			Ui_element* ui_element = &ui_elements[ui_last++];
 			
 			
-			if(memory->selected_uid >= 0){
-				if(entities[memory->selected_uid].element_type & possible_types_to_select[i]){
+			if(exists_selected_entity){
+				if(selected_entity->element_type & possible_types_to_select[i]){
 					ui_element->color = {1.0f,1.0f,1.0f,1};
 				}else{
 					ui_element->color = {0.6f,0.6f,0.6f,1};
@@ -503,11 +506,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	
 	// highlight selected buttons
 
-	if(hot_element_uid >= 0){
-		ui_elements[hot_element_uid].color = colors_product(ui_elements[hot_element_uid].color, {0.7f,0.7f,1.0f,1.0f});
+	if(ui_hot_element >= 0){
+		ui_elements[ui_hot_element].color = colors_product(ui_elements[ui_hot_element].color, {0.7f,0.7f,1.0f,1.0f});
 	}
-	if(memory->ui_selected_uid >= 0){
-		ui_elements[memory->ui_selected_uid].color = {1,1, 0.5f, 1};
+	if(memory->ui_pressed_uid >= 0){
+		ui_elements[memory->ui_pressed_uid].color = {1,1, 0.5f, 1};
 	}
 	
 
@@ -528,8 +531,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	if(input->debug_up) memory->teams_resources[0]++;
 
-	// if(input->debug_left == 1 && memory->selected_uid >= 0) entities[memory->selected_uid].action_range /= 2;
-	// if(input->debug_right == 1 && memory->selected_uid >= 0) entities[memory->selected_uid].action_range *= 2;
+	// if(input->debug_left == 1 && exists_selected_entity) selected_entity->action_range /= 2;
+	// if(input->debug_right == 1 && exists_selected_entity) selected_entity->action_range *= 2;
 
 	// UPDATE 1 FRAME IF THE KEY IS TAPPED
 	if(memory->is_paused) if (input->debug_right != 1) return;
@@ -554,12 +557,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	V2 input_vector = {(f32)(holding_inputs->d_right - holding_inputs->d_left),(f32)(holding_inputs->d_up - holding_inputs->d_down)};
 	input_vector = v2_normalize(input_vector);
-	if(memory->selected_uid >= 0){
-		Entity* selected_entity = &entities[memory->selected_uid];
-		if(selected_entity->flags & E_CAN_MANUALLY_MOVE)
-		{
-			selected_entity->normalized_accel = v3_normalize(input_vector.x, 0, input_vector.y);
-		}
+	if(exists_selected_entity && selected_entity->flags & E_CAN_MANUALLY_MOVE ){
+		selected_entity->normalized_accel = v3_normalize(input_vector.x, 0, input_vector.y);
 	}
 
 	// MOVE CAMERA IN THE DIRECTION I AM LOOKING
@@ -591,16 +590,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	//PROCESSING BOSS ENTITY
 
-	if(is_handle_valid(global_boss_handle, generations))
+	if(global_boss_handle.is_valid(generations))
 	{
-		memory->boss_action_current_time += world_delta_time;
+		memory->boss_timer += world_delta_time;
 	}
-	if(memory->boss_action_current_time >= memory->level_properties.boss_action_cooldown)
+	if(memory->boss_timer >= memory->level_properties.boss_action_cooldown)
 	{
-		memory->boss_action_current_time -= memory->level_properties.boss_action_cooldown;
+		memory->boss_timer -= memory->level_properties.boss_action_cooldown;
 		boss_entity;
 		
-		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+		u32 e_index = next_inactive_entity(entities, &memory->last_used_entity_index);
 		Entity* new_entity = &entities[e_index];
 
 		// specific properties:
@@ -680,10 +679,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	memory->debug_active_entities_count = 0;
 	f32 closest_t = {0}; // this is used for raycasting
 	b32 first_intersection = false;
-	if(memory->closest_entity.index == (u32)memory->selected_uid){
-		memory->closest_entity = {0};
+	if(memory->closest_entity_to_grab_h.index == memory->selected_entity_h.index){
+		memory->closest_entity_to_grab_h = {0};
 	}
-	Entity_handle last_frame_closest_entity_to_grab = memory->closest_entity;
+	Entity_handle last_frame_closest_entity_to_grab = memory->closest_entity_to_grab_h;
 	memory->is_valid_grab = true;
 	UNTIL(i, MAX_ENTITIES)
 	{
@@ -1051,32 +1050,32 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// SUB ITERATION
 
 		// TODO:initialize distances to 0 and instead of checking if uid < 0 check for distance
-		s32 closest_enemy_uid = -1;
-		f32 closest_enemy_distance = MAX_FLOAT;
+		s32 closest_enemy_uid = 0;
+		f32 closest_enemy_distance = 0;
 
-		s32 closest_ally_uid = -1;
-		f32 closest_ally_distance = MAX_FLOAT;
+		s32 closest_ally_uid = 0;
+		f32 closest_ally_distance = 0;
 
-		s32 closest_jump_target_uid = -1;
-		f32 closest_jump_distance = MAX_FLOAT;
+		s32 closest_jump_target_uid = 0;
+		f32 closest_jump_distance = 0;
 
 
 		//TODO: check if the entity i am processing here is the same that i will check when F == -1
 		// cuz here i may be checking last frame's closest entity
 		
-		b32 test_grab = false;
+		b32 test_if_this_entity_can_be_grabbed = false;
 		V3 grab_pos = {0};
 		if(last_frame_closest_entity_to_grab.index == i)
 		{
 			if(
-				memory->selected_uid >= 0 && 
-				is_handle_valid(last_frame_closest_entity_to_grab, generations) &&
-				!(entities[memory->selected_uid].flags & E_STICK_TO_ENTITY)
+				exists_selected_entity && 
+				last_frame_closest_entity_to_grab.is_valid(generations) &&
+				!(selected_entity->flags & E_STICK_TO_ENTITY)
 			){
-				test_grab = true;
-				V3 distance_vector = entity->pos - entities[memory->selected_uid].pos;
-				V3 final_relative_pos = (0.5f + entities[memory->selected_uid].scale.x + entity->scale.x) * v3_normalize(distance_vector);
-				grab_pos = entities[memory->selected_uid].pos + final_relative_pos;
+				test_if_this_entity_can_be_grabbed = true;
+				V3 distance_vector = entity->pos - selected_entity->pos;
+				V3 final_relative_pos = (0.5f + selected_entity->scale.x + entity->scale.x) * v3_normalize(distance_vector);
+				grab_pos = selected_entity->pos + final_relative_pos;
 
 			}else{
 				memory->is_valid_grab = false;
@@ -1084,7 +1083,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 		f32 closest_entity_to_grab_distance;
-		if((u32)memory->selected_uid == i && is_handle_valid(last_frame_closest_entity_to_grab, generations))
+		if(memory->selected_entity_h.index == i && last_frame_closest_entity_to_grab.is_valid(generations))
 		{
 			closest_entity_to_grab_distance = v3_magnitude(entities[last_frame_closest_entity_to_grab.index].pos - entity->pos);
 		}else{
@@ -1113,7 +1112,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
 				{
-					if(closest_enemy_uid < 0){
+					if(!closest_enemy_distance){
 						closest_enemy_uid = j;
 						closest_enemy_distance = distance;
 					}else if(distance < closest_enemy_distance){
@@ -1125,7 +1124,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				// CLOSEST ALLY TO GRAB
 				if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
 				{
-					if(closest_ally_uid < 0){
+					if(!closest_ally_distance){
 						closest_ally_uid = j;
 						closest_ally_distance = distance;
 					}else if(distance < closest_ally_distance){
@@ -1136,7 +1135,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				
 				// CLOSEST GRAB ENTITY 
 				if(
-					i == (u32)memory->selected_uid && 
+					i == memory->selected_entity_h.index && 
 					!(entity2->flags & (E_STICK_TO_ENTITY|E_DOES_DAMAGE)) &&
 					!entity2->is_grabbing && 
 					j != global_player_handle.index
@@ -1144,7 +1143,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				{
 					if(distance < closest_entity_to_grab_distance)
 					{
-						memory->closest_entity = {j, generations[j]};
+						memory->closest_entity_to_grab_h = {j, generations[j]};
 						closest_entity_to_grab_distance = distance;
 					}
 				}
@@ -1154,10 +1153,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// CHECKING IF THE AREA WHERE THE ENTITY WILL BE PLACED AFTER GRABBING IT IS CLEARED
 
-			if(test_grab && 
+			if(test_if_this_entity_can_be_grabbed && 
 				entity2->flags & E_HAS_COLLIDER)
 			{
-
+				//TODO: this isn't enough cuz grabbed entities lerp towards the position they should be
 				if(
 					0 < sphere_vs_sphere(
 						grab_pos, entity->creation_size*entity->scale.x, 
@@ -1172,7 +1171,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			if(entity->flags & P_JUMP_BETWEEN_TARGETS && !(entity2->flags & E_NOT_TARGETABLE)){
 				if(v3_magnitude(entity2->pos - entity->ignore_sphere_pos) > entity->ignore_sphere_radius){
-					if(closest_jump_target_uid < 0 ){
+					if(!closest_jump_distance){
 						closest_jump_target_uid = j;
 						closest_jump_distance = distance;
 					}else if(distance < closest_jump_distance){
@@ -1501,8 +1500,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->jump_change_direction && entity->flags & P_JUMP_BETWEEN_TARGETS){
 			entity->jump_change_direction = false;
-			entity->target_pos = entities[closest_jump_target_uid].pos;
-			entity->velocity = v3_magnitude(entity->velocity) * v3_normalize(entity->target_pos - entity->pos);
+			if(closest_jump_distance)
+			{
+				entity->target_pos = entities[closest_jump_target_uid].pos;
+				entity->velocity = v3_magnitude(entity->velocity) * v3_normalize(entity->target_pos - entity->pos);
+			}else{
+				s32* index_to_kill; 
+				PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
+
+				*index_to_kill = i;
+			}
 		}
 
 
@@ -1716,7 +1723,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(entity->flags & E_STICK_TO_ENTITY)
 		{
 			//TODO: that is_grabbing property i need to re check if it's necessary to simplify this condition
-			if(is_handle_valid(entity->entity_to_stick, generations) && (
+			if(entity->entity_to_stick.is_valid(generations) && (
 					entities[entity->entity_to_stick.index].is_grabbing ||
 					entity->flags & E_MELEE_HITBOX ||
 					entity->flags & P_SHIELD
@@ -1807,28 +1814,35 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{ 
 
 			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
-			if((entity->flags & E_AUTO_AIM_CLOSEST) && 
-				(closest_enemy_distance < DEFAULT_AUTOAIM_RANGE) && 
-				closest_enemy_uid >= 0
+			b64 autoaims_closest = entity->flags & E_AUTO_AIM_CLOSEST;
+			b32 is_healer = entity->element_type & EET_HEAL;
+
+			if(autoaims_closest && 
+				is_healer &&
+				closest_ally_distance && closest_ally_distance < DEFAULT_AUTOAIM_RANGE
 			){
-				if(entity->element_type & EET_HEAL)
-				{
-					entity->target_pos = entities[closest_ally_uid].pos;
-				}else{
-					entity->target_pos = entities[closest_enemy_uid].pos;
-				}
-			}else{
+				entity->target_pos = entities[closest_ally_uid].pos;
+			}
+			else if(
+				autoaims_closest &&
+				!is_healer && 
+				closest_enemy_distance && closest_enemy_distance < DEFAULT_AUTOAIM_RANGE)
+			{
+				entity->target_pos = entities[closest_enemy_uid].pos;
+			}
+			else
+			{
 				// friendly
 				if(entity->team_uid == player_entity->team_uid || 
 					(entity->team_uid != player_entity->team_uid && 
 					entity->element_type & EET_HEAL)){
-					if(is_handle_valid(global_boss_handle, generations)){
+					if(global_boss_handle.is_valid(generations)){
 						entity->target_pos = entities[global_boss_handle.index].pos;
 					}else{
 						entity->target_pos = entity->pos;
 					}
 				}else{ // enemy
-					if(is_handle_valid(global_player_handle, generations)){
+					if(global_player_handle.is_valid(generations)){
 						entity->target_pos = entities[global_player_handle.index].pos;
 					}else{
 						entity->target_pos = entity->pos;
@@ -1836,12 +1850,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 			}
 		}else{
-			if((entity->flags & E_AUTO_AIM_CLOSEST) && (closest_enemy_uid >= 0) )
+			if((entity->flags & E_AUTO_AIM_CLOSEST))
 			{
-				if(entity->element_type & EET_HEAL)
+				if(entity->element_type & EET_HEAL && closest_ally_distance)
 				{
 					entity->target_pos = entities[closest_ally_uid].pos;
-				}else{
+				}else if(closest_enemy_distance){
 					entity->target_pos = entities[closest_enemy_uid].pos;
 				}
 			}
@@ -2107,53 +2121,53 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				memory->teams_resources[i] += entities[*e_index].total_upgrades_cost_value/2;
 			}
 		}
-		if(*e_index == memory->selected_uid)
-		{
-			memory->selected_uid = -1;
-		}
 		entities[*e_index] = {0};
 		generations[*e_index]++;
 	}
-
+	// selected entity might be invalid at this point
 
 	// CREATING ENTITIES
 
 	FOREACH(Entity, entity_properties, entities_to_create){
-		u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+		u32 e_index = next_inactive_entity(entities, &memory->last_used_entity_index);
 		entities[e_index] = *entity_properties;
 	}
 
 
 	// HANDLING INPUT
 	if(hot_entity_uid >= 0)
+	{
 		entities[hot_entity_uid].color = {1,1,1,1};	
+	}
 
 	// DECIDE WHOS THE SELECTED ENTITY 
 
 	if(!is_cursor_in_ui && !input->R){
 		if(input->cursor_primary == 1){
-			memory->clicked_uid = hot_entity_uid;
-			memory->selected_uid = -1;
+			memory->clicked_entity_h = {(u32)hot_entity_uid, generations[hot_entity_uid]};
+			memory->selected_entity_h = {0};
 		}else if( input->cursor_primary == -1 ){
-			if(memory->clicked_uid >= 0){
-				if(hot_entity_uid == memory->clicked_uid){
-					memory->selected_uid = memory->clicked_uid;
+			if(memory->clicked_entity_h.is_valid(generations)){
+				if((u32)hot_entity_uid == memory->clicked_entity_h.index){
+					memory->selected_entity_h = memory->clicked_entity_h;
 					
 					Audio_playback* new_playback = find_next_available_playback(playback_list);
 					new_playback->initial_sample_t = sample_t;
 					new_playback->sound_uid = memory->sounds.pa_uid;
 				}else{
-					memory->selected_uid = -1;
+					memory->selected_entity_h = {0};
 				}
-				memory->clicked_uid = 0;
+				memory->clicked_entity_h = {0};
 			}
 		}
 	}
+	
+	exists_selected_entity = memory->selected_entity_h.is_valid(generations);
+	selected_entity = &entities[memory->selected_entity_h.index];
 
 	
-	if(memory->selected_uid >= 0)
+	if(exists_selected_entity)
 	{
-		Entity* selected_entity = &entities[memory->selected_uid];
 
 
 		// STICK SELECTED ENTITY TO THE CLOSEST ONE
@@ -2166,16 +2180,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(input->F == -1)
 		{
-			Entity* entity_to_grab = &entities[memory->closest_entity.index];
+			Entity* entity_to_grab = &entities[memory->closest_entity_to_grab_h.index];
 			if(
 				memory->is_valid_grab &&
-				memory->closest_entity != global_player_handle &&
+				memory->closest_entity_to_grab_h != global_player_handle &&
 				entity_to_grab->team_uid == player_entity->team_uid
 			){
-				memory->closest_entity = {0};
+				memory->closest_entity_to_grab_h = {0};
 				// selected_entity->entity_to_grab = selected_entity->closest_entity_handle;
 				entity_to_grab->flags |= E_STICK_TO_ENTITY;
-				entity_to_grab->entity_to_stick = {(u32)memory->selected_uid, generations[memory->selected_uid]};
+				entity_to_grab->entity_to_stick = memory->selected_entity_h;
 				
 				selected_entity->is_grabbing = true;
 				V2 relative_distance = {
@@ -2228,9 +2242,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				{
 					memory->team_spawn_charges[0]--;
 					
-					u32 e_index = next_inactive_entity(entities, &memory->last_inactive_entity);
+					u32 e_index = next_inactive_entity(entities, &memory->last_used_entity_index);
 					Entity* new_entity = &entities[e_index];
-					memory->selected_uid = e_index;
+					memory->selected_entity_h = {e_index, generations[e_index]};
 
 					// default_melee(new_entity, memory);
 					new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION
@@ -2397,12 +2411,13 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	}
 
 	// SHOW FUTURE POSITION OF THE ENTITY THAT IS BEING GRABBED 
+	b32 exists_selected_entity = memory->selected_entity_h.is_valid(memory->entity_generations);
+	Entity* selected_entity =  &memory->entities[memory->selected_entity_h.index];
 
-	if(memory->selected_uid >= 0 && memory->input->F > 0 && is_handle_valid(memory->closest_entity, memory->entity_generations))
-	{	
-		Entity* selected_entity = &memory->entities[memory->selected_uid];
+	if(exists_selected_entity && memory->input->F > 0 && memory->closest_entity_to_grab_h.is_valid(memory->entity_generations))
+	{
 
-		Entity* possible_e_to_grab = &memory->entities[memory->closest_entity.index];
+		Entity* possible_e_to_grab = &memory->entities[memory->closest_entity_to_grab_h.index];
 		V3 distance_vector = possible_e_to_grab->pos - selected_entity->pos;
 		V3 final_relative_pos = (0.5f + possible_e_to_grab->scale.x + selected_entity->scale.x) * v3_normalize(distance_vector);
 
@@ -2422,9 +2437,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 	}
 
-	if(memory->selected_uid >= 0){
-		Entity* selected_entity = &memory->entities[memory->selected_uid];
-
+	if(exists_selected_entity)
+	{
 
 		// SHOW SELECTED ENTITY WITH A ICON OVER THE ENTITY
 		PUSH_BACK(render_list, memory->temp_arena, request);
@@ -2450,7 +2464,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// SHOW ENTITY THAT IS ABOUT TO BE CREATED
 
-	if(memory->selected_uid < 0 && memory->input->cursor_secondary > 0)
+	if(!exists_selected_entity && memory->input->cursor_secondary > 0)
 	{
 		PUSH_BACK(render_list, memory->temp_arena, request);
 		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
@@ -2487,7 +2501,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			
 			if(particle->flags & PARTICLE_ACCEL_TOWARDS_TARGET_ENTITY)
 			{
-				if(is_handle_valid(particle->target_entity_h, memory->entity_generations))
+				if(particle->target_entity_h.is_valid(memory->entity_generations))
 				{
 					accel = accel + (memory->entities[particle->target_entity_h.index].pos - particle->position);
 				}
@@ -2606,9 +2620,9 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		concat_strings(string("spawn_charges: "), spawn_charges_string, memory->temp_arena), {-1, .85f}, {1,1,0,1}
 	);
 
-	if(memory->selected_uid >= 0)
+	if(exists_selected_entity)
 	{
-		String current_entity_value = number_to_string(memory->entities[memory->selected_uid].total_upgrades_cost_value, memory->temp_arena);
+		String current_entity_value = number_to_string(selected_entity->total_upgrades_cost_value, memory->temp_arena);
 		printo_screen(memory, screen_size, render_list,
 			concat_strings(string("selected_entity_value: "), current_entity_value, memory->temp_arena), {-1, .8f}, {1,1,0,1}
 		);
@@ -2724,7 +2738,6 @@ void init(App_memory* memory, Init_data* init_data){
 	memory->entity_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_ENTITIES);
 
 	memory->ui_elements = ARENA_PUSH_STRUCTS(memory->permanent_arena, Ui_element, MAX_UI);
-	memory->ui_generations = ARENA_PUSH_STRUCTS(memory->permanent_arena, u32, MAX_UI);
 
 	Asset_request request = {0};
 	{
