@@ -584,6 +584,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	V3 cursor_y0_pos = line_intersect_y0(cursor_screen_to_world_pos, z_direction);
 
+	struct DOUBLE_HANDLE{
+		Entity_handle from;
+		Entity_handle to;
+	};
+	LIST(DOUBLE_HANDLE, update_grabbing_list) = {0};
 	LIST(s32, entities_to_kill) = {0};
 	LIST(Entity, entities_to_create) = {0};
 
@@ -1722,7 +1727,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_STICK_TO_ENTITY)
 		{
-			//TODO: that is_grabbing property i need to re check if it's necessary to simplify this condition
 			if(entity->entity_to_stick.is_valid(generations) && (
 					entities[entity->entity_to_stick.index].is_grabbing ||
 					entity->flags & E_MELEE_HITBOX ||
@@ -1730,6 +1734,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				)
 			){
 				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
+				{
+					DOUBLE_HANDLE* handle; 
+					PUSH_BACK(update_grabbing_list, memory->temp_arena, handle);
+					*handle = {{i,generations[i]}, entity->entity_to_stick};
+				}
 				V3 owner_target_vector = sticked_entity->target_pos - sticked_entity->pos;
 				f32 offset_angle = v2_angle({owner_target_vector.x, owner_target_vector.z});
 
@@ -2121,10 +2130,21 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				memory->teams_resources[i] += entities[*e_index].total_upgrades_cost_value/2;
 			}
 		}
+		if(entities[*e_index].entity_to_stick.is_valid(generations))
+		{
+			entities[entities[*e_index].entity_to_stick.index].is_grabbing = false;
+		}
 		entities[*e_index] = {0};
 		generations[*e_index]++;
 	}
 	// selected entity might be invalid at this point
+	FOREACH(DOUBLE_HANDLE, e_handle, update_grabbing_list)
+	{
+		if(e_handle->from.is_valid(generations) &&  e_handle->to.is_valid(generations))
+		{
+			entities[e_handle->to.index].is_grabbing = true;
+		}
+	}
 
 	// CREATING ENTITIES
 
@@ -2173,12 +2193,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		// STICK SELECTED ENTITY TO THE CLOSEST ONE
 
 		//TODO: highlight the closest entity
-		if(input->space_bar == 1){
-			//TODO: better put a boolean that indicates that this entity will drop all held entities 
-			// generations[memory->selected_uid]++;	
-			selected_entity->is_grabbing = false;
-		}
-		if(input->F == -1)
+		if(input->F == -1 && memory->closest_entity_to_grab_h.is_valid(generations))
 		{
 			Entity* entity_to_grab = &entities[memory->closest_entity_to_grab_h.index];
 			if(

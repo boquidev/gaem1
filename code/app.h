@@ -642,6 +642,9 @@ struct App_memory
 	V3 new_entity_pos;
 
 	Entity* entities;
+	u32* entity_generations;
+	// this is just so that entities that are grabbing cannot be grabbed by other entities
+	b8 entities_grabbing_property_list [MAX_ENTITIES];
 
 	Entity_handle clicked_entity_h;
 	Entity_handle selected_entity_h;
@@ -650,7 +653,6 @@ struct App_memory
 	Entity_handle closest_entity_to_grab_h;
 	b32 is_valid_grab;
 
-	u32* entity_generations;
 
 	Int2 radial_menu_pos;
 
