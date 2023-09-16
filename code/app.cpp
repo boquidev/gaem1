@@ -83,6 +83,17 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				5,
 				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER},
 			},
+			{
+				666.0f,
+				5.0f,
+				1.5f,
+				10.0f,
+				30.0f,
+				40.0f,
+
+				1,
+				{EET_WATER},
+			},
 		};
 
 		memory->levels_count = ARRAYCOUNT(levels_init);
@@ -573,9 +584,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		Entity_handle from;
 		Entity_handle to;
 	};
+	// this is to check that both the entity being grabbed and the grabber are both still alive
 	LIST(DOUBLE_HANDLE, update_grabbing_list) = {0};
 	LIST(s32, entities_to_kill) = {0};
 	LIST(Entity, entities_to_create) = {0};
+	LIST(u32, set_jump_change_direction_list) = {0};
 
 
 	//PROCESSING BOSS ENTITY
@@ -810,7 +823,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					new_shield->flags = 
 						E_VISIBLE|E_NOT_TARGETABLE|E_RECEIVES_DAMAGE|P_SHIELD|E_IGNORE_ALLIES|
 						E_TOXIC_DAMAGE_INMUNE|E_STICK_TO_ENTITY|E_SKIP_DYNAMICS
-						// E_IGNORE_ALLIES
 					;
 					
 					new_shield->max_health = 10.0f;
@@ -1093,6 +1105,20 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						closest_enemy_distance = distance;
 					}
 				}
+				
+				// POSSIBLE JUMPING TARGETS
+
+				if(entity->flags & P_JUMP_BETWEEN_TARGETS && !(entity2->flags & E_NOT_TARGETABLE)){
+					if(v3_magnitude(entity2->pos - entity->ignore_sphere_pos) > entity->ignore_sphere_radius){
+						if(!closest_jump_distance){
+							closest_jump_target_uid = j;
+							closest_jump_distance = distance;
+						}else if(distance < closest_jump_distance){
+							closest_jump_target_uid = j;
+							closest_jump_distance = distance;
+						}
+					}
+				}
 			}else{
 				// CLOSEST ALLY TO GRAB
 				if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
@@ -1140,21 +1166,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}
 			}
 
-			// POSSIBLE JUMPING TARGETS
-
-			if(entity->flags & P_JUMP_BETWEEN_TARGETS && !(entity2->flags & E_NOT_TARGETABLE)){
-				if(v3_magnitude(entity2->pos - entity->ignore_sphere_pos) > entity->ignore_sphere_radius){
-					if(!closest_jump_distance){
-						closest_jump_target_uid = j;
-						closest_jump_distance = distance;
-					}else if(distance < closest_jump_distance){
-						closest_jump_target_uid = j;
-						closest_jump_distance = distance;
-
-					}
-				}
-			}
-
 
 			// HITBOX / DAMAGE 
 
@@ -1169,7 +1180,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						entity2->parent_handle.generation != generations[i]
 					) && (
 						entity->team_uid != entity2->team_uid ||
-						!(entity->flags & E_IGNORE_ALLIES)
+						(
+							!(entity->flags & E_IGNORE_ALLIES) &&
+							!(entity2->flags & E_IGNORE_ALLIES)
+						)
 					) &&(
 						!entity2->ignore_sphere_radius ||
 						v3_magnitude(entity->pos - entity2->ignore_sphere_pos) > entity2->ignore_sphere_radius
@@ -1246,11 +1260,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 							calculate_elemental_reaction(entity, entity2, memory, entities_to_create);
 
+							u32* index_to_set;
+							PUSH_BACK(set_jump_change_direction_list, memory->temp_arena, index_to_set);
+							*index_to_set = j;
 
 							//TODO: not very multithready friendly
 
 							//TODO: push this code to a list to process this outside the main loop
-							entity2->jump_change_direction = true; 
 							if(!entity2->ignore_sphere_radius){ // FIRST_COLLISION
 								entity2->ignore_sphere_pos = entity->pos;
 								entity2->ignore_sphere_radius = 0.9f;
@@ -1610,8 +1626,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						new_bullet->flags = 
 							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE|
 							E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
-							E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY|E_EMIT_PARTICLES
-							//|E_RECEIVES_DAMAGE
+							E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY|E_EMIT_PARTICLES|
+							E_IGNORE_ALLIES
 						;
 
 						if(entity->flags & E_PROJECTILE_EXPLODE){
@@ -2181,6 +2197,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// KILLING ENTITIES
 
 	// TODO: maybe use entity handles for this instead of u32 ???
+	FOREACH(u32, e_index, set_jump_change_direction_list)
+	{
+		entities[*e_index].jump_change_direction = true;
+	}
 
 	FOREACH(s32, e_index, entities_to_kill){
 		if(entities[*e_index].flags & P_PROJECTILE_EXPLODE)

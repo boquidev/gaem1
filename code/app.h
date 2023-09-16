@@ -765,8 +765,8 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 				case EET_WATER|EET_ELECTRIC:{
 					Entity* e; // jumping lightning
 					PUSH_BACK(entities_to_create, memory->temp_arena, e);
-					e->flags = E_VISIBLE|E_NOT_TARGETABLE|E_DOES_DAMAGE|
-						E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE
+					e->flags = E_VISIBLE|E_NOT_TARGETABLE|E_DOES_DAMAGE
+						|E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE|E_IGNORE_ALLIES
 						|P_JUMP_BETWEEN_TARGETS|E_EMIT_PARTICLES
 						;
 						
@@ -780,11 +780,12 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					e->friction = 0.0f;
 					e->lifetime = 5.0f;
 					e->weight = 100.0f;
-					e->total_power = 10.0f;
+					e->total_power = 1.5f*entity2->total_power;
 					e->aura_radius = 2.0f;
 
 					e->pos = entity->pos;
 					e->velocity = {e->speed, 0, 0};
+					e->team_uid = entity2->team_uid;
 
 					e->ignore_sphere_pos = entity2->ignore_sphere_pos;
 					e->ignore_sphere_radius = entity2->ignore_sphere_radius;
@@ -799,8 +800,8 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					particle_emitter.particle_flags = PARTICLE_ACTIVE;
 					particle_emitter.particles_count = 1;
 
-					particle_emitter.target_color = {1,1,1,1};
-					particle_emitter.color_delta_multiplier = 1.0f;
+					particle_emitter.target_color = {1,1,0,1};
+					particle_emitter.color_delta_multiplier = 30.0f;
 
 					//TODO: implement freeze frames/stutter to make this  more visible
 					particle_emitter.particle_lifetime = memory->delta_time*3;
@@ -808,7 +809,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					particle_emitter.initial_scale = 5.0f;
 					
 					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
-					particle_emitter.emit_particle(new_particle, entity->pos, {0,0,0}, {1,1,0,1}, &memory->rng);
+					particle_emitter.emit_particle(new_particle, entity->pos, {0,0,0}, {1,1,1,1}, &memory->rng);
 
 
 
