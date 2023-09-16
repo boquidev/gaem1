@@ -344,7 +344,7 @@ struct Entity{
 	Element_handle parent_handle;
 	u32 team_uid;
 	
-	Entity_handle entity_to_stick;
+	Entity_handle grabbed_entity;
 	f32 relative_angle;
 
 	b32 is_grabbing;
@@ -769,7 +769,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 						|E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE|E_IGNORE_ALLIES
 						|P_JUMP_BETWEEN_TARGETS|E_EMIT_PARTICLES
 						;
-						
+
 					e->element_type = EET_ELECTRIC;
 					e->elemental_damage_duration = 1.0f;
 					e->jump_change_direction = true;
@@ -780,7 +780,7 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 					e->friction = 0.0f;
 					e->lifetime = 5.0f;
 					e->weight = 100.0f;
-					e->total_power = 1.5f*entity2->total_power;
+					e->total_power = 2.0f*entity2->total_power;
 					e->aura_radius = 2.0f;
 
 					e->pos = entity->pos;

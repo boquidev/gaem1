@@ -845,7 +845,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					Entity* parent = entity;
 					new_shield->parent_handle.index = i;
 					new_shield->parent_handle.generation = generations[i];
-					new_shield->entity_to_stick = new_shield->parent_handle;
+					new_shield->grabbed_entity = new_shield->parent_handle;
 					new_shield->team_uid = parent->team_uid;
 					new_shield->pos = parent->pos;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
@@ -1053,7 +1053,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(last_frame_closest_entity_to_grab.index == i)
 		{
 			if(
-				exists_selected_entity && 
+				exists_selected_entity && input->F && 
 				last_frame_closest_entity_to_grab.is_valid(generations) &&
 				!(selected_entity->flags & E_STICK_TO_ENTITY)
 			){
@@ -1153,13 +1153,23 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// CHECKING IF THE AREA WHERE THE ENTITY WILL BE PLACED AFTER GRABBING IT IS CLEARED
 
 			if(test_if_this_entity_can_be_grabbed && 
-				entity2->flags & E_HAS_COLLIDER)
+				entity2->flags & E_HAS_COLLIDER &&
+				entity2->flags & E_STICK_TO_ENTITY && 
+				entity2->grabbed_entity == memory->selected_entity_h)
 			{
-				//TODO: this isn't enough cuz grabbed entities lerp towards the position they should be
+				V3 owner_target_vector = selected_entity->target_pos - selected_entity->pos;
+				f32 offset_angle = v2_angle({owner_target_vector.x, owner_target_vector.z});
+				f32 relative_distance = 0.5f + entity2->scale.x + selected_entity->scale.x;
+				V3 grabbed_entity_relative_pos = 
+					v3_rotate_y(
+						{relative_distance, 0, 0}, 
+						entity->relative_angle - offset_angle
+					);
+				V3 grabbed_entity_world_pos = grabbed_entity_relative_pos + selected_entity->pos;
 				if(
 					0 < sphere_vs_sphere(
 						grab_pos, entity->creation_size*entity->scale.x, 
-						entity2->pos, entity2->creation_size*entity2->scale.x
+						grabbed_entity_world_pos, entity2->scale.x
 					)
 				){
 					memory->is_valid_grab = false;
@@ -1363,8 +1373,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							f32 healing_value = entity_dt * calculate_power(entity2);
 							entity->health = MIN(entity->health+healing_value, entity->max_health);
 
-							f32 dice = rng->next(8);
-							if(dice < 1)
+							if(rng->time_dice(7.5f, world_delta_time))
 							{
 								Particle_emitter particle_emitter;
 								particle_emitter.fill_data(
@@ -1720,7 +1729,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						hitbox->parent_handle.index = i;
 						hitbox->parent_handle.generation = generations[i];
 
-						hitbox->entity_to_stick = hitbox->parent_handle;
+						hitbox->grabbed_entity = hitbox->parent_handle;
 						hitbox->team_uid = entity->team_uid;
 
 						hitbox->total_power = calculate_power(entity);
@@ -1793,17 +1802,17 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_STICK_TO_ENTITY)
 		{
-			if(entity->entity_to_stick.is_valid(generations) && (
-					entities[entity->entity_to_stick.index].is_grabbing ||
+			if(entity->grabbed_entity.is_valid(generations) && (
+					entities[entity->grabbed_entity.index].is_grabbing ||
 					entity->flags & E_MELEE_HITBOX ||
 					entity->flags & P_SHIELD
 				)
 			){
-				Entity* sticked_entity = &entities[entity->entity_to_stick.index];
+				Entity* sticked_entity = &entities[entity->grabbed_entity.index];
 				{
 					DOUBLE_HANDLE* handle; 
 					PUSH_BACK(update_grabbing_list, memory->temp_arena, handle);
-					*handle = {{i,generations[i]}, entity->entity_to_stick};
+					*handle = {{i,generations[i]}, entity->grabbed_entity};
 				}
 				V3 owner_target_vector = sticked_entity->target_pos - sticked_entity->pos;
 				f32 offset_angle = v2_angle({owner_target_vector.x, owner_target_vector.z});
@@ -1872,7 +1881,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			f32 new_z = CLAMP(-21, entity->pos.z, 21);
 			if(entity->flags & E_STICK_TO_ENTITY)
 			{
-				Entity* owner_entity = entity_from_handle(entity->entity_to_stick, entities, generations);
+				Entity* owner_entity = entity_from_handle(entity->grabbed_entity, entities, generations);
 				owner_entity->velocity.x += 10*(new_x-entity->pos.x);
 				owner_entity->velocity.z += 10*(new_z-entity->pos.z);
 			}
@@ -1949,8 +1958,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		if(entity->flags & E_SMOKE_SCREEN){
 			entity->color = {.5f,.5f,.5f, 1};
 
-			f32 dice = rng->next(2);
-			if(dice < 2)
+			if(rng->time_dice(60, world_delta_time))
 			{
 					
 				Particle_emitter	particle_emitter;
@@ -1986,8 +1994,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(entity->freezing_time_left)
 		{
-			f32 dice = rng->next(30);
-			if(dice < 2)
+			if(rng->time_dice(4, world_delta_time))
 			{
 				Color init_color;
 				Color target_color;
@@ -1995,7 +2002,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				f32 init_scale;
 				f32 target_scale;
 				f32 scale_delta;
-				if(dice < 1)
+				if(rng->next(2) < 1)
 				{
 					init_color = {.5f, .6f, 1.0f, 0.0f};
 					target_color = {.8f, .9f, 1.0f, 1.0f};
@@ -2042,8 +2049,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(entity->toxic_time_left)
 		{
-			f32 dice = rng->next(2);
-			if(dice < 1)
+			if(rng->time_dice(25,world_delta_time))
 			{
 				Particle_emitter particle_emitter;
 				particle_emitter.fill_data(
@@ -2073,8 +2079,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		if(entity->gravity_field_time_left)
 		{
-			f32 dice = rng->next(15);
-			if(dice < 1)
+			if(rng->time_dice(4, world_delta_time))
 			{
 				
 				f32 pos_offset_angle = rng->next(TAU32);
@@ -2116,74 +2121,77 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_EMIT_PARTICLES)
 		{
-			Particle_emitter particle_emitter = {0};
-			particle_emitter.particle_flags = PARTICLE_ACTIVE;
-			particle_emitter.particles_count = 1;
-			particle_emitter.emit_cooldown = memory->delta_time*2;
-
-			particle_emitter.velocity_yrotation_rng = TAU32;
-			particle_emitter.friction = 10.0f;
-			
-			particle_emitter.acceleration = {0,10.0f, 0};
-			
-			particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
-			particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
-			particle_emitter.color_delta_multiplier = 0.5f;
-
-			particle_emitter.particle_lifetime = 0.3f;
-
-			particle_emitter.initial_angle_rng = PI32;
-			particle_emitter.angle_initial_speed_rng = 20.0f;
-			particle_emitter.angle_friction = 4.0f;
-			
-			particle_emitter.initial_scale = 0.2f;
-			particle_emitter.target_scale = 0.0f;
-			particle_emitter.scale_delta_multiplier = 1.0f;
-
-			entity->particle_timer += world_delta_time;
-
-			if(entity->particle_timer >= particle_emitter.emit_cooldown)
+			if(rng->time_dice(60, world_delta_time))
 			{
-				entity->particle_timer -= particle_emitter.emit_cooldown;
-				f32 particle_initial_speed = 20.0f;
-				if(entity->flags & E_DOES_DAMAGE)
-				{
-					particle_initial_speed = 10.0f;
-				}
+				Particle_emitter particle_emitter = {0};
+				particle_emitter.particle_flags = PARTICLE_ACTIVE;
+				particle_emitter.particles_count = 1;
+				particle_emitter.emit_cooldown = memory->delta_time*2;
 
-				Color particles_color = {1,1,1,0.1f};
-				switch(current_element)
+				particle_emitter.velocity_yrotation_rng = TAU32;
+				particle_emitter.friction = 10.0f;
+				
+				particle_emitter.acceleration = {0,10.0f, 0};
+				
+				particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
+				particle_emitter.target_color = {0.5f,0.5f,0.5f,1};
+				particle_emitter.color_delta_multiplier = 0.5f;
+
+				particle_emitter.particle_lifetime = 0.3f;
+
+				particle_emitter.initial_angle_rng = PI32;
+				particle_emitter.angle_initial_speed_rng = 20.0f;
+				particle_emitter.angle_friction = 4.0f;
+				
+				particle_emitter.initial_scale = 0.2f;
+				particle_emitter.target_scale = 0.0f;
+				particle_emitter.scale_delta_multiplier = 1.0f;
+
+				entity->particle_timer += world_delta_time;
+
+				if(entity->particle_timer >= particle_emitter.emit_cooldown)
 				{
-					case EET_WATER:
+					entity->particle_timer -= particle_emitter.emit_cooldown;
+					f32 particle_initial_speed = 20.0f;
+					if(entity->flags & E_DOES_DAMAGE)
 					{
-						particles_color = {0, 0.4f, 0.8f, 1};
-					}break;
-					case EET_HEAT:
+						particle_initial_speed = 10.0f;
+					}
+
+					Color particles_color = {1,1,1,0.1f};
+					switch(current_element)
 					{
-						particles_color = {1, 0.4f, 0, 1};
-					}break;
-					case EET_COLD:
-					{
-						particles_color = {0.7f, 0.7f, 1, 1};
-					}break;
-					case EET_ELECTRIC:
-					{
-						particles_color = {1, 1, 0, 1};
-					}break;
-					case EET_HEAL:
-					{
-						particles_color = {0,1,0,1};
-					}break;
-					case 0:
-					{
-						particles_color = {0.5f,0.5f,0.5f,1};
-						particle_initial_speed = 5.0f;
-					}break;
-					default:
-						ASSERT(false);
+						case EET_WATER:
+						{
+							particles_color = {0, 0.4f, 0.8f, 1};
+						}break;
+						case EET_HEAT:
+						{
+							particles_color = {1, 0.4f, 0, 1};
+						}break;
+						case EET_COLD:
+						{
+							particles_color = {0.7f, 0.7f, 1, 1};
+						}break;
+						case EET_ELECTRIC:
+						{
+							particles_color = {1, 1, 0, 1};
+						}break;
+						case EET_HEAL:
+						{
+							particles_color = {0,1,0,1};
+						}break;
+						case 0:
+						{
+							particles_color = {0.5f,0.5f,0.5f,1};
+							particle_initial_speed = 5.0f;
+						}break;
+						default:
+							ASSERT(false);
+					}
+					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+					particle_emitter.emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &memory->rng);
 				}
-				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
-				particle_emitter.emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &memory->rng);
 			}
 		}
 
@@ -2235,9 +2243,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				memory->teams_resources[i] += entities[*e_index].total_upgrades_cost_value/2;
 			}
 		}
-		if(entities[*e_index].entity_to_stick.is_valid(generations))
+		if(entities[*e_index].grabbed_entity.is_valid(generations))
 		{
-			entities[entities[*e_index].entity_to_stick.index].is_grabbing = false;
+			entities[entities[*e_index].grabbed_entity.index].is_grabbing = false;
 		}
 		entities[*e_index] = {0};
 		generations[*e_index]++;
@@ -2309,7 +2317,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				memory->closest_entity_to_grab_h = {0};
 				// selected_entity->entity_to_grab = selected_entity->closest_entity_handle;
 				entity_to_grab->flags |= E_STICK_TO_ENTITY;
-				entity_to_grab->entity_to_stick = memory->selected_entity_h;
+				entity_to_grab->grabbed_entity = memory->selected_entity_h;
 				
 				selected_entity->is_grabbing = true;
 				V2 relative_distance = {

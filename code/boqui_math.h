@@ -549,6 +549,13 @@ struct RNG{
         ++last_seed;
         return max_value*((f32)((temp * (temp * temp * 15731 + 789221) + 1376312589) & 0x7fffffff) / 0x7fffffff);
     }
+
+    // this dice tries to produce n amount of successes each second
+    f32 time_dice(f32 hits_per_second, f32 delta_time){
+        f32 success_rate = hits_per_second*delta_time;
+
+        return next(1) < success_rate;
+    }
 };
 
 internal f32
