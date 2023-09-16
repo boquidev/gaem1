@@ -466,7 +466,7 @@ sphere_vs_box(V3 sc, V3 bmin, V3 bmax){
     return distance;
 }
 
-// return value = overlap, if overlap < 0 then they don't overlap
+// return value = overlap, if 0 <= overlap  then they don't overlap
 internal f32 
 sphere_vs_sphere(V3 c1,f32 r1, V3 c2, f32 r2){
     return ((r1+r2) - v3_magnitude(c1-c2));

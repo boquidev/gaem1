@@ -1163,11 +1163,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				V3 grabbed_entity_relative_pos = 
 					v3_rotate_y(
 						{relative_distance, 0, 0}, 
-						entity->relative_angle - offset_angle
+						-(entity2->relative_angle + offset_angle)
 					);
 				V3 grabbed_entity_world_pos = grabbed_entity_relative_pos + selected_entity->pos;
 				if(
-					0 < sphere_vs_sphere(
+					0 <= sphere_vs_sphere(
 						grab_pos, entity->creation_size*entity->scale.x, 
 						grabbed_entity_world_pos, entity2->scale.x
 					)
@@ -1817,6 +1817,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				V3 owner_target_vector = sticked_entity->target_pos - sticked_entity->pos;
 				f32 offset_angle = v2_angle({owner_target_vector.x, owner_target_vector.z});
 
+
 				f32 relative_distance;
 				if(entity->flags & P_SHIELD)
 				{
@@ -1825,13 +1826,25 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				}else{
 					relative_distance = 0.5f + entity->scale.x + sticked_entity->scale.x;
 				}
+				
+				V3 pos_difference = entity->pos - sticked_entity->pos;
+
+				f32 current_angle = v2_angle({pos_difference.x, pos_difference.z});
+				f32 angle_difference = entity->relative_angle + offset_angle - current_angle;
+
+				if(angle_difference < (-PI32)){
+					angle_difference += TAU32;
+				}else if(PI32 < angle_difference){
+					angle_difference -= TAU32;
+				}
 
 				V3 final_relative_pos = 
 					v3_rotate_y(
 						{relative_distance, 0, 0}, 
-						entity->relative_angle - offset_angle
+						-(current_angle + (10*world_delta_time*angle_difference))
 					);
-				entity->pos = entity->pos + (15*world_delta_time * (sticked_entity->pos + final_relative_pos - entity->pos));
+				// entity->pos = entity->pos + (15*world_delta_time * (sticked_entity->pos + final_relative_pos - entity->pos));
+				entity->pos = sticked_entity->pos + final_relative_pos;
 				
 				//TODO: i probably need to change this if i want grabbed entities to autoaim
 				if(!(entity->flags & E_AUTO_AIM_CLOSEST))
@@ -2320,14 +2333,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				entity_to_grab->grabbed_entity = memory->selected_entity_h;
 				
 				selected_entity->is_grabbing = true;
-				V2 relative_distance = {
-					entity_to_grab->pos.x - selected_entity->pos.x,
-					-(entity_to_grab->pos.z - selected_entity->pos.z)
-					};
+				f32 current_relative_angle = v2_angle({
+						entity_to_grab->pos.x - selected_entity->pos.x,
+						entity_to_grab->pos.z - selected_entity->pos.z
+					});
 				f32 angle_offset = v2_angle(
 					selected_entity->target_pos.x - selected_entity->pos.x, 
 					selected_entity->target_pos.z - selected_entity->pos.z);
-				entity_to_grab->relative_angle = v2_angle(relative_distance) + angle_offset;
+				entity_to_grab->relative_angle = current_relative_angle - angle_offset;
 			}
 		}
 		
