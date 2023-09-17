@@ -607,6 +607,58 @@ struct Sounds{
 	u32 psss_uid;
 };
 
+
+enum SPAWN_TYPE
+{
+	ST_FORGOR_TO_SET_SPAWN_TYPE,
+	ST_INDIVIDUAL,
+	ST_TOGETHER,
+};
+
+enum ELEMENT_POOL_ASSIGNMENT_TYPE
+{
+	EPAT_FORGOR_TO_SET_ASSIGNMENT_TYPE,
+	EPAT_ONE_TO_ONE,
+	EPAT_RANDOM,
+};
+
+enum BOSS_ACTION_TYPE
+{
+	BAT_FORGOR_TO_SET_ACTION,
+	BAT_SPAWN_ENTITIES,
+	BAT_WAIT_TIME,
+	BAT_MOVE,
+};
+struct Boss_action
+{
+	BOSS_ACTION_TYPE action_type;
+
+	
+	struct
+	{
+		u32 entities_to_spawn_count;
+		
+		SPAWN_TYPE spawn_type;
+		struct {
+			V3 positions[16];
+			f32 relative_angles[16];
+		};
+
+		ELEMENT_POOL_ASSIGNMENT_TYPE element_pool_assignment_type;
+		u16 elements_pool[16];
+
+	}spawn_properties;
+
+	struct 
+	{
+		f32 wait_timer;
+	};
+	struct 
+	{
+		V3 move_position;
+	};
+};
+
 struct Level_properties{
 	f32 boss_health;
 	f32 boss_action_cooldown;
@@ -618,6 +670,7 @@ struct Level_properties{
 	
 	u32 possible_elements_count;
 	u16 possible_elements [10];
+	// BOSS BEHAVIOR SEQUENCE
 };
 
 struct App_memory

@@ -67,7 +67,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				3.0f,
 				5.0f,
 				15.0f,
-				20.0f,
+				40.0f,
 
 				1,
 				{0},
@@ -84,7 +84,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER},
 			},
 			{
-				666.0f,
+				130.0f,
+				5.0f,
+				1.5f,
+				10.0f,
+				30.0f,
+				40.0f,
+
+				1,
+				{EET_WATER},
+			},
+			{
+				140.0f,
 				5.0f,
 				1.5f,
 				10.0f,
@@ -531,7 +542,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// if(input->debug_right == 1 && exists_selected_entity) selected_entity->action_range *= 2;
 
 	// UPDATE 1 FRAME IF THE KEY IS TAPPED
-	if(memory->is_paused) if (input->debug_right != 1) return;
+	if(memory->is_paused || input->R) if (input->debug_right != 1) return;
 
 	memory->time_s += memory->delta_time;
 
@@ -739,7 +750,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// ENEMY_COLOR
 			if(entity->team_uid != player_entity->team_uid){
-				target_color = {.0f, .1f, .1f,1};
+				target_color = {.0f, .05f, .2f,1};
 			}else{
 				target_color = {.5f, .99f, .5f, 1};
 			}
@@ -1235,7 +1246,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					
 					if(they_collide) // DAMAGING ENTITY
 					{
-					entity->color = {1,0,0,1};
 						if(entity->flags & P_SHIELD)
 						{
 							entity->health -= entity2->total_power;
@@ -1258,7 +1268,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							f32 damage_dealt;
 							if(entity2->element_type & EET_HEAL){
 								damage_dealt = -1;
+								entity->color = {0,2,0.5f,1};
 							}else{
+								entity->color = {1,0,0,1};
 								damage_dealt = MIN(entity->health, entity2->total_power);
 							}
 							entity->health = CLAMP(0, entity->health - damage_dealt, entity->max_health);
@@ -1666,11 +1678,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						Entity* new_bullet; PUSH_BACK(entities_to_create, memory->temp_arena, new_bullet);
 
 						new_bullet->flags = 
-							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE|
-							E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION|
-							E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY|E_EMIT_PARTICLES|
-							E_IGNORE_ALLIES
+							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE
+							|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION
+							|E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY|E_EMIT_PARTICLES
 						;
+						if(!(entity->element_type & EET_HEAL))
+						{
+							new_bullet->flags |= E_IGNORE_ALLIES;
+						}
 
 						if(entity->flags & E_PROJECTILE_EXPLODE){
 							new_bullet->flags |= P_PROJECTILE_EXPLODE;
@@ -2002,7 +2017,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		u16 current_element = entity->element_type ? entity->element_type : entity->element_effect;
 
 		if(entity->flags & E_SMOKE_SCREEN){
-			entity->color = {.5f,.5f,.5f, 1};
+			entity->color = {.1f,.3f,.5f, 1};
 
 			if(rng->time_dice(60, world_delta_time))
 			{
@@ -2024,7 +2039,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					0,
 					{0, 1.0f, 0},
 					{0},
-					{0.5,0.5,0.5, 0.01f},
+					{0.0f,0.2f,0.4f, 0.01f},
 					1.0f,
 					0.5f,
 					0,0,0,0,0,
@@ -2035,7 +2050,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				);
 
 				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-				entity->pos, {1.0f,1.0f,0}, {.7f, .7f, .7f, .7f}, rng);
+				entity->pos, {1.0f,1.0f,0}, {.1f, .4f, .8f, .7f}, rng);
 			}
 		}
 		if(entity->freezing_time_left)
@@ -2596,32 +2611,51 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		request->object3d.pos = selected_entity->pos + final_relative_pos;
 
 		request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
-		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+		request->object3d.texinfo_uid = memory->textures.white_tex_uid;		
 	}
 
 	if(exists_selected_entity)
 	{
+		
+		PUSH_BACK(delayed_render_list,  memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_SET_TIME;
+		request->new_time = 0.24f + SINF(4*memory->time_s)/4;
+
+		PUSH_BACK(delayed_render_list, memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+		request->object3d = selected_entity->object3d;
+		request->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+		request->texinfo_uid = memory->textures.white_tex_uid;
+		request->scale = {1.0f,1.0f,1.0f};
+		request->pos.y += 1.0f;
+		request->rotation = {PI32/2, 0,0};
+		request->color = {1,1,1,1};
 
 		// SHOW SELECTED ENTITY WITH A ICON OVER THE ENTITY
-		PUSH_BACK(render_list, memory->temp_arena, request);
-		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-		request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
-		request->object3d.texinfo_uid = memory->textures.white_tex_uid;
-		request->object3d.scale = {0.5f,0.5f,0.5f};
-		request->object3d.color = {1,1,1,0.5f};
-		request->object3d.pos = selected_entity->pos;
-		request->object3d.pos.y += selected_entity->scale.y;
+		// PUSH_BACK(render_list, memory->temp_arena, request);
+		// request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+		// request->object3d.mesh_uid = memory->meshes.icosphere_mesh_uid;
+		// request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+		// request->object3d.scale = {0.5f,0.5f,0.5f};
+		// request->object3d.color = {1,1,1,0.5f};
+		// request->object3d.pos = selected_entity->pos;
+		// request->object3d.pos.y += selected_entity->scale.y;
 		
 		{
 			// SHOW TARGET POSITION
-			PUSH_BACK(render_list, memory->temp_arena, request);
+			PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 			request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
-			request->scale = {1,1,1};
+			request->scale = {1.5f, 1.5f, 1.5f};
+			request->rotation = {PI32/2, 0,0};
 			request->pos = selected_entity->target_pos;
-			request->mesh_uid = memory->meshes.icosphere_mesh_uid;
+			request->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 			request->texinfo_uid = memory->textures.white_tex_uid;
 			request->color = {1,0,0,0.15f};
 		}
+		
+		PUSH_BACK(delayed_render_list,  memory->temp_arena, request);
+		request->type_flags = REQUEST_FLAG_SET_TIME;
+		request->new_time = memory->time_s;
 	}
 
 	// SHOW ENTITY THAT IS ABOUT TO BE CREATED
