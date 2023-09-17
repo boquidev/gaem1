@@ -98,7 +98,7 @@ float4 ps( PS_IN input, uint tid : SV_PrimitiveID ) : SV_TARGET
    // Use the magnitude and threshold to create a binary edge map
    float4 original_color = color_texture.Sample(sampler0, input.texcoord);
 
-   result = lerp(original_color, float4(0,0,0,1), interpolator);
+   result = lerp(original_color, float4(.0f , .0f, .0f,1), interpolator);
    // clip(magnitude-min_value);
    // result = (magnitude > min_value) ? float4(0,0,0,1) : float4(1,1,1,1);
    // result = depth_texture.Sample(sampler0, input.texcoord );

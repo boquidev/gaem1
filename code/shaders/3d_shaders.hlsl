@@ -19,6 +19,7 @@ cbuffer object_color_buffer : register(b3)
 cbuffer object_texrect_buffer : register(b4){
 	float4 object_texrect;
 }
+// move this value to the pixel constant buffers
 cbuffer camera_pos_buffer : register(b5){
 	float4 camera_pos;
 }
@@ -112,12 +113,13 @@ PS_OUT ps( PS_IN input, uint tid : SV_PrimitiveID)
 
 	float pixel_value = 1-(length(input.vertex_world_pos-input.camera_world_pos.xyz)/100);
 	result.depth = input.camera_world_pos.w * float4(pixel_value, pixel_value, pixel_value, 1);
+
 	// result.depth = float4(1,1,1,1);
 
-	// weird outline (just works in perspective view and with smooth meshes)
-
-	// float clip_mask = saturate(20*(1.15-fresnel));
-	// result.rgb *= clip_mask;
+	// get this value from a constant buffer
+	float FRESNEL_MULTIPLIER = 20;
+	float clip_mask = saturate(FRESNEL_MULTIPLIER*(fresnel));
+	result.color.rgb *= clip_mask;
 	
 	return result;
 }

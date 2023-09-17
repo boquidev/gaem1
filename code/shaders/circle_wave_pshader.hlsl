@@ -1,4 +1,4 @@
-cbuffer Constant :register(b1)
+cbuffer Constant : register(b1)
 {
    float time;
    // float outer_border;

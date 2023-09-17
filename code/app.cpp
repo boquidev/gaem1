@@ -734,13 +734,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				ASSERT(false);	
 		}
 
-		entity->color = {0.5f,0.5f,0.5f,1};
-		
+		{
+			Color target_color;
 
-		// ENEMY_COLOR
+			// ENEMY_COLOR
+			if(entity->team_uid != player_entity->team_uid){
+				target_color = {.0f, .1f, .1f,1};
+			}else{
+				target_color = {.5f, .99f, .5f, 1};
+			}
+			Color delta_color = target_color - entity->color;
+			delta_color = 3.0f*world_delta_time*delta_color;
+			entity->color = entity->color + (delta_color);		
 
-		if(entity->team_uid != player_entity->team_uid){
-			entity->color = {0.7f, 0,0,1};
 		}
 
 
@@ -1119,9 +1125,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 					}
 				}
-			}else{
-				// CLOSEST ALLY TO GRAB
-				if(entity->flags & E_AUTO_AIM_CLOSEST && !(entity2->flags & E_NOT_TARGETABLE))
+			}
+			else
+			{
+				if(entity->element_type & EET_HEAL && 
+					entity->flags & E_AUTO_AIM_CLOSEST && 
+					!(entity2->flags & E_NOT_TARGETABLE))
 				{
 					if(!closest_ally_distance){
 						closest_ally_uid = j;
@@ -1226,6 +1235,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					
 					if(they_collide) // DAMAGING ENTITY
 					{
+					entity->color = {1,0,0,1};
 						if(entity->flags & P_SHIELD)
 						{
 							entity->health -= entity2->total_power;
@@ -2345,7 +2355,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		
 		// COLOR AND LOOKING DIRECTION OF SELECTED ENTITY
-		selected_entity->color = colors_product(selected_entity->color,{2.0f, 2.0f, 2.0f, 1});
+		selected_entity->color = selected_entity->color + (world_delta_time*(color_difference({1,1,1,1}, selected_entity->color)));
 
 		if( input->cursor_secondary > 0)
 		{
