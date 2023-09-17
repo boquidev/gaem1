@@ -268,6 +268,42 @@ enum ENTITY_ELEMENT_TYPE{
 	EE_REACTIVE_ELEMENTS = EET_WATER|EET_HEAT|EET_COLD|EET_ELECTRIC,
 };
 
+internal Color 
+element_color(u32 element)
+{
+	Color result = {1,0,1,0.5};
+	switch(element)
+	{
+		case EET_WATER:
+		{
+			result = {0, 0.4f, 0.8f, 1};
+		}break;
+		case EET_HEAT:
+		{
+			result = {1, 0.4f, 0, 1};
+		}break;
+		case EET_COLD:
+		{
+			result = {0.7f, 0.7f, 1, 1};
+		}break;
+		case EET_ELECTRIC:
+		{
+			result = {1, 1, 0, 1};
+		}break;
+		case EET_HEAL:
+		{
+			result = {0,1,0,1};
+		}break;
+		case 0:
+		{
+			result = {0.5f,0.5f,0.5f,1};
+		}break;
+		default:
+			ASSERT(false);
+	}
+	return result;
+}
+
 // ENTITY MEGA-STRUCT
 
 struct Entity{
@@ -681,6 +717,68 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 		{
 			entity->element_effect = elemental_damage;
 			entity->elemental_effect_duration = entity2->elemental_damage_duration;
+
+			if(!current_element)
+			{
+				Color initial_color = element_color(elemental_damage);
+				Color target_color = initial_color;
+				target_color.a = 0;
+
+
+				Particle_emitter particle_emitter;
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					30,
+					0,
+					0,
+					{0},
+					{0},
+					TAU32,
+					0,
+					10.0f,
+					{0},
+					{0},
+					target_color,
+					1.0f,
+					1.0f,
+					0,0,0,0,0,
+					.3f,
+					0,
+					.1f,
+					1.0f
+				);
+				UNTIL(current_particle, particle_emitter.particles_count)
+				{
+					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+						entity->pos,{40.0f, 0,0}, initial_color, &memory->rng);
+				}
+
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					1,
+					0,
+					0,
+					{0},
+					{0},
+					0,
+					0,
+					0,
+					{0},
+					{0},
+					{1,1,1,1},
+					1.0f,
+					.3f,
+					0,0,0,0,0,
+					3.0f,
+					0,
+					.0f,
+					1.0f
+				);
+				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+					entity->pos,{0}, initial_color, &memory->rng);
+			}
+
+			return;
 		}
 		if(!entity->reaction_cooldown)
 		{

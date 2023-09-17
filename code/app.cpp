@@ -1348,6 +1348,29 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
 								particle_emitter.emit_particle(new_particle, entity2->pos, {50,0,0}, particles_color, rng);
 							}
+							particle_emitter.fill_data(
+								PARTICLE_ACTIVE,
+								1,
+								0,
+								0,
+								{0},
+								{0},
+								0,
+								0,
+								0,
+								{0},
+								{0},
+								{1,1,1,1},
+								1.0f,
+								.3f,
+								0,0,0,0,0,
+								0.5f,
+								0,
+								.0f,
+								1.0f
+							);
+							particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+								entity2->pos,{0}, {1,1,1,1}, &memory->rng);
 						}
 					}
 				}
@@ -2181,37 +2204,12 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						particle_initial_speed = 10.0f;
 					}
 
-					Color particles_color = {1,1,1,0.1f};
-					switch(current_element)
+					Color particles_color = element_color(current_element);
+					if(!current_element)
 					{
-						case EET_WATER:
-						{
-							particles_color = {0, 0.4f, 0.8f, 1};
-						}break;
-						case EET_HEAT:
-						{
-							particles_color = {1, 0.4f, 0, 1};
-						}break;
-						case EET_COLD:
-						{
-							particles_color = {0.7f, 0.7f, 1, 1};
-						}break;
-						case EET_ELECTRIC:
-						{
-							particles_color = {1, 1, 0, 1};
-						}break;
-						case EET_HEAL:
-						{
-							particles_color = {0,1,0,1};
-						}break;
-						case 0:
-						{
-							particles_color = {0.5f,0.5f,0.5f,1};
-							particle_initial_speed = 5.0f;
-						}break;
-						default:
-							ASSERT(false);
+						particle_initial_speed = 5.0f;
 					}
+
 					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
 					particle_emitter.emit_particle(new_particle, entity->pos, {particle_initial_speed,0,0}, particles_color, &memory->rng);
 				}
@@ -2481,6 +2479,16 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 			request->object3d.scale = scale_multiplier * request->object3d.scale;
 
+			if(memory->entities[i].reaction_cooldown)
+			{
+				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
+				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
+				request->object3d = memory->entities[i].object3d;
+
+				request->object3d.scale = 1.0f*scale_multiplier*request->object3d.scale;
+				request->mesh_uid = memory->meshes.icosphere_mesh_uid;
+				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
+			}
 			if(memory->entities[i].flags & E_TOXIC_EMITTER || memory->entities[i].toxic_time_left)
 			{
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);

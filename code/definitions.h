@@ -11,6 +11,7 @@
 
 #define MAX_FLOAT          3.402823466e+38F        // max value
 #define MIN_FLOAT          1.175494351e-38F        // min normalized positive value
+#define STRUCT(a,b,c) {a, b, c}
 
 #define F32_MIN_THRESHOLD (1e-6)
 
