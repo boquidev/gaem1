@@ -554,76 +554,112 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	if(global_boss_handle.is_valid(generations) && memory->current_level)
 	{
-		
-		memory->level_state.boss_timer -= world_delta_time;
+		memory->level_state.boss_timer += world_delta_time;
 
 		if(memory->current_level == 1)
 		{
-
-			if(memory->level_state.boss_timer <= 0)
+			if(memory->level_state.boss_phase == 0)
 			{
-				memory->level_state.boss_timer += 5;
-				
-				Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
 
-				// specific properties:
-					// speed, range, rate of fire, element, health, shield, damage
-
-				// behavior:
-					// target closest
-					// target player
-					// protect boss
-				u64 extra_flags = 0;
-				u32 dice = (u32)(rng->next(4));
-				f32 speed_multiplier = 1.0f;
-
-				//TODO: this should be level specific
-				switch(dice)
+				switch(memory->level_state.boss_state)
 				{
 					case 0:
 					{
-						extra_flags |= E_DEFEND_BOSS|E_AUTO_AIM_CLOSEST|E_HAS_SHIELD|E_SHOOT;
-					}break;
-					case 1:
-					{
-						extra_flags |= E_AUTO_AIM_BOSS|E_SHOOT|E_FOLLOW_TARGET;
-						speed_multiplier = 2.0f;
-					}break;
-					case 2:
-					case 3:
-					default:
-					{
-						extra_flags |= E_AUTO_AIM_CLOSEST|E_SHOOT|E_FOLLOW_TARGET;	
+						if(memory->level_state.boss_timer >= 5)
+						{
+							memory->level_state.boss_state++;
+							memory->level_state.boss_timer -= 5;
+						}
 					}
 					break;
+					case 1:
+					{
+						memory->level_state.boss_state--;
+						Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+
+						// specific properties:
+							// speed, range, rate of fire, element, health, shield, damage
+
+						// behavior:
+							// target closest
+							// target player
+							// protect boss
+						u64 extra_flags = 0;
+						u32 dice = (u32)(rng->next(4));
+						f32 speed_multiplier = 1.0f;
+
+						//TODO: this should be level specific
+						switch(dice)
+						{
+							case 0:
+							{
+								extra_flags |= E_DEFEND_BOSS|E_AUTO_AIM_CLOSEST|E_HAS_SHIELD|E_SHOOT;
+							}break;
+							case 1:
+							{
+								extra_flags |= E_AUTO_AIM_BOSS|E_SHOOT|E_FOLLOW_TARGET;
+								speed_multiplier = 2.0f;
+							}break;
+							case 2:
+							case 3:
+							default:
+							{
+								extra_flags |= E_AUTO_AIM_CLOSEST|E_SHOOT|E_FOLLOW_TARGET;	
+							}
+							break;
+						}
+						u64 flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION
+							|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
+							|E_EMIT_PARTICLES
+							;
+
+						u16 possible_elements [] = {0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER};
+						u16 element_type = possible_elements[(u32)(rng->next((f32)ARRAYCOUNT(possible_elements)))];
+
+
+						V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
+						f32 random_angle = rng->next(PI32) - (PI32/2);
+						
+
+						fill_entity(new_entity,
+							flags,
+							element_type,
+							boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle),
+							player_entity->pos,
+							15,
+							40,
+							5,
+							(0.9f + rng->next(0.2f)) * 3.0f,
+							global_boss_handle,
+							boss_entity->team_uid,
+							memory->meshes.blank_entity_mesh_uid,
+							memory->textures.test_tex_uid 
+						);	
+						
+					}
+					break;
+					case 2:
+					{
+
+					}
+					break;
+					case 3:
+					{
+					}
+					break;
+					default:
+						ASSERT(false);
+					break;
 				}
-				u64 flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION
-					|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
-					|E_EMIT_PARTICLES
-					;
-
-				u16 possible_elements [] = {0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER};
-				u16 element_type = possible_elements[(u32)(rng->next((f32)ARRAYCOUNT(possible_elements)))];
-
-
-				V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
-				f32 random_angle = rng->next(PI32) - (PI32/2);
 				
-
-				fill_entity(new_entity,
-					flags,
-					element_type,
-					boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle),
-					player_entity->pos,
-					15,
-					40,
-					5,
-					(0.9f + rng->next(0.2f)) * 3.0f,
-					global_boss_handle,
-					boss_entity->team_uid,
-					memory->meshes.blank_entity_mesh_uid,
-					memory->textures.test_tex_uid 
-				);	
+				if(boss_entity->health / boss_entity->max_health < 0.75f)
+				{
+					memory->level_state.boss_phase++;
+					memory->level_state.boss_state = 0;
+				}
+			}
+			else
+			{
 
 			}
 
