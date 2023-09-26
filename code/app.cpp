@@ -60,58 +60,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		global_boss_handle.index = BOSS_INDEX;
 		global_boss_handle.generation = memory->entity_generations[BOSS_INDEX];
 
-		Level_properties levels_init [] = {
-			{
-				50.0f,
-				10.0f,
-				3.0f,
-				5.0f,
-				15.0f,
-				40.0f,
-
-				1,
-				{0},
-			},
-			{
-				100.0f,
-				5.0f,
-				1.5f,
-				10.0f,
-				30.0f,
-				40.0f,
-
-				5,
-				{0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER},
-			},
-			{
-				130.0f,
-				5.0f,
-				1.5f,
-				10.0f,
-				30.0f,
-				40.0f,
-
-				1,
-				{EET_WATER},
-			},
-			{
-				140.0f,
-				5.0f,
-				1.5f,
-				10.0f,
-				30.0f,
-				40.0f,
-
-				1,
-				{EET_WATER},
-			},
-		};
-
-		memory->levels_count = ARRAYCOUNT(levels_init);
-
-		Level_properties* current_level_init = &levels_init[memory->current_level];
-
-		memory->level_properties = *current_level_init;		
 		memory->boss_timer = 0; 
 
 		Entity* boss = &memory->entities[BOSS_INDEX];
@@ -125,7 +73,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		boss->speed = 60.0f;
 		boss->friction = 10.0f;
 
-		boss->max_health = current_level_init->boss_health;
+		boss->max_health = 100;
 		boss->health = boss->max_health;
 		boss->pos = {25, 0, 0};
 		boss->team_uid = 1;
@@ -608,9 +556,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	{
 		memory->boss_timer += world_delta_time;
 	}
-	if(memory->boss_timer >= memory->level_properties.boss_action_cooldown)
+	if()
 	{
-		memory->boss_timer -= memory->level_properties.boss_action_cooldown;
 		boss_entity;
 		
 		Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
@@ -652,23 +599,23 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			|E_EMIT_PARTICLES
 			;
 
-		dice = (u32)(rng->next((f32)memory->level_properties.possible_elements_count));
-		new_entity->element_type = memory->level_properties.possible_elements[dice];
+		dice = (u32)(rng->next((f32)memory->current_level_properties->possible_elements_count));
+		new_entity->element_type = memory->current_level_properties->possible_elements[dice];
 
 		new_entity->color = {1,1,1,1};
 		new_entity->scale = {1.0f,1.0f,1.0f};
 
-		new_entity->speed = speed_multiplier * (0.9f + rng->next(0.2f)) * memory->level_properties.spawned_entities_speed;
+		new_entity->speed = speed_multiplier * (0.9f + rng->next(0.2f)) * memory->current_level_properties->spawned_entities_speed;
 		new_entity->friction = 5.0f;
 		new_entity->weight = 1.0f;
-		new_entity->max_health = memory->level_properties.spawned_entities_health;
+		new_entity->max_health = memory->current_level_properties->spawned_entities_health;
 		new_entity->health = new_entity->max_health;
-		new_entity->total_power = memory->level_properties.spawned_entities_attack_damage;
-		new_entity->action_cd_total_time = (0.9f + rng->next(0.2f)) * memory->level_properties.spawned_entities_attack_cd;
+		new_entity->total_power = memory->current_level_properties->spawned_entities_attack_damage;
+		new_entity->action_cd_total_time = (0.9f + rng->next(0.2f)) * memory->current_level_properties->spawned_entities_attack_cd;
 		new_entity->action_range = 5.0f;
 		new_entity->aura_radius = 3.0f;
 
-		new_entity->parent_handle = global_player_handle;
+		new_entity->parent_handle = global_boss_handle;
 		new_entity->team_uid = boss_entity->team_uid;
 
 		V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
@@ -750,14 +697,13 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// ENEMY_COLOR
 			if(entity->team_uid != player_entity->team_uid){
-				target_color = {.0f, .05f, .2f,1};
+				target_color = Color {.3f, .0f, .0f,1};
 			}else{
-				target_color = {.5f, .99f, .5f, 1};
+				target_color = Color {.5f, .99f, .5f, 1};
 			}
 			Color delta_color = target_color - entity->color;
 			delta_color = 3.0f*world_delta_time*delta_color;
 			entity->color = entity->color + (delta_color);		
-
 		}
 
 
@@ -3026,10 +2972,19 @@ void init(App_memory* memory, Init_data* init_data){
 		memory->render_target_views.default_rtv = 2;
 		memory->render_target_views.post_processing_rtv = 0;
 		memory->render_target_views.depth_rtv = 1;
+		
 	}
 
+	memory->debug_active_entities_count = 0;
 	memory->particles_max = 1000;
 	memory->particles = ARENA_PUSH_STRUCTS(memory->permanent_arena, Particle, memory->particles_max);
+
+
+	Boss_action Actions_pool [] =
+	{
+		boss_action_move({0,0,0}),
+		boss_action_wait(0.5f)
+	};
 
 /*
 	// CREATING CONSTANT_BUFFER

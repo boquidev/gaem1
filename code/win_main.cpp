@@ -202,7 +202,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 			E_LAST_FLAG_BIT_POS++;
 		}
 	#endif
-	
 
 	RECT winrect = {0,0,1600,900};
 	AdjustWindowRectEx(&winrect, WS_OVERLAPPEDWINDOW,0,0);
@@ -249,6 +248,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	Memory_arena* temp_arena = &arena2;
 
 	App_memory memory = {0};
+	u32 app_size = sizeof(memory) < 65535;
+	ASSERT(app_size);
 	memory.temp_arena = temp_arena;
 	memory.permanent_arena = permanent_arena;
 	
@@ -437,7 +438,7 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 
 	Sound_sample sounds_list [10] = {0};
 
-	ARRAY(Audio_playback, playback_list, 100, permanent_arena);
+	DECLARE_ARRAY(Audio_playback, playback_list, 100, permanent_arena);
 
 	FOREACH(Asset_request, request, init_data.asset_requests){
 		switch(request->type){

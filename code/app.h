@@ -400,9 +400,59 @@ struct Entity{
 	};
 
 	f32 particle_timer;
+	
+
 };
 global_variable Entity nil_entity = {0}; 
 
+internal void fill_entity(
+	Entity* e,
+	u64 flags, 
+	u16 element_type, 
+	f32 posx, f32 posy,f32 posz,
+	f32 rcolor,f32 gcolor,f32 bcolor,
+	f32 scalex,f32 scaley,f32 scalez,
+	f32 speed,
+	f32 friction,
+	f32 weight,
+	f32 max_health,
+	f32 total_power,
+	f32 action_cd_total_time,
+	f32 action_range,
+	f32 aura_radius,
+	Entity_handle parent_handle,
+	u32 team_uid,
+	f32 target_posx,f32 target_posy,f32 target_posz,
+	u32 mesh_uid,
+	u32 texinfo_uid
+	)
+{
+	e->flags = flags;
+	e->element_type = element_type;
+
+	e->color = {rcolor,gcolor,bcolor,1};
+	e->scale = {scalex,scaley,scalez};
+
+	e->speed = speed;
+	e->friction = friction;
+	e->weight = weight;
+	e->max_health = max_health;
+	e->health = max_health;
+	e->total_power = total_power;
+	e->action_cd_total_time = action_cd_total_time;
+	e->action_range = action_range;
+	e->aura_radius = aura_radius;
+
+	e->parent_handle = parent_handle;
+	e->team_uid = team_uid;
+
+	e->pos = {posx,posy,posz};
+	
+	e->target_pos = {target_posx, target_posy, target_posz};
+	
+	e->mesh_uid = mesh_uid;
+	e->texinfo_uid = texinfo_uid;	
+}
 
 internal f32
 calculate_power(Entity* entity)
@@ -633,44 +683,76 @@ struct Boss_action
 {
 	BOSS_ACTION_TYPE action_type;
 
-	
-	struct
+	union
 	{
-		u32 entities_to_spawn_count;
-		
-		SPAWN_TYPE spawn_type;
-		struct {
-			V3 positions[16];
-			f32 relative_angles[16];
+
+		struct // BAT_SPAWN_ENTITIES
+		{
+			u32 entities_to_spawn_count;
+			
+			SPAWN_TYPE spawn_type;
+			struct {
+				V3 positions[16];
+				f32 relative_angles[16];
+			};
+
+			ELEMENT_POOL_ASSIGNMENT_TYPE element_pool_assignment_type;
+			u16 elements_pool[16];
+
+		}spawn_properties;
+
+		struct // BAT_WAIT_TIME
+		{
+			f32 wait_timer;
 		};
-
-		ELEMENT_POOL_ASSIGNMENT_TYPE element_pool_assignment_type;
-		u16 elements_pool[16];
-
-	}spawn_properties;
-
-	struct 
-	{
-		f32 wait_timer;
-	};
-	struct 
-	{
-		V3 move_position;
+		
+		struct // BAT_MOVE
+		{
+			V3 move_position;
+		};
 	};
 };
 
-struct Level_properties{
-	f32 boss_health;
-	f32 boss_action_cooldown;
+internal Boss_action
+boss_action_wait(f32 wait_duration)
+{
+	Boss_action result;
+	result.action_type = BAT_WAIT_TIME;
+	result.wait_timer = wait_duration;
+	return result;
+}
+
+internal Boss_action
+boss_action_move(V3 move_position)
+{
+	Boss_action result;
+	result.action_type = BAT_MOVE;
+	result.move_position = move_position;
+	return result;
+}
+
+struct Boss_sequence
+{
+	f32 minimum_life_percent_threshold;
+	LIST(Boss_action, actions_pool);
+	LIST(u32, action_indices_sequence);
+};
+
+struct Level_state{
+	u32 boss_phase;
+	u32 boss_state;
+	f32 boss_timer;
 	
-	f32 spawned_entities_attack_cd;
-	f32 spawned_entities_attack_damage;
-	f32 spawned_entities_speed;
-	f32 spawned_entities_health;
+	// TODO: this could be done immediate mode instead of retained
+
+	// f32 spawned_entities_attack_cd;
+	// f32 spawned_entities_attack_damage;
+	// f32 spawned_entities_speed;
+	// f32 spawned_entities_health;
 	
-	u32 possible_elements_count;
-	u16 possible_elements [10];
-	// BOSS BEHAVIOR SEQUENCE
+	// u32 possible_elements_count;
+	// u16 possible_elements [10];
+	// Boss_sequence* Boss_sequence;
 };
 
 struct App_memory
@@ -746,10 +828,8 @@ struct App_memory
 	s32 ui_clicked_uid;
 
 	u32 current_level;
-	u32 levels_count;
-
-	Level_properties level_properties;
-	f32 boss_timer;//TODO: this is redundant with the boss entity properties
+	// u32 levels_count;
+	Level_state level_state;
 
 	s32 debug_active_entities_count;
 

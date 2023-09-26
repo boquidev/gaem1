@@ -103,11 +103,19 @@ struct Surface
 // FIXED SIZE ARRAYS
 
 
-#define ARRAY(type, name, size, arena) \
+#define ARRAY(type, name) type* name
+
+#define DECLARE_ARRAY(type, name, size, arena) \
 	*(ARENA_PUSH_STRUCT(arena, u32)) = size;\
 	type* name = ARENA_PUSH_STRUCTS(arena, type, size);
 
 #define ARRAYLEN(array) *(((u32*)array)-1)
+
+#define DEFINE_ARRAY(type, array_name, arena, ...) type* array_name;{\
+	type TEMP_ARRAY [] = __VA_ARGS__;\
+	*(ARENA_PUSH_STRUCT(arena, u32)) = ARRAYCOUNT(TEMP_ARRAY);\
+	array_name = ARENA_PUSH_STRUCTS(arena, type, ARRAYCOUNT(TEMP_ARRAY));\
+	copy_mem(TEMP_ARRAY, array_name, sizeof(TEMP_ARRAY));}
 
 
 
