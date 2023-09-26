@@ -405,24 +405,19 @@ struct Entity{
 };
 global_variable Entity nil_entity = {0}; 
 
-internal void fill_entity(
+internal void 
+fill_entity(
 	Entity* e,
 	u64 flags, 
 	u16 element_type, 
-	f32 posx, f32 posy,f32 posz,
-	f32 rcolor,f32 gcolor,f32 bcolor,
-	f32 scalex,f32 scaley,f32 scalez,
+	V3 pos,
+	V3 target_pos,
 	f32 speed,
-	f32 friction,
-	f32 weight,
 	f32 max_health,
 	f32 total_power,
 	f32 action_cd_total_time,
-	f32 action_range,
-	f32 aura_radius,
 	Entity_handle parent_handle,
 	u32 team_uid,
-	f32 target_posx,f32 target_posy,f32 target_posz,
 	u32 mesh_uid,
 	u32 texinfo_uid
 	)
@@ -430,25 +425,26 @@ internal void fill_entity(
 	e->flags = flags;
 	e->element_type = element_type;
 
-	e->color = {rcolor,gcolor,bcolor,1};
-	e->scale = {scalex,scaley,scalez};
+	e->color = {1,1,1,1};
+	e->scale = {1,1,1};
 
 	e->speed = speed;
-	e->friction = friction;
-	e->weight = weight;
+	e->friction = 5.0f;
+	e->weight = 1.0f;
 	e->max_health = max_health;
 	e->health = max_health;
 	e->total_power = total_power;
 	e->action_cd_total_time = action_cd_total_time;
-	e->action_range = action_range;
-	e->aura_radius = aura_radius;
+
+	e->action_range = 5.0f;
+	e->aura_radius = 3.0f;
 
 	e->parent_handle = parent_handle;
 	e->team_uid = team_uid;
 
-	e->pos = {posx,posy,posz};
+	e->pos = pos;
 	
-	e->target_pos = {target_posx, target_posy, target_posz};
+	e->target_pos = target_pos;
 	
 	e->mesh_uid = mesh_uid;
 	e->texinfo_uid = texinfo_uid;	
@@ -828,7 +824,7 @@ struct App_memory
 	s32 ui_clicked_uid;
 
 	u32 current_level;
-	// u32 levels_count;
+	u32 levels_count;
 	Level_state level_state;
 
 	s32 debug_active_entities_count;

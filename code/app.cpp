@@ -60,7 +60,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		global_boss_handle.index = BOSS_INDEX;
 		global_boss_handle.generation = memory->entity_generations[BOSS_INDEX];
 
-		memory->boss_timer = 0; 
+		memory->level_state.boss_timer = 0; 
 
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
@@ -552,85 +552,88 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	//PROCESSING BOSS ENTITY
 
-	if(global_boss_handle.is_valid(generations))
+	if(global_boss_handle.is_valid(generations) && memory->current_level)
 	{
-		memory->boss_timer += world_delta_time;
-	}
-	if()
-	{
-		boss_entity;
 		
-		Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+		memory->level_state.boss_timer -= world_delta_time;
 
-		// specific properties:
-			// speed, range, rate of fire, element, health, shield, damage
-
-		// behavior:
-			// target closest
-			// target player
-			// protect boss
-		u64 extra_flags = 0;
-		u32 dice = (u32)(rng->next(4));
-		f32 speed_multiplier = 1.0f;
-
-		//TODO: this should be level specific
-		switch(dice)
+		if(memory->current_level == 1)
 		{
-			case 0:
+
+			if(memory->level_state.boss_timer <= 0)
 			{
-				extra_flags |= E_DEFEND_BOSS|E_AUTO_AIM_CLOSEST|E_HAS_SHIELD|E_SHOOT;
-			}break;
-			case 1:
-			{
-				extra_flags |= E_AUTO_AIM_BOSS|E_SHOOT|E_FOLLOW_TARGET;
-				speed_multiplier = 2.0f;
-			}break;
-			case 2:
-			case 3:
-			default:
-			{
-				extra_flags |= E_AUTO_AIM_CLOSEST|E_SHOOT|E_FOLLOW_TARGET;	
+				memory->level_state.boss_timer += 5;
+				
+				Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+
+				// specific properties:
+					// speed, range, rate of fire, element, health, shield, damage
+
+				// behavior:
+					// target closest
+					// target player
+					// protect boss
+				u64 extra_flags = 0;
+				u32 dice = (u32)(rng->next(4));
+				f32 speed_multiplier = 1.0f;
+
+				//TODO: this should be level specific
+				switch(dice)
+				{
+					case 0:
+					{
+						extra_flags |= E_DEFEND_BOSS|E_AUTO_AIM_CLOSEST|E_HAS_SHIELD|E_SHOOT;
+					}break;
+					case 1:
+					{
+						extra_flags |= E_AUTO_AIM_BOSS|E_SHOOT|E_FOLLOW_TARGET;
+						speed_multiplier = 2.0f;
+					}break;
+					case 2:
+					case 3:
+					default:
+					{
+						extra_flags |= E_AUTO_AIM_CLOSEST|E_SHOOT|E_FOLLOW_TARGET;	
+					}
+					break;
+				}
+				u64 flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION
+					|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
+					|E_EMIT_PARTICLES
+					;
+
+				u16 possible_elements [] = {0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER};
+				u16 element_type = possible_elements[(u32)(rng->next((f32)ARRAYCOUNT(possible_elements)))];
+
+
+				V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
+				f32 random_angle = rng->next(PI32) - (PI32/2);
+				
+
+				fill_entity(new_entity,
+					flags,
+					element_type,
+					boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle),
+					player_entity->pos,
+					15,
+					40,
+					5,
+					(0.9f + rng->next(0.2f)) * 3.0f,
+					global_boss_handle,
+					boss_entity->team_uid,
+					memory->meshes.blank_entity_mesh_uid,
+					memory->textures.test_tex_uid 
+				);	
+
 			}
-			break;
+
 		}
+		else if(memory->current_level == 2)
+		{
 
-		new_entity->flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION
-			|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
-			|E_EMIT_PARTICLES
-			;
+		}else{
 
-		dice = (u32)(rng->next((f32)memory->current_level_properties->possible_elements_count));
-		new_entity->element_type = memory->current_level_properties->possible_elements[dice];
-
-		new_entity->color = {1,1,1,1};
-		new_entity->scale = {1.0f,1.0f,1.0f};
-
-		new_entity->speed = speed_multiplier * (0.9f + rng->next(0.2f)) * memory->current_level_properties->spawned_entities_speed;
-		new_entity->friction = 5.0f;
-		new_entity->weight = 1.0f;
-		new_entity->max_health = memory->current_level_properties->spawned_entities_health;
-		new_entity->health = new_entity->max_health;
-		new_entity->total_power = memory->current_level_properties->spawned_entities_attack_damage;
-		new_entity->action_cd_total_time = (0.9f + rng->next(0.2f)) * memory->current_level_properties->spawned_entities_attack_cd;
-		new_entity->action_range = 5.0f;
-		new_entity->aura_radius = 3.0f;
-
-		new_entity->parent_handle = global_boss_handle;
-		new_entity->team_uid = boss_entity->team_uid;
-
-		V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
-		f32 random_angle = rng->next(PI32) - (PI32/2);
-		new_entity->pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
-		
-		// this is basically useless
-		if(new_entity->team_uid == boss_entity->team_uid){ //enemy
-			new_entity->target_pos = player_entity->pos;
-		}else{// friendly
-			new_entity->target_pos = boss_entity->pos;
 		}
-		
-		new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
-		new_entity->texinfo_uid = memory->textures.test_tex_uid;	
 	}
 
 
@@ -813,6 +816,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					new_shield->pos = parent->pos;
 					// TODO: go in the direction that parent is looking (the parent's rotation);
 				}
+
 			}
 			
 		}
@@ -2871,6 +2875,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 #define PUSH_ASSET_REQUEST push_asset_request(memory, init_data, &request)
 void init(App_memory* memory, Init_data* init_data){	
+	memory->current_level = 1;
 	// TODO: when this happens, lift the assert and implement bigger bitwise flags
 	ASSERT(E_LAST_FLAG < (0xfffffffffffffff)); // asserting there are not more than 60 flags
 	// ASSERT(E_LAST_FLAG < 0Xffffffff); // asserting there are not more than 32 flags
