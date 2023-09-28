@@ -1222,46 +1222,6 @@ default_object3d(Entity* out){
 	out->color = {1,1,1,1};
 }
 
-// ENTITY "TYPES" 
-
-global_variable u64 
-	E_CANNOT_MANUALLY_AIM = 
-		E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_CANNOT_AIM
-		,
-
-	E_MELEE_FLAGS = 
-	// if it hits at a certain rate without a care if there is an enemy
-	// then use_cooldown, if it just hits when it detects an enemy 
-	// and then can't hit until cooldown is restored, then dont use_cooldown
-		E_VISIBLE|E_MELEE_ATTACK|
-		E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|
-		E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET
-		,
-
-	E_SHOOTER_FLAGS = 
-		E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|
-		E_RECEIVES_DAMAGE|E_CAN_MANUALLY_MOVE|E_SHOOT
-		,
-
-	E_TANK_FLAGS = 
-		E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|
-		E_RECEIVES_DAMAGE|E_CAN_MANUALLY_MOVE
-		,
-
-	E_SPAWNER_FLAGS = 
-		E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|
-		E_RECEIVES_DAMAGE|E_CAN_MANUALLY_MOVE|E_SPAWN_ENTITIES
-
-		,
-
-	E_SHIELD_FLAGS = 
-		E_VISIBLE|E_RECEIVES_DAMAGE
-		,
-
-	E_WALL_FLAGS = 
-		E_VISIBLE|E_HAS_COLLIDER|E_SKIP_UPDATING|E_NOT_TARGETABLE;
-
-
 
 enum RENDERER_REQUEST_TYPE_FLAGS
 {//TODO: invert the order so that i can set render pipeline in the same request as rendering an object

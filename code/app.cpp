@@ -6,6 +6,11 @@
 global_variable Element_handle global_boss_handle = {0};
 global_variable Element_handle global_player_handle = {0};
 
+global_variable u64 DEFAULT_UNIT_FLAGS = E_LOOK_IN_THE_MOVING_DIRECTION
+	|E_SHOOT
+	|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
+	|E_EMIT_PARTICLES
+	;
 
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size)
 {
@@ -550,7 +555,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	LIST(u32, set_jump_change_direction_list) = {0};
 
 
-	//PROCESSING BOSS ENTITY
+	//PROCESSING LEVEL STATES / BOSS ENTITY
 
 	if(global_boss_handle.is_valid(generations) && memory->current_level)
 	{
@@ -577,9 +582,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						memory->level_state.boss_state--;
 						Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
 
-						// specific properties:
-							// speed, range, rate of fire, element, health, shield, damage
-
 						// behavior:
 							// target closest
 							// target player
@@ -588,30 +590,26 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						u32 dice = (u32)(rng->next(4));
 						f32 speed_multiplier = 1.0f;
 
-						//TODO: this should be level specific
 						switch(dice)
 						{
 							case 0:
 							{
-								extra_flags |= E_DEFEND_BOSS|E_AUTO_AIM_CLOSEST|E_HAS_SHIELD|E_SHOOT;
+								extra_flags |= E_DEFEND_BOSS|E_AUTO_AIM_CLOSEST|E_HAS_SHIELD;
 							}break;
 							case 1:
 							{
-								extra_flags |= E_AUTO_AIM_BOSS|E_SHOOT|E_FOLLOW_TARGET;
+								extra_flags |= E_AUTO_AIM_BOSS|E_FOLLOW_TARGET;
 								speed_multiplier = 2.0f;
 							}break;
 							case 2:
 							case 3:
 							default:
 							{
-								extra_flags |= E_AUTO_AIM_CLOSEST|E_SHOOT|E_FOLLOW_TARGET;	
+								extra_flags |= E_AUTO_AIM_CLOSEST|E_FOLLOW_TARGET;	
 							}
 							break;
 						}
-						u64 flags = extra_flags |E_LOOK_IN_THE_MOVING_DIRECTION
-							|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
-							|E_EMIT_PARTICLES
-							;
+						u64 flags = extra_flags | DEFAULT_UNIT_FLAGS;
 
 						u16 possible_elements [] = {0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER};
 						u16 element_type = possible_elements[(u32)(rng->next((f32)ARRAYCOUNT(possible_elements)))];
@@ -619,14 +617,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
 						f32 random_angle = rng->next(PI32) - (PI32/2);
+						V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 						
 
 						fill_entity(new_entity,
 							flags,
 							element_type,
-							boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle),
+							new_entity_pos,
 							player_entity->pos,
-							15,
+							speed_multiplier*15,
 							40,
 							5,
 							(0.9f + rng->next(0.2f)) * 3.0f,
@@ -652,15 +651,119 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					break;
 				}
 				
-				if(boss_entity->health / boss_entity->max_health < 0.75f)
+				if(boss_entity->health / boss_entity->max_health < 0.25f)
 				{
-					memory->level_state.boss_phase++;
+					memory->level_state.boss_phase = 1;
 					memory->level_state.boss_state = 0;
+					memory->level_state.boss_timer = 0;
 				}
 			}
-			else
+			else if(memory->level_state.boss_phase == 1)
 			{
+				switch(memory->level_state.boss_state)
+				{
+					case 0:
+					{
+						memory->level_state.boss_state++;
 
+						UNTIL(i, 3)
+						{
+							Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+							
+							V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
+							f32 random_angle = rng->next(PI32) - (PI32/2);
+							V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
+
+							u64 extra_flags = E_AUTO_AIM_BOSS|E_FOLLOW_TARGET;
+							u16 element_type = EET_HEAL;
+
+							fill_entity(new_entity,
+								DEFAULT_UNIT_FLAGS|extra_flags,
+								element_type,
+								new_entity_pos,
+								player_entity->pos,
+								20.0f,
+								30.0f,
+								10.0f,
+								0.5f,
+								global_boss_handle,
+								boss_entity->team_uid,
+								memory->meshes.blank_entity_mesh_uid,
+								memory->textures.test_tex_uid
+							);
+						}
+
+						UNTIL(i, 3)
+						{
+							Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+							
+							V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
+							f32 random_angle = rng->next(PI32) - (PI32/2);
+							V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
+
+							u64 extra_flags = E_AUTO_AIM_CLOSEST|E_DEFEND_BOSS;
+
+							fill_entity(new_entity,
+								DEFAULT_UNIT_FLAGS|extra_flags,
+								0,
+								new_entity_pos,
+								player_entity->pos,
+								20.0f,
+								30.0f,
+								5.0f,
+								0.5f,
+								global_boss_handle,
+								boss_entity->team_uid,
+								memory->meshes.blank_entity_mesh_uid,
+								memory->textures.test_tex_uid
+							);
+						}
+						
+					}
+					break;
+					case 1:
+					{
+						if(2.0f < memory->level_state.boss_timer )
+						{
+							memory->level_state.boss_state++;
+							memory->level_state.boss_timer = 0;
+						}
+					}
+					break;
+					case 2:
+					{
+						memory->level_state.boss_state--;
+
+						Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+						
+						V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
+						f32 random_angle = rng->next(PI32) - (PI32/2);
+						V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
+
+						u64 extra_flags = E_AUTO_AIM_BOSS|E_FOLLOW_TARGET;
+						u16 element_type = 0;
+
+						fill_entity(new_entity,
+							DEFAULT_UNIT_FLAGS|extra_flags,
+							element_type,
+							new_entity_pos,
+							player_entity->pos,
+							50.0f,
+							5.0f,
+							10.0f,
+							0.5f,
+							global_boss_handle,
+							boss_entity->team_uid,
+							memory->meshes.blank_entity_mesh_uid,
+							memory->textures.test_tex_uid
+						);
+
+					}
+					break;
+					default:
+						ASSERT(false);
+					break;
+				}
 			}
 
 		}
@@ -2358,6 +2461,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if( input->cursor_secondary > 0)
 		{
+			#define E_CANNOT_MANUALLY_AIM (E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_CANNOT_AIM)
 			if(!(selected_entity->flags & E_CANNOT_MANUALLY_AIM))
 			{
 				selected_entity->target_pos = {cursor_y0_pos.x, 0, cursor_y0_pos.z};
@@ -2677,7 +2781,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		Particle* particle = &memory->particles[i];
 
 		//UPDATING
-		if(!memory->is_paused)
+		if(!memory->is_paused && !memory->input->R)
 		{
 			V3 accel = particle->acceleration;
 			
