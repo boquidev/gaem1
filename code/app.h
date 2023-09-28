@@ -359,8 +359,6 @@ struct Entity{
 
 	f32 reaction_cooldown;
 
-	f32 generate_resource_cd;
-
 	f32 toxic_time_left;
 
 	f32 freezing_time_left;
@@ -794,9 +792,8 @@ struct App_memory
 
 	u32 player_uid;
 
-	s32 teams_resources[2];
-	f32 add_resource_current_time;
-	f32 add_resource_total_cd;
+	f32 teams_resources[2];
+	f32 base_resources_per_second;
 
 	s32 team_spawn_charges[2];
 	f32 add_spawn_charge_timer;

@@ -36,7 +36,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->level_state = {0};
 		memory->teams_resources[0] = 0;
 		memory->teams_resources[1] = 0;
-		memory->add_resource_current_time = 0;
 		memory->add_spawn_charge_timer = 0;
 		memory->team_spawn_charges[0] = 0;
 		memory->team_spawn_charges[1] = 0;
@@ -63,7 +62,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->aura_radius = 3.0f;
 
 		memory->teams_resources[player->team_uid] = 50;
-		memory->add_resource_total_cd = 1.0f;
+		memory->base_resources_per_second = 1;
 		player->creation_delay = 0.2f;
 
 		player->team_uid = 0;
@@ -452,11 +451,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					u32 entity_element_flags = selected_entity->element_type;
 
 					if(!entity_element_flags || 
-						memory->teams_resources[player_entity->team_uid] >= 10
+						memory->teams_resources[player_entity->team_uid] >= memory->ui_costs[ui_last]
 					){
 						if(entity_element_flags)
 						{
-							memory->teams_resources[player_entity->team_uid] -= 10;
+							memory->teams_resources[player_entity->team_uid] -= memory->ui_costs[ui_last];
 						}
 
 						{
@@ -537,15 +536,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	memory->time_s += memory->delta_time;
 
 	// ADD RESOURCES OVER TIME
-
-	memory->add_resource_current_time += world_delta_time;
-	if(memory->add_resource_current_time  >= memory->add_resource_total_cd)
+	
+	UNTIL(i, 2)
 	{
-		memory->add_resource_current_time -= memory->add_resource_total_cd;
-		UNTIL(i, 2)
-		{
-			memory->teams_resources[i]++;
-		}
+		memory->teams_resources[i] += world_delta_time*memory->base_resources_per_second;
 	}
 
 	// ADD SPAWN CHARGES OVER TIME
@@ -1071,12 +1065,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(entity->flags & E_GENERATE_RESOURCE)
 		{
-			entity->generate_resource_cd -= entity_dt;
-			if(entity->generate_resource_cd <= 0)
-			{
-				entity->generate_resource_cd += 2.0f;
-				memory->teams_resources[entity->team_uid]++;
-			}
+		
+			memory->teams_resources[entity->team_uid] += 2*entity_dt;
 		}
 
 
@@ -2983,7 +2973,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 	printo_screen(memory, screen_size, render_list,
 		concat_strings(string("active entities: "), entities_count, memory->temp_arena), {-1, .95f}, {1,1,0,1});
 
-	String resources_string = number_to_string(memory->teams_resources[memory->entities[memory->player_uid].team_uid], memory->temp_arena);
+	String resources_string = number_to_string((s32)memory->teams_resources[memory->entities[memory->player_uid].team_uid], memory->temp_arena);
 	printo_screen(memory, screen_size, render_list,
 		concat_strings(string("resources: "), resources_string, memory->temp_arena), {-1,.9f}, {1,1,0,1}
 	);
