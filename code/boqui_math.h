@@ -528,6 +528,22 @@ v3_rotate_z(V3 vector, f32 angle)
     return result;
 }
 
+internal f32
+get_shortest_angle_difference(f32 target_angle, f32 current_angle)
+{
+    f32 result = target_angle - current_angle;
+    if( result < (-PI32))
+    {
+        result += TAU32;
+    }
+    else if (PI32 < result)
+    {
+        result -= TAU32;
+    }
+
+    return result;
+}
+
 //TODO: move this to helpers
 
 internal f32

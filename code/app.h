@@ -797,7 +797,9 @@ struct App_memory
 	s32 teams_resources[2];
 	f32 add_resource_current_time;
 	f32 add_resource_total_cd;
+
 	s32 team_spawn_charges[2];
+	f32 add_spawn_charge_timer;
 
 	b32 creating_entity;
 	V3 new_entity_pos;

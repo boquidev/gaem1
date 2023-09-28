@@ -16,6 +16,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 {
 	if(!memory->is_initialized){
 		memory->is_initialized = true;
+
+		// RESETING DEFAULT VALUES
 		
 		set_mem(memory->entities, MAX_ENTITIES*sizeof(Entity), 0);
 		set_mem(memory->entity_generations, MAX_ENTITIES*sizeof(u32), 0);
@@ -30,9 +32,20 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		global_player_handle.index = memory->player_uid;
 		global_player_handle.generation = memory->entity_generations[memory->player_uid];
+
+		memory->level_state = {0};
+		memory->teams_resources[0] = 0;
+		memory->teams_resources[1] = 0;
+		memory->add_resource_current_time = 0;
+		memory->add_spawn_charge_timer = 0;
+		memory->team_spawn_charges[0] = 0;
+		memory->team_spawn_charges[1] = 0;
+
+		// INITIALIZING MAIN ENTITIES
+		
 		Entity* player = &memory->entities[memory->player_uid];
 		default_object3d(player);
-		player->flags = E_VISIBLE|E_SPAWN_ENTITIES|E_AUTO_AIM_BOSS
+		player->flags = E_VISIBLE|E_AUTO_AIM_BOSS
 			|E_EMIT_PARTICLES
 			|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE
 			;
@@ -44,8 +57,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->total_power = 1.0f;
 		player->action_count = 1;
 		player->action_angle = TAU32/4;
-		player->action_cd_total_time = 2.9f;
-		player->action_cd_time_passed = 2.0f;
+		player->action_cd_total_time = .1f;
 		player->action_range = 5.0f;
 
 		player->aura_radius = 3.0f;
@@ -69,32 +81,57 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		Entity* boss = &memory->entities[BOSS_INDEX];
 		default_object3d(boss);
-		boss->flags = 
+		u64 common_boss_flags = 
 			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|E_NOT_MOVE
-			|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST|E_SPAWN_ENTITIES
+			|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST
 			|E_EMIT_PARTICLES
 			;
+		if(memory->current_level == 1)
+		{
+			boss->flags = common_boss_flags;
+			boss->speed = 60.0f;
+			boss->friction = 10.0f;
 
-		boss->speed = 60.0f;
-		boss->friction = 10.0f;
+			boss->max_health = 100;
+			boss->health = boss->max_health;
+			boss->pos = {25, 0, 0};
+			boss->team_uid = 1;
+			boss->creation_delay = 0.2f;
 
-		boss->max_health = 100;
-		boss->health = boss->max_health;
-		boss->pos = {25, 0, 0};
-		boss->team_uid = 1;
-		boss->creation_delay = 0.2f;
+			boss->total_power = 1.0f;
+			boss->action_count = 1;
+			boss->action_angle = TAU32/4;
+			boss->action_cd_total_time = 10.5f;
+			boss->action_range = 5.0f;
+			boss->aura_radius = 3.0f;
 
-		boss->total_power = 1.0f;
-		boss->action_count = 1;
-		boss->action_angle = TAU32/4;
-		boss->action_cd_total_time = 10.5f;
-		boss->action_range = 5.0f;
-		boss->aura_radius = 3.0f;
+			boss->weight = 10.0f;
 
-		boss->weight = 10.0f;
+			boss->mesh_uid = memory->meshes.boss_mesh_uid;;
+			boss->texinfo_uid = memory->textures.default_tex_uid;
+		}else if (memory->current_level == 2){
+			boss->flags = common_boss_flags | E_SHOOT;
+			boss->speed = 60.0f;
+			boss->friction = 10.0f;
 
-		boss->mesh_uid = memory->meshes.boss_mesh_uid;;
-		boss->texinfo_uid = memory->textures.default_tex_uid;
+			boss->max_health = 500;
+			boss->health = boss->max_health;
+			boss->pos = {25, 0, 0};
+			boss->team_uid = 1;
+			boss->creation_delay = 0.2f;
+
+			boss->total_power = 1.0f;
+			boss->action_count = 1;
+			boss->action_angle = TAU32/4;
+			boss->action_cd_total_time = 1.0f;
+			boss->action_range = 5.0f;
+			boss->aura_radius = 3.0f;
+
+			boss->weight = 10.0f;
+
+			boss->mesh_uid = memory->meshes.boss_mesh_uid;;
+			boss->texinfo_uid = memory->textures.default_tex_uid;
+		}
 
 		//TODO: turn this into handles
 		memory->selected_entity_h = {0};
@@ -511,6 +548,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 	}
 
+	// ADD SPAWN CHARGES OVER TIME
+	
+	if(memory->team_spawn_charges[0] < 3 && global_player_handle.is_valid(generations))
+	{
+		memory->add_spawn_charge_timer -= world_delta_time;
+		if(memory->add_spawn_charge_timer <= 0)
+		{
+			memory->add_spawn_charge_timer += 3;
+			memory->team_spawn_charges[0]++;
+		}
+	}
+
 
 
 	// MOVE SELECTED ENTITY
@@ -769,7 +818,36 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 		else if(memory->current_level == 2)
 		{
+			if(memory->level_state.boss_timer >= 3.0f)
+			{
+				memory->level_state.boss_timer -= 3.0f;
+				
 
+				Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
+				
+				V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
+				f32 random_angle = rng->next(PI32) - (PI32/2);
+				V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
+
+				u64 extra_flags = E_AUTO_AIM_BOSS|E_FOLLOW_TARGET;
+				u16 element_type = 0;
+
+				fill_entity(new_entity,
+					DEFAULT_UNIT_FLAGS|extra_flags,
+					element_type,
+					new_entity_pos,
+					player_entity->pos,
+					50.0f,
+					5.0f,
+					10.0f,
+					0.5f,
+					global_boss_handle,
+					boss_entity->team_uid,
+					memory->meshes.blank_entity_mesh_uid,
+					memory->textures.test_tex_uid
+				);
+
+			}
 		}else{
 
 		}
@@ -1109,6 +1187,34 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 		entity->normalized_accel = {0,0,0};
+
+		// TURN TOWARDS PARENT TARGET POS
+
+		if(entity->flags & E_TURN_TOWARDS_PARENT_TARGET_POS &&
+			entity->parent_handle.is_valid(generations))
+		{
+			Entity* parent = &entities[entity->parent_handle.index];
+
+			
+			f32 velocity_angle = v2_angle({entity->velocity.x, entity->velocity.z});
+			f32 target_angle = v2_angle({
+				parent->target_pos.x - entity->pos.x - entity->velocity.x,
+				parent->target_pos.z - entity->pos.z - entity->velocity.z,
+			});
+			
+			f32 angle_difference = get_shortest_angle_difference(target_angle, velocity_angle);
+			
+			if(COMPARE_FLOATS(angle_difference, PI32))
+			{
+				f32 dice = rng->next(2);
+				if(dice < 1){
+					angle_difference = -PI32;
+				}
+			}
+			f32 delta_angle = world_delta_time*(angle_difference);
+			//inverted delta angle cuz of the inverted y axis angle
+			entity->velocity = v3_rotate_y(entity->velocity, -delta_angle);
+		}
 
 		
 		// SIZE = VELOCITY
@@ -1579,7 +1685,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 						f32 velocity_angle = v2_angle({entity->velocity.x, entity->velocity.z});
 						f32 distance_angle = v2_angle({distance_vector.x, distance_vector.z});
-						f32 angle_difference = distance_angle-velocity_angle;
+						
+						f32 angle_difference = get_shortest_angle_difference(distance_angle, velocity_angle);
+						
 						if(COMPARE_FLOATS(angle_difference, PI32))
 						{
 							f32 dice = rng->next(2);
@@ -1587,15 +1695,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 								angle_difference = -PI32;
 							}
 						}
-						else if( angle_difference < (-PI32))
-						{
-							angle_difference += TAU32;
-						}
-						else if (PI32 < angle_difference)
-						{
-							angle_difference -= TAU32;
-						}
-
 						f32 delta_angle = 5.0f*world_delta_time* (angle_difference);
 						//inverted delta angle cuz of the inverted y axis angle
 						entity->velocity = v3_rotate_y(entity->velocity, -delta_angle);
@@ -1770,6 +1869,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							E_VISIBLE|E_DETECT_COLLISIONS|E_DIE_ON_COLLISION|E_NOT_TARGETABLE
 							|E_DOES_DAMAGE|E_UNCLAMP_XZ|E_SKIP_PARENT_COLLISION
 							|E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY|E_EMIT_PARTICLES
+							|E_TURN_TOWARDS_PARENT_TARGET_POS
 						;
 						if(!(entity->element_type & EET_HEAL))
 						{
@@ -1917,18 +2017,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(entity->health <= 0){
 						s32* index_to_kill;PUSH_BACK(entities_to_kill, memory->temp_arena, index_to_kill);
 						*index_to_kill = i;
-					}
-				}
-				
-				// if(entity->flags & E_GENERATE_RESOURCE){// RESOURCE GENERATOR
-				// 	memory->teams_resources[entity->team_uid]++;
-				// }
-				if((entity->flags & E_SPAWN_ENTITIES))
-				{
-
-					if(memory->team_spawn_charges[player_entity->team_uid] < 3)
-					{
-						memory->team_spawn_charges[entity->team_uid]++;
 					}
 				}
 			}
@@ -2906,11 +2994,17 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		concat_strings(string("spawn_charges: "), spawn_charges_string, memory->temp_arena), {-1, .85f}, {1,1,0,1}
 	);
 
+	String current_level_string = number_to_string(memory->current_level, memory->temp_arena);
+	printo_screen(memory, screen_size, render_list,
+		concat_strings(string("current_level: "), current_level_string, memory->temp_arena),
+		{-1, .8f}, {1,1,0,1}
+	);
+
 	if(exists_selected_entity)
 	{
 		String current_entity_value = number_to_string(selected_entity->total_upgrades_cost_value, memory->temp_arena);
 		printo_screen(memory, screen_size, render_list,
-			concat_strings(string("selected_entity_value: "), current_entity_value, memory->temp_arena), {-1, .8f}, {1,1,0,1}
+			concat_strings(string("selected_entity_value: "), current_entity_value, memory->temp_arena), {-1, .75f}, {1,1,0,1}
 		);
 	}
 
@@ -3016,6 +3110,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 #define PUSH_ASSET_REQUEST push_asset_request(memory, init_data, &request)
 void init(App_memory* memory, Init_data* init_data){	
 	memory->current_level = 1;
+	memory->levels_count = 3;
 	// TODO: when this happens, lift the assert and implement bigger bitwise flags
 	ASSERT(E_LAST_FLAG < (0xfffffffffffffff)); // asserting there are not more than 60 flags
 	// ASSERT(E_LAST_FLAG < 0Xffffffff); // asserting there are not more than 32 flags
