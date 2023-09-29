@@ -833,6 +833,17 @@ struct App_memory
 	u32 last_used_particle_index;
 };
 
+internal b32
+skip_updating(App_memory* memory)
+{
+	return 
+		(
+			memory->is_paused 
+			// || memory->input->R
+		) && 
+		memory->input->debug_right != 1;
+}
+
 internal void 
 calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory, LIST(Entity,entities_to_create))
 {

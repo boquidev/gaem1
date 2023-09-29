@@ -62,7 +62,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		player->aura_radius = 3.0f;
 
 		memory->teams_resources[player->team_uid] = 50;
-		memory->base_resources_per_second = 1;
+		memory->base_resources_per_second = 0.5f;
 		player->creation_delay = 0.2f;
 
 		player->team_uid = 0;
@@ -286,7 +286,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		char* button_text[] = {
 			"DEFEND",
 			"shoot",
-			"resource farm",
+			"generate resources",
 			"add shield",
 			"extra range",
 			"move forward",
@@ -314,7 +314,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			0,
 			10,
-			15,
+			40,
 			20,
 			20,
 			5,
@@ -531,7 +531,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// if(input->debug_right == 1 && exists_selected_entity) selected_entity->action_range *= 2;
 
 	// UPDATE 1 FRAME IF THE KEY IS TAPPED
-	if(memory->is_paused || input->R) if (input->debug_right != 1) return;
+	if(skip_updating(memory)) return;
 
 	memory->time_s += memory->delta_time;
 
@@ -1061,12 +1061,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}
 
-		// GENERATE RESOURCE COOLDOWN
+		// GENERATE RESOURCES OVER TIME
 
 		if(entity->flags & E_GENERATE_RESOURCE)
 		{
-		
-			memory->teams_resources[entity->team_uid] += 2*entity_dt;
+			memory->teams_resources[entity->team_uid] += entity_dt;
 		}
 
 
@@ -2414,7 +2413,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	}
 
 	FOREACH(s32, e_index, entities_to_kill){
-		if(entities[*e_index].flags & P_PROJECTILE_EXPLODE)
+		Entity* kill_entity = &entities[*e_index];
+		if(kill_entity->flags & P_PROJECTILE_EXPLODE)
 		{
 			Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
 
@@ -2429,28 +2429,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			// explosion_hitbox->parent_handle.index = i;
 			// explosion_hitbox->parent_handle.generation = generations[i];
 			// explosion_hitbox->team_uid = entity->team_uid;
-			explosion_hitbox->total_power = calculate_power(&entities[*e_index]);
+			explosion_hitbox->total_power = calculate_power(kill_entity);
 
-			explosion_hitbox->pos = entities[*e_index].pos;
+			explosion_hitbox->pos = kill_entity->pos;
 
 			// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
 			explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
 			explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
 			
 		}
-		if(entities[*e_index].flags & E_GIVE_LOOT)
+		if(kill_entity->flags & E_GIVE_LOOT)
 		{
-			UNTIL(i,ARRAYCOUNT(memory->teams_resources))
-			{
-				memory->teams_resources[i] += 5;
-				memory->teams_resources[i] += entities[*e_index].total_upgrades_cost_value/2;
-			}
+			memory->teams_resources[kill_entity->team_uid] += 5 + kill_entity->total_upgrades_cost_value/2;
 		}
-		if(entities[*e_index].grabbed_entity.is_valid(generations))
+		if(kill_entity->grabbed_entity.is_valid(generations))
 		{
-			entities[entities[*e_index].grabbed_entity.index].is_grabbing = false;
+			entities[kill_entity->grabbed_entity.index].is_grabbing = false;
 		}
-		entities[*e_index] = {0};
+		*kill_entity = {0};
 		generations[*e_index]++;
 	}
 	// selected entity might be invalid at this point
@@ -2859,7 +2855,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 		Particle* particle = &memory->particles[i];
 
 		//UPDATING
-		if(!memory->is_paused && !memory->input->R)
+		if(!skip_updating(memory))
 		{
 			V3 accel = particle->acceleration;
 			
