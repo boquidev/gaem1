@@ -180,7 +180,7 @@ struct Particle_emitter
 			rng->next(initial_pos_rng.z)-(initial_pos_rng.z/2),
 			};
 		particle->position = position + initial_pos_offset + pos_result_rng;
-		
+
 		V3 final_initial_velocity = (1-rng->next(initial_speed_rng))*initial_velocity;
 		particle->velocity = v3_rotate_y(final_initial_velocity, 
 			rng->next(velocity_yrotation_rng)-(velocity_yrotation_rng/2));
@@ -271,14 +271,14 @@ enum ENTITY_ELEMENT_TYPE{
 
 enum ENTITY_ELEMENT_TYPE
 {
-	EET_NULL,
-
 	EET_WATER,
 	EET_HEAT,
 	EET_COLD,
 	EET_ELECTRIC,
 
 	EET_HEAL,
+
+	EET_NULL,
 
 	
 	EET_WATER_FLAG = 1<<0,
@@ -290,13 +290,14 @@ enum ENTITY_ELEMENT_TYPE
 internal u32
 element_to_element_flag(u32 element)
 {
-	u32 possible_flags [4];
-	possible_flags[EET_COLD-1] = EET_COLD_FLAG;
-	possible_flags[EET_HEAT-1] = EET_HEAT_FLAG;
-	possible_flags[EET_ELECTRIC-1] = EET_ELECTRIC_FLAG;
-	possible_flags[EET_WATER-1] = EET_WATER_FLAG;
+	// u32 possible_flags [4];
+	// possible_flags[EET_COLD-1] = EET_COLD_FLAG;
+	// possible_flags[EET_HEAT-1] = EET_HEAT_FLAG;
+	// possible_flags[EET_ELECTRIC-1] = EET_ELECTRIC_FLAG;
+	// possible_flags[EET_WATER-1] = EET_WATER_FLAG;
+	ASSERT(element < EET_HEAL);
 
-	return possible_flags[element-1];
+	return 1<<(element);
 }
 
 
@@ -327,7 +328,7 @@ element_color(u32 element)
 		{
 			result = {0,1,0,1};
 		}break;
-		case 0:
+		case EET_NULL:
 		{
 			result = {0.5f,0.5f,0.5f,1};
 		}break;
@@ -484,7 +485,7 @@ global_variable Entity nil_entity = {0};
 internal f32
 calculate_power(Entity* entity)
 {
-	f32 water_effect_multiplier = (entity->elemental_effects[EET_WATER-1]) ? 0.8f : 1.0f;
+	f32 water_effect_multiplier = (entity->elemental_effects[EET_WATER]) ? 0.8f : 1.0f;
 	f32 fog_multiplier = (entity->fog_debuff_time_left) ? 0.7f : 1.0f;
 	//TODO: benchmark the difference between this 2
 	// f32 healer_multiplier = 1+(-2.0f*(entity->flags & E_HEALER)/E_HEALER); 
@@ -893,7 +894,7 @@ calculate_elemental_reaction(
 {
 	// CHEKING IF A ELEMENTAL REACTION OCURRED
 	ENTITY_ELEMENT_TYPE elemental_dmg_type = entity2->element;
-	if(elemental_dmg_type && elemental_dmg_type < EET_HEAL)
+	if(elemental_dmg_type < EET_HEAL)
 	{
 
 		f32 elemental_damage_multiplier = 1.0f;
@@ -901,7 +902,7 @@ calculate_elemental_reaction(
 		{
 			elemental_damage_multiplier = 2.0f;
 		}
-		else if(entity->element)//&& entity->element < EET_HEAL
+		else if(entity->element < EET_HEAL)//&& entity->element < EET_HEAL
 		{
 			elemental_damage_multiplier = .5f;
 		}
@@ -909,12 +910,13 @@ calculate_elemental_reaction(
 		f32 result_elemental_damage = elemental_damage_multiplier*entity2->elemental_damage_duration;
 
 		#define MAX_ELEMENTAL_EFFECT_DURATION 5.0f
-		entity->elemental_effects[elemental_dmg_type-1] += result_elemental_damage;
-		entity->elemental_effect_cooldowns[elemental_dmg_type-1] = 0.5f;
+		entity->elemental_effects[elemental_dmg_type] += result_elemental_damage;
+		entity->elemental_effect_cooldowns[elemental_dmg_type] = 0.5f;
 		
 		
-		if(entity->elemental_effects[elemental_dmg_type-1] >= MAX_ELEMENTAL_EFFECT_DURATION)
+		if(entity->elemental_effects[elemental_dmg_type] >= MAX_ELEMENTAL_EFFECT_DURATION)
 		{
+			entity->elemental_effects[elemental_dmg_type] = MAX_ELEMENTAL_EFFECT_DURATION;
 			u32 elemental_dmg_flag = element_to_element_flag(elemental_dmg_type);
 			b32 already_triggered = entity->triggered_elements_flag & elemental_dmg_flag;
 			entity->triggered_elements_flag |= elemental_dmg_flag;
@@ -1290,16 +1292,16 @@ calculate_elemental_reaction(
 			// SETTING TO 0 THE ELEMENT EFFECTS THAT TRIGGERED THE REACTION
 
 			if(entity->triggered_elements_flag & EET_WATER_FLAG)
-				entity->elemental_effects[EET_WATER-1] = 0;
+				entity->elemental_effects[EET_WATER] = 0;
 
 			if(entity->triggered_elements_flag & EET_HEAT_FLAG)
-				entity->elemental_effects[EET_HEAT-1] = 0;
+				entity->elemental_effects[EET_HEAT] = 0;
 
 			if(entity->triggered_elements_flag & EET_ELECTRIC_FLAG)
-				entity->elemental_effects[EET_ELECTRIC-1] = 0;
+				entity->elemental_effects[EET_ELECTRIC] = 0;
 
 			if(entity->triggered_elements_flag & EET_COLD_FLAG)
-				entity->elemental_effects[EET_COLD-1] = 0;
+				entity->elemental_effects[EET_COLD] = 0;
 
 			entity->triggered_elements_flag = 0;
 		}

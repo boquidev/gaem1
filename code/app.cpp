@@ -439,7 +439,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
-			if(exists_selected_entity && selected_entity->element)
+			if(exists_selected_entity && selected_entity->element != EET_NULL)
 			{
 				memory->ui_costs[ui_last] = 10;
 			}
@@ -448,7 +448,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				if(exists_selected_entity)
 				{
-					if(!selected_entity->element)
+					if(selected_entity->element != EET_NULL)
 					{
 						selected_entity->element = possible_types_to_select[i];
 					}
@@ -878,11 +878,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		f32 entity_dt = world_delta_time;
 
-		if(entity->elemental_effects[EET_COLD-1])
+		if(entity->elemental_effects[EET_COLD])
 		{
 			entity_dt = world_delta_time * 0.65f;
 		}
-		if(entity->elemental_effects[EET_HEAT-1])
+		if(entity->elemental_effects[EET_HEAT])
 		{
 			f32 heat_damage = 2.0f*world_delta_time;
 			entity->health = MAX(world_delta_time, entity->health - heat_damage);
@@ -1039,7 +1039,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				if(entity->elemental_effects[element_index] <= 0)
 				{
 					entity->elemental_effects[element_index] = 0;
-					entity->triggered_elements_flag &= ~element_to_element_flag(element_index+1);
+					entity->triggered_elements_flag &= ~element_to_element_flag(element_index);
 				}
 			}
 		}
@@ -1630,10 +1630,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(distance < explosion_radius)
 					{
 						f32 closeness_to_center = (1 - distance/explosion_radius);
-						f32 result_damage = 5 + (closeness_to_center*10);
+						f32 result_damage = 5 + (10*closeness_to_center);
 						entity->health = CLAMP(0, entity->health - (s32)result_damage, entity->max_health);
 						// f32 outwards_force = 8*(explosion_radius-distance);
-						f32 outwards_force = 15 * closeness_to_center;
+						f32 outwards_force = 1 + (15*closeness_to_center);
 						entity->velocity = entity->velocity - (outwards_force*distance_vector);
 
 						if(entity->health <= 0)
@@ -2555,39 +2555,24 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					Entity* new_entity = get_new_entity(entities, &memory->last_used_entity_index);
 					memory->selected_entity_h = {memory->last_used_entity_index, generations[memory->last_used_entity_index]};
 
-					// default_melee(new_entity, memory);
-					new_entity->flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION
+					u64 new_entity_flags = E_CAN_MANUALLY_MOVE|E_LOOK_IN_THE_MOVING_DIRECTION
 						|E_VISIBLE|E_SELECTABLE|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_GIVE_LOOT
 						|E_EMIT_PARTICLES
 						;
-
-					new_entity->color = {1,1,1,1};
-					new_entity->scale = {1.0f,1.0f,1.0f};
-
-					new_entity->speed = 40.0f;
-					new_entity->friction = 5.0f;
-					new_entity->weight = 1.0f;
-					new_entity->max_health = 40.f;
-					new_entity->health = new_entity->max_health;
-					new_entity->total_power = 10.0f;
-					new_entity->action_cd_total_time = 0.3f;
-					new_entity->action_range = 5.0f;
-					new_entity->aura_radius = 3.0f;
-
-					new_entity->parent_handle = global_player_handle;
-					new_entity->team_uid = player_entity->team_uid;
-
-					new_entity->pos = memory->new_entity_pos;
-					
-					// this is basically useless
-					if(new_entity->team_uid == player_entity->team_uid){//friendly
-						new_entity->target_pos = boss_entity->pos;
-					}else{//enemy
-						new_entity->target_pos = player_entity->pos;
-					}
-					
-					new_entity->mesh_uid = memory->meshes.blank_entity_mesh_uid;
-					new_entity->texinfo_uid = memory->textures.test_tex_uid;	
+					new_entity->fill_entity(
+						new_entity_flags,
+						EET_NULL,
+						memory->new_entity_pos,
+						boss_entity->pos,
+						40,
+						40,
+						10,
+						0.3f,
+						global_player_handle,
+						player_entity->team_uid,
+						memory->meshes.blank_entity_mesh_uid,
+						memory->textures.test_tex_uid
+					);
 				}
 
 			}	
