@@ -439,7 +439,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		UNTIL(i, ARRAYCOUNT(button_text))
 		{
-			if(exists_selected_entity && selected_entity->element_type)
+			if(exists_selected_entity && selected_entity->element)
 			{
 				memory->ui_costs[ui_last] = 10;
 			}
@@ -448,24 +448,19 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				if(exists_selected_entity)
 				{
-					u32 entity_element_flags = selected_entity->element_type;
+					if(!selected_entity->element)
+					{
+						selected_entity->element = possible_types_to_select[i];
+					}
+					else if(memory->teams_resources[player_entity->team_uid] >= memory->ui_costs[ui_last])
+					{
+						memory->teams_resources[player_entity->team_uid] -= memory->ui_costs[ui_last];
 
-					if(!entity_element_flags || 
-						memory->teams_resources[player_entity->team_uid] >= memory->ui_costs[ui_last]
-					){
-						if(entity_element_flags)
+						if(selected_entity->element == possible_types_to_select[i])
 						{
-							memory->teams_resources[player_entity->team_uid] -= memory->ui_costs[ui_last];
-						}
-
-						{
-							selected_entity->element_type = 0;
-							selected_entity->element_effect = 0;
-
-							if(!(entity_element_flags & possible_types_to_select[i]))
-							{
-								selected_entity->element_type |= possible_types_to_select[i];
-							}
+							selected_entity->element = EET_NULL;
+						}else{
+							selected_entity->element = possible_types_to_select[i];
 						}
 					}
 				}
@@ -476,7 +471,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			
 			
 			if(exists_selected_entity){
-				if(selected_entity->element_type & possible_types_to_select[i]){
+				if(selected_entity->element == possible_types_to_select[i]){
 					ui_element->color = {1.0f,1.0f,1.0f,1};
 				}else{
 					ui_element->color = {0.6f,0.6f,0.6f,1};
@@ -654,8 +649,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						}
 						u64 flags = extra_flags | DEFAULT_UNIT_FLAGS;
 
-						u16 possible_elements [] = {0, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER};
-						u16 element_type = possible_elements[(u32)(rng->next((f32)ARRAYCOUNT(possible_elements)))];
+						ENTITY_ELEMENT_TYPE possible_elements [] = {EET_NULL, EET_COLD, EET_ELECTRIC, EET_HEAT, EET_WATER};
+						ENTITY_ELEMENT_TYPE element_type = possible_elements[(u32)(rng->next((f32)ARRAYCOUNT(possible_elements)))];
 
 
 						V3 spawn_distance_vector = {-boss_entity->action_range, 0, 0};
@@ -663,7 +658,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 						
 
-						fill_entity(new_entity,
+						new_entity->fill_entity(
 							flags,
 							element_type,
 							new_entity_pos,
@@ -718,11 +713,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 
 							u64 extra_flags = E_AUTO_AIM_BOSS|E_FOLLOW_TARGET;
-							u16 element_type = EET_HEAL;
 
-							fill_entity(new_entity,
+							new_entity->fill_entity(
 								DEFAULT_UNIT_FLAGS|extra_flags,
-								element_type,
+								EET_HEAL,
 								new_entity_pos,
 								player_entity->pos,
 								20.0f,
@@ -746,9 +740,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 							u64 extra_flags = E_AUTO_AIM_CLOSEST|E_DEFEND_BOSS;
 
-							fill_entity(new_entity,
+							new_entity->fill_entity(
 								DEFAULT_UNIT_FLAGS|extra_flags,
-								0,
+								EET_NULL,
 								new_entity_pos,
 								player_entity->pos,
 								20.0f,
@@ -784,11 +778,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 
 						u64 extra_flags = E_AUTO_AIM_BOSS|E_FOLLOW_TARGET;
-						u16 element_type = 0;
 
-						fill_entity(new_entity,
+						new_entity->fill_entity(
 							DEFAULT_UNIT_FLAGS|extra_flags,
-							element_type,
+							EET_NULL,
 							new_entity_pos,
 							player_entity->pos,
 							50.0f,
@@ -824,11 +817,10 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				V3 new_entity_pos = boss_entity->pos + v3_rotate_y(spawn_distance_vector, random_angle);
 
 				u64 extra_flags = E_AUTO_AIM_BOSS|E_FOLLOW_TARGET;
-				u16 element_type = 0;
 
-				fill_entity(new_entity,
+				new_entity->fill_entity(
 					DEFAULT_UNIT_FLAGS|extra_flags,
-					element_type,
+					EET_NULL,
 					new_entity_pos,
 					player_entity->pos,
 					50.0f,
@@ -886,24 +878,14 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		f32 entity_dt = world_delta_time;
 
-		switch(entity->element_effect)
+		if(entity->elemental_effects[EET_COLD-1])
 		{
-
-			case EET_COLD:
-			{
-				entity_dt = world_delta_time * 0.65f;
-			}break;
-			case EET_HEAT:
-			{
-				f32 heat_damage = 2.0f*world_delta_time;
-				entity->health = MAX(world_delta_time, entity->health - heat_damage);
-			}break;
-			case EET_ELECTRIC:
-			case EET_WATER:
-			case 0:
-			break;
-			default:
-				ASSERT(false);	
+			entity_dt = world_delta_time * 0.65f;
+		}
+		if(entity->elemental_effects[EET_HEAT-1])
+		{
+			f32 heat_damage = 2.0f*world_delta_time;
+			entity->health = MAX(world_delta_time, entity->health - heat_damage);
 		}
 
 		{
@@ -1043,21 +1025,15 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}
 
-		// REACTION COOLDOWN
+		// ELEMENTAL EFFECTS DURATIONS
 
-		if(entity->reaction_cooldown)
+		UNTIL(element_index, 4)
 		{
-			entity->reaction_cooldown = MAX(0, entity->reaction_cooldown - world_delta_time);
-		}
-
-		// ELEMENTAL EFFECT DURATION
-
-		if(entity->elemental_effect_duration)
-		{
-			entity->elemental_effect_duration = MAX(0, entity->elemental_effect_duration - world_delta_time);
-			if(!entity->elemental_effect_duration)
+			entity->elemental_effects[element_index] -= world_delta_time;
+			if(entity->elemental_effects[element_index] <= 0)
 			{
-				entity->element_effect = 0;
+				entity->elemental_effects[element_index] = 0;
+				entity->triggered_elements_flag &= ~element_to_element_flag(element_index+1);
 			}
 		}
 
@@ -1137,7 +1113,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		if(!(entity->flags & (E_SKIP_DYNAMICS)))
 		{
-			f32 paralysis_multiplier = (entity->element_effect & EET_ELECTRIC) ? 0.1f : 1.0f;
+			f32 paralysis_multiplier = (entity->elemental_effects[EET_ELECTRIC]) ? 0.1f : 1.0f;
 			V3 result_acceleration = calculate_delta_velocity(
 				entity->velocity, 
 				paralysis_multiplier*entity->speed*(!entity->freezing_time_left)*entity->normalized_accel, 
@@ -1323,7 +1299,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 			else
 			{
-				if(entity->element_type & EET_HEAL && 
+				if((entity->element == EET_HEAL) && 
 					entity->flags & E_AUTO_AIM_CLOSEST && 
 					!(entity2->flags & E_NOT_TARGETABLE))
 				{
@@ -1450,7 +1426,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 						else // DEFAULT CASE
 						{
 							f32 damage_dealt;
-							if(entity2->element_type & EET_HEAL){
+							if(entity2->element == EET_HEAL){
 								damage_dealt = -1;
 								entity->color = {0,2,0.5f,1};
 							}else{
@@ -1592,9 +1568,9 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 				// HEALING
 
-				if(entity2->element_type & EET_HEAL 
+				if(entity2->element == EET_HEAL 
 					&& !(entity->flags & P_SHIELD) 
-					&& !(entity->element_type & EET_HEAL)
+					&& !(entity->element == EET_HEAL)
 				){
 					if(distance < entity->aura_radius)
 					{	
@@ -1860,7 +1836,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							|E_TOXIC_DAMAGE_INMUNE|E_SHRINK_WITH_VELOCITY|E_EMIT_PARTICLES
 							|E_TURN_TOWARDS_PARENT_TARGET_POS
 						;
-						if(!(entity->element_type & EET_HEAL))
+
+						if(!(entity->element == EET_HEAL))
 						{
 							new_bullet->flags |= E_IGNORE_ALLIES;
 						}
@@ -1878,8 +1855,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 							new_bullet->flags |= A_STEAL_LIFE;
 						}
 
-						new_bullet->element_type = entity->element_type;
-						new_bullet->elemental_damage_duration = 5.0f;
+						new_bullet->element = entity->element;
+						new_bullet->elemental_damage_duration = 1.5f;
 						
 						new_bullet->max_health = 1;
 						if(entity->flags & E_PROJECTILE_JUMPS_BETWEEN_TARGETS){
@@ -2126,7 +2103,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 			// if an entity is closer than the  detection range and the entity has the autoaimclosest flag
 			b64 autoaims_closest = entity->flags & E_AUTO_AIM_CLOSEST;
-			b32 is_healer = entity->element_type & EET_HEAL;
+			b32 is_healer = entity->element == EET_HEAL;
 
 			if(autoaims_closest && 
 				is_healer &&
@@ -2146,7 +2123,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 				// friendly
 				if(entity->team_uid == player_entity->team_uid || 
 					(entity->team_uid != player_entity->team_uid && 
-					entity->element_type & EET_HEAL)){
+					is_healer)){
 					if(global_boss_handle.is_valid(generations)){
 						entity->target_pos = entities[global_boss_handle.index].pos;
 					}else{
@@ -2163,7 +2140,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}else{
 			if((entity->flags & E_AUTO_AIM_CLOSEST))
 			{
-				if(entity->element_type & EET_HEAL && closest_ally_distance)
+				if((entity->element == EET_HEAL) && closest_ally_distance)
 				{
 					entity->target_pos = entities[closest_ally_uid].pos;
 				}else if(closest_enemy_distance){
@@ -2176,11 +2153,6 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		{
 			ASSERT(false);
 		}
-
-		
-		// ASSIGNING A PARTICLE EMITTER IF IT HAS AN ELEMENT APPLIED TO IT
-
-		u16 current_element = entity->element_type ? entity->element_type : entity->element_effect;
 
 		if(entity->flags & E_SMOKE_SCREEN){
 			entity->color = {.1f,.3f,.5f, 1};
@@ -2345,6 +2317,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 		// EMITTING PARTICLES
+		#if 0
+		u16 current_element = entity->element ? entity->element : entity->element_effect;
 
 		if(entity->flags & E_EMIT_PARTICLES)
 		{
@@ -2397,6 +2371,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			}
 		}
 
+		#endif
 
 		//
 		// END OF UPDATE LOOP
@@ -2588,7 +2563,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					new_entity->max_health = 40.f;
 					new_entity->health = new_entity->max_health;
 					new_entity->total_power = 10.0f;
-					new_entity->action_cd_total_time = 1.0f;
+					new_entity->action_cd_total_time = 0.3f;
 					new_entity->action_range = 5.0f;
 					new_entity->aura_radius = 3.0f;
 
@@ -2657,7 +2632,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 			f32 scale_multiplier = MAX(memory->delta_time, memory->entities[i].creation_size);
 
 			request->object3d.scale = scale_multiplier * request->object3d.scale;
-
+			#if 0
 			if(memory->entities[i].reaction_cooldown)
 			{
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
@@ -2668,6 +2643,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->mesh_uid = memory->meshes.icosphere_mesh_uid;
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 			}
+			#endif
 			if(memory->entities[i].flags & E_TOXIC_EMITTER || memory->entities[i].toxic_time_left)
 			{
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
@@ -2688,7 +2664,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 				request->object3d.texinfo_uid = memory->textures.white_tex_uid;
 
 			}
-			if(memory->entities[i].element_type & EET_HEAL)
+			if(memory->entities[i].element == EET_HEAL)
 			{
 				PUSH_BACK(delayed_render_list, memory->temp_arena, request);
 				request->type_flags = REQUEST_FLAG_RENDER_OBJECT;

@@ -139,37 +139,35 @@ struct Particle_emitter
 		f32 _target_scale,
 		f32 _scale_delta_multiplier
 	){
-		STRUCT_FILLER(this, 
-		->particle_flags = _particle_flags,
-		->particles_count = _particles_count,
-		->emit_cooldown = _emit_cooldown,
-		->tex_uid = _tex_uid,
+		particle_flags = _particle_flags;
+		particles_count = _particles_count;
+		emit_cooldown = _emit_cooldown;
+		tex_uid = _tex_uid;
 
 
-		->initial_pos_offset = _initial_pos_offset,
-		->initial_pos_rng = _initial_pos_rng,
-		->velocity_yrotation_rng = _velocity_yrotation_rng,
-		->initial_speed_rng = _initial_speed_rng,
-		->friction = _friction,
-		->acceleration = _acceleration,
+		initial_pos_offset = _initial_pos_offset;
+		initial_pos_rng = _initial_pos_rng;
+		velocity_yrotation_rng = _velocity_yrotation_rng;
+		initial_speed_rng = _initial_speed_rng;
+		friction = _friction;
+		acceleration = _acceleration;
 
-		->color_rng = _color_rng,
-		->target_color = _target_color,
-		->color_delta_multiplier = _color_delta_multiplier,
+		color_rng = _color_rng;
+		target_color = _target_color;
+		color_delta_multiplier = _color_delta_multiplier;
 
-		->particle_lifetime = _particle_lifetime,
+		particle_lifetime = _particle_lifetime;
 
-		->initial_angle_rng = _initial_angle_rng,
-		->angle_speed = _angle_speed,
-		->angle_initial_speed_rng = _angle_initial_speed_rng,
-		->angle_accel = _angle_accel,
-		->angle_friction = _angle_friction,
+		initial_angle_rng = _initial_angle_rng;
+		angle_speed = _angle_speed;
+		angle_initial_speed_rng = _angle_initial_speed_rng;
+		angle_accel = _angle_accel;
+		angle_friction = _angle_friction;
 
-		->initial_scale = _initial_scale,
-		->initial_scale_rng = _initial_scale_rng,
-		->target_scale = _target_scale,
-		->scale_delta_multiplier = _scale_delta_multiplier
-		);
+		initial_scale = _initial_scale;
+		initial_scale_rng = _initial_scale_rng;
+		target_scale = _target_scale;
+		scale_delta_multiplier = _scale_delta_multiplier;
 	}
 
 	void emit_particle(Particle* particle, V3 position, V3 initial_velocity, Color color, RNG* rng)
@@ -255,6 +253,7 @@ enum COLLIDER_TYPE{
 	COLLIDER_TYPE_CUBE,
 };
 
+/*
 enum ENTITY_ELEMENT_TYPE{
 	EET_WATER = 1<<0,
 	EET_HEAT = 1<<1,
@@ -267,11 +266,44 @@ enum ENTITY_ELEMENT_TYPE{
 
 	EE_REACTIVE_ELEMENTS = EET_WATER|EET_HEAT|EET_COLD|EET_ELECTRIC,
 };
+*/
+
+enum ENTITY_ELEMENT_TYPE
+{
+	EET_NULL,
+
+	EET_WATER,
+	EET_HEAT,
+	EET_COLD,
+	EET_ELECTRIC,
+
+	EET_HEAL,
+
+	
+	EET_WATER_FLAG = 1<<0,
+	EET_HEAT_FLAG = 1<<1,
+	EET_COLD_FLAG = 1<<2,
+	EET_ELECTRIC_FLAG = 1<<3,
+};
+
+internal u32
+element_to_element_flag(u32 element)
+{
+	u32 possible_flags [4];
+	possible_flags[EET_COLD-1] = EET_COLD_FLAG;
+	possible_flags[EET_HEAT-1] = EET_HEAT_FLAG;
+	possible_flags[EET_ELECTRIC-1] = EET_ELECTRIC_FLAG;
+	possible_flags[EET_WATER-1] = EET_WATER_FLAG;
+
+	return possible_flags[element-1];
+}
+
+
 
 internal Color 
 element_color(u32 element)
 {
-	Color result = {1,0,1,0.5};
+	Color result = {1,0,1,0.5f};
 	switch(element)
 	{
 		case EET_WATER:
@@ -308,12 +340,13 @@ element_color(u32 element)
 
 struct Entity{
 	u64 flags;
-	u16 element_type;
-	u16 element_effect;
+
+	ENTITY_ELEMENT_TYPE element;
+	f32 elemental_effects[4];
+	b32 triggered_elements_flag;
 
 	s32 total_upgrades_cost_value;
 
-	f32 elemental_effect_duration;
 	f32 elemental_damage_duration; // this is used to know how much will the duration effect last when this entity does damage
 
 	f32 fog_debuff_time_left;
@@ -346,6 +379,7 @@ struct Entity{
 	f32 action_cd_time_passed;
 
 	union{
+		// usually action power is just used to calculate the total power
 		f32 _action_power;	
 		f32 total_power;
 	};
@@ -357,7 +391,7 @@ struct Entity{
 
 	f32 aura_radius;
 
-	f32 reaction_cooldown;
+	// f32 reaction_cooldown;
 
 	f32 toxic_time_left;
 
@@ -399,64 +433,66 @@ struct Entity{
 
 	f32 particle_timer;
 	
+	
+	void fill_entity(
+		u64 _flags, 
+		ENTITY_ELEMENT_TYPE _element_type, 
+		V3 _pos,
+		V3 _target_pos,
+		f32 _speed,
+		f32 _max_health,
+		f32 _total_power,
+		f32 _action_cd_total_time,
+		Entity_handle _parent_handle,
+		u32 _team_uid,
+		u32 _mesh_uid,
+		u32 _texinfo_uid
+		)
+	{
+		flags = _flags;
+		element = _element_type;
 
+		color = {1,1,1,1};
+		scale = {1,1,1};
+
+		speed = _speed;
+		friction = 5.0f;
+		weight = 1.0f;
+		max_health = _max_health;
+		health = _max_health;
+		total_power = _total_power;
+		action_cd_total_time = _action_cd_total_time;
+
+		action_range = 5.0f;
+		aura_radius = 3.0f;
+
+		parent_handle = _parent_handle;
+		team_uid = _team_uid;
+
+		pos = _pos;
+		
+		target_pos = _target_pos;
+		
+		mesh_uid = _mesh_uid;
+		texinfo_uid = _texinfo_uid;	
+	}
 };
 global_variable Entity nil_entity = {0}; 
-
-internal void 
-fill_entity(
-	Entity* e,
-	u64 flags, 
-	u16 element_type, 
-	V3 pos,
-	V3 target_pos,
-	f32 speed,
-	f32 max_health,
-	f32 total_power,
-	f32 action_cd_total_time,
-	Entity_handle parent_handle,
-	u32 team_uid,
-	u32 mesh_uid,
-	u32 texinfo_uid
-	)
-{
-	e->flags = flags;
-	e->element_type = element_type;
-
-	e->color = {1,1,1,1};
-	e->scale = {1,1,1};
-
-	e->speed = speed;
-	e->friction = 5.0f;
-	e->weight = 1.0f;
-	e->max_health = max_health;
-	e->health = max_health;
-	e->total_power = total_power;
-	e->action_cd_total_time = action_cd_total_time;
-
-	e->action_range = 5.0f;
-	e->aura_radius = 3.0f;
-
-	e->parent_handle = parent_handle;
-	e->team_uid = team_uid;
-
-	e->pos = pos;
-	
-	e->target_pos = target_pos;
-	
-	e->mesh_uid = mesh_uid;
-	e->texinfo_uid = texinfo_uid;	
-}
 
 internal f32
 calculate_power(Entity* entity)
 {
-	f32 water_effect_multiplier = (entity->element_effect & EET_WATER) ? 0.8f : 1.0f;
+	f32 water_effect_multiplier = (entity->elemental_effects[EET_WATER-1]) ? 0.8f : 1.0f;
 	f32 fog_multiplier = (entity->fog_debuff_time_left) ? 0.7f : 1.0f;
 	//TODO: benchmark the difference between this 2
 	// f32 healer_multiplier = 1+(-2.0f*(entity->flags & E_HEALER)/E_HEALER); 
-	f32 healer_multiplier = (entity->element_type & EET_HEAL) ? 0.5f : 1.0f; 
-	return entity->_action_power * water_effect_multiplier * healer_multiplier * fog_multiplier;
+	f32 healer_multiplier = (entity->element == EET_HEAL) ? 0.3f : 1.0f; 
+	f32 global_multiplier = 0.2f;
+	return entity->_action_power 
+		* global_multiplier 
+		* water_effect_multiplier 
+		* healer_multiplier 
+		* fog_multiplier;
 }
 
 internal f32 
@@ -845,21 +881,343 @@ skip_updating(App_memory* memory)
 }
 
 internal void 
-calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory, LIST(Entity,entities_to_create))
+calculate_elemental_reaction(
+	Entity* entity, 
+	//TODO: get rid of the entity 2
+	// i just need the entity2 to pass its damage to the lightning reaction of water+electric
+	Entity* entity2, 
+	App_memory* memory, 
+	LIST(Entity,entities_to_create))
 {
 	// CHEKING IF A ELEMENTAL REACTION OCURRED
-	u16 elemental_damage = entity2->element_type & EE_REACTIVE_ELEMENTS;
-	if(elemental_damage)
+	ENTITY_ELEMENT_TYPE elemental_dmg_type = entity2->element;
+	if(elemental_dmg_type && elemental_dmg_type < EET_HEAL)
 	{
-		u16 current_element = (entity->element_type|entity->element_effect) & (EE_REACTIVE_ELEMENTS);
-		if(!current_element || entity->element_effect == elemental_damage)
-		{
-			entity->element_effect = elemental_damage;
-			entity->elemental_effect_duration = entity2->elemental_damage_duration;
 
-			if(!current_element)
+		f32 elemental_damage_multiplier = 1.0f;
+		if(elemental_dmg_type == entity->element || entity->element == EET_HEAL)
+		{
+			elemental_damage_multiplier = 2.0f;
+		}
+		else if(entity->element)//&& entity->element < EET_HEAL
+		{
+			elemental_damage_multiplier = .5f;
+		}
+
+		f32 result_elemental_damage = elemental_damage_multiplier*entity2->elemental_damage_duration;
+
+		#define MAX_ELEMENTAL_EFFECT_DURATION 5.0f
+		entity->elemental_effects[elemental_dmg_type-1] += result_elemental_damage;
+
+		
+		
+		if(entity->elemental_effects[elemental_dmg_type-1] >= MAX_ELEMENTAL_EFFECT_DURATION)
+		{
+			entity->triggered_elements_flag |= element_to_element_flag(elemental_dmg_type);
+		}
+
+		b32 reaction_ocurred = true;
+		
+		switch(entity->triggered_elements_flag)
+		{
+			case EET_WATER_FLAG|EET_HEAT_FLAG:{
+
+				Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
+				smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_NOT_TARGETABLE|
+					E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
+					;
+				smoke_screen->element = EET_WATER;
+				smoke_screen->elemental_damage_duration = 1*memory->delta_time;
+				smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
+				smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
+
+				smoke_screen->color = {1,1,1,0.2f};
+				smoke_screen->scale = {10,10,10};
+				smoke_screen->creation_delay = 0.3f;
+				smoke_screen->lifetime = 5.0f;
+				// this is just so that when the smoke screen triggers an electric+water reaction
+				// the lightning has some damage
+				// TODO: make this a constant value, but until i have completely balanced damage values
+				// this will stay like this 
+				smoke_screen->total_power = entity2->total_power;
+
+				smoke_screen->pos = entity->pos;
+				
+				Particle_emitter particle_emitter = {0};
+
+				particle_emitter.particle_flags = PARTICLE_ACTIVE;
+				particle_emitter.particles_count = 1;
+				particle_emitter.emit_cooldown = memory->delta_time*2;
+
+				particle_emitter.velocity_yrotation_rng = TAU32;
+				particle_emitter.friction = 10.0f;
+				particle_emitter.initial_speed_rng = 0.8f;
+				
+				particle_emitter.acceleration = {0,20.0f, 0};
+				
+				particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
+				particle_emitter.target_color = {0.3f,0.3f,1,0};
+				particle_emitter.color_delta_multiplier = 1.0f;
+
+				particle_emitter.particle_lifetime = 1.5f;
+
+				particle_emitter.initial_angle_rng = PI32;
+				particle_emitter.angle_initial_speed_rng = 20.0f;
+				particle_emitter.angle_friction = 4.0f;
+				
+				particle_emitter.initial_scale = 0.2f;
+				particle_emitter.target_scale = .7f;
+				particle_emitter.scale_delta_multiplier = 1.0f;
+
+				UNTIL(i, 20)
+				{
+					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+					// Color particles_color = {0.5f, 0.5f, 0.5f, 1};
+					Color particles_color = {1,0.4f,0.2f,1};
+					particle_emitter.emit_particle(new_particle, entity->pos, {100.0f,0.0f,0}, particles_color, &memory->rng);
+				}
+			}break;
+			case EET_WATER_FLAG|EET_COLD_FLAG:{
+				entity->freezing_time_left = 5.0f;
+				
+				Particle_emitter particle_emitter = {0};
+
+				particle_emitter.particle_flags = PARTICLE_ACTIVE;
+				particle_emitter.particles_count = 1;
+
+				particle_emitter.target_color = {.5f,.6f,1,0};
+				particle_emitter.color_delta_multiplier = 5.0f;
+
+				particle_emitter.particle_lifetime = 1.0f;
+				
+				particle_emitter.initial_scale = 3.0f;
+				particle_emitter.target_scale = 1.5f;
+				particle_emitter.scale_delta_multiplier = 20.0f;
+
+				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+				// Color particles_color = {0.5f, 0.5f, 0.5f, 1};
+				Color particles_color = {1,1,1,1};
+				particle_emitter.emit_particle(new_particle, entity->pos, {0,0,0}, particles_color, &memory->rng);
+			}break;
+			case EET_WATER_FLAG|EET_ELECTRIC_FLAG:{
+				Entity* e; // jumping lightning
+				PUSH_BACK(entities_to_create, memory->temp_arena, e);
+				e->flags = E_VISIBLE|E_NOT_TARGETABLE|E_DOES_DAMAGE
+					|E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE|E_IGNORE_ALLIES
+					|P_JUMP_BETWEEN_TARGETS|E_EMIT_PARTICLES
+					;
+
+				e->element = EET_ELECTRIC;
+				e->elemental_damage_duration = 2.5f;
+				e->jump_change_direction = true;
+
+				e->max_health = 2;
+				e->health = e->max_health;
+				e->speed = 60;
+				e->friction = 0.0f;
+				e->lifetime = 5.0f;
+				e->weight = 100.0f;
+				e->total_power = 2.0f*entity2->total_power;
+				e->aura_radius = 2.0f;
+
+				e->pos = entity->pos;
+				e->velocity = {e->speed, 0, 0};
+				e->team_uid = entity2->team_uid;
+
+				e->ignore_sphere_pos = entity2->ignore_sphere_pos;
+				e->ignore_sphere_radius = entity2->ignore_sphere_radius;
+				e->ignore_sphere_target_pos = entity2->ignore_sphere_target_pos;
+
+				e->mesh_uid = memory->meshes.ball_mesh_uid;
+				e->texinfo_uid = memory->textures.white_tex_uid;
+				e->color = {1.0f, 1.0f, 0.0f, 1};
+				e->scale = {0.4f, 0.4f, 0.4f};
+
+				Particle_emitter particle_emitter = {0}; 
+				particle_emitter.particle_flags = PARTICLE_ACTIVE;
+				particle_emitter.particles_count = 1;
+
+				particle_emitter.target_color = {1,1,0,1};
+				particle_emitter.color_delta_multiplier = 30.0f;
+
+				//TODO: implement freeze frames/stutter to make this  more visible
+				particle_emitter.particle_lifetime = memory->delta_time*3;
+				
+				particle_emitter.initial_scale = 5.0f;
+				
+				Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
+				particle_emitter.emit_particle(new_particle, entity->pos, {0,0,0}, {1,1,1,1}, &memory->rng);
+
+
+
+				particle_emitter = {0};
+
+				particle_emitter.particle_flags = PARTICLE_ACTIVE;
+				particle_emitter.particles_count = 7;
+
+				particle_emitter.velocity_yrotation_rng = TAU32;
+				particle_emitter.friction = 10.0f;
+				particle_emitter.color_rng = {.3f, .3f, .3f};
+				particle_emitter.target_color = {1,1,0,1};
+				particle_emitter.particle_lifetime = .6f;
+
+				particle_emitter.initial_scale = .3f;
+				particle_emitter.initial_scale_rng = .2f;
+				particle_emitter.target_scale = .05f;
+				particle_emitter.scale_delta_multiplier = 1.0f;
+
+				UNTIL(particle_counter, particle_emitter.particles_count)
+				{
+					
+					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+						entity->pos, {50.0f, 0,0}, {1,1,0,1}, &memory->rng
+					);
+				}
+
+			}break;
+			case EET_HEAT_FLAG|EET_COLD_FLAG:{
+				Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
+
+				explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
+
+				explosion_hitbox->color = {1.0f, 1.0f, 0, 1.0f};
+				explosion_hitbox->scale = {8,8,8};
+				explosion_hitbox->creation_size = 1.0f;
+
+				explosion_hitbox->lifetime = memory->delta_time;
+
+				// explosion_hitbox->parent_handle.index = i;
+				// explosion_hitbox->parent_handle.generation = generations[i];
+				// explosion_hitbox->team_uid = entity->team_uid;
+				explosion_hitbox->total_power = 15.0f;
+
+				explosion_hitbox->pos = entity->pos;
+
+				// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
+				explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
+				explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
+
+				
+				Particle_emitter particle_emitter = {0};
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					1,
+					0,
+					0,
+					{0},
+					{0},
+					0,
+					0,
+					0,
+					{0},
+					{0},
+					{1.0f, 0, 0, 0},
+					1.0f,
+					0.2f,
+					0,0,0,0,0,
+					8.0f, 0, 5.0f, 1.0f
+				);
+				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+					entity->pos, {0,0,0}, {1,1,0,1}, &memory->rng
+				);
+
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					8,
+					0,
+					0,
+					{0},
+					{0},
+					TAU32,
+					0,
+					10.0f,
+					{0, 20.0f, 0},
+					{0},
+					{1.0f,.5f,.5f,0},
+					1.0f,
+					1.0f,
+					0,0,0,0,0,
+					0.5f, 0, 1.0f,1.0f
+				);
+				UNTIL(particle_i, particle_emitter.particles_count)
+				{
+					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+						entity->pos, {50.0f, 0,0}, {1,0.9f,0,1}, &memory->rng
+					);
+				}
+
+			}break;
+			case EET_HEAT_FLAG|EET_ELECTRIC_FLAG:{
+				entity->toxic_time_left = 8.0f;
+
+				Particle_emitter particle_emitter;
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE, 
+					20, 
+					0,
+					0,
+					{0},
+					{0},
+					TAU32,
+					1.0f,
+					10.0f,
+					{0,20.0f,0},
+					{0},
+					{1,0,1,0},
+					1.0f,
+					1.5f,
+					0,0,0,0,0,
+					0.2f, 0, 0.5f,1.0f
+				);
+				UNTIL(particle_count, particle_emitter.particles_count)
+				{
+					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+						entity->pos, {50.0f, 0,0}, {0.5f,0,1,1}, &memory->rng
+					);
+				}
+
+			}break;
+			case EET_COLD_FLAG|EET_ELECTRIC_FLAG:{
+				entity->gravity_field_time_left = 10.0f;
+				entity->gravity_field_radius = 10.0f;
+				
+				Particle_emitter particle_emitter;
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					1,
+					0,
+					0,
+					{0},
+					{0},
+					0,
+					0,
+					0,
+					{0},
+					{0},
+					{0,0,0,1},
+					5.0f,
+					2.0f,
+					0,0,0,0,0,
+					10.0f,
+					0,
+					0.01f,
+					5.0f
+				);
+
+				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+					entity->pos, {0}, {1,1,1,1}, &memory->rng
+				);
+			}break;
+			// NOREACTION OCURRED
+			case EET_WATER_FLAG:
+			case EET_HEAT_FLAG:
+			case EET_COLD_FLAG:
+			case EET_ELECTRIC_FLAG: 
+			case 0:
 			{
-				Color initial_color = element_color(elemental_damage);
+				reaction_ocurred = false;
+				
+				Color initial_color = element_color(elemental_dmg_type);
 				Color target_color = initial_color;
 				target_color.a = 0;
 
@@ -916,312 +1274,27 @@ calculate_elemental_reaction(Entity* entity, Entity* entity2, App_memory* memory
 				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
 					entity->pos,{0}, initial_color, &memory->rng);
 			}
-
-			return;
+			break;
+			default: // OTHER
+				ASSERT(false);
+			break;
 		}
-		if(!entity->reaction_cooldown)
-		{
-			u16 reaction = elemental_damage | current_element;
-			b32 reaction_ocurred = true;
-			
-			switch(reaction)
-			{
-				case EET_WATER|EET_HEAT:{
-					Entity* smoke_screen; PUSH_BACK(entities_to_create, memory->temp_arena, smoke_screen);
-					smoke_screen->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_NOT_TARGETABLE|
-						E_SHRINK_WITH_LIFETIME|E_SMOKE_SCREEN
-						;
-					smoke_screen->element_type = EET_WATER;
-					smoke_screen->elemental_damage_duration = 2*memory->delta_time;
-					smoke_screen->mesh_uid = memory->meshes.icosphere_mesh_uid;
-					smoke_screen->texinfo_uid = memory->textures.white_tex_uid;
+		if(reaction_ocurred){
+			// SETTING TO 0 THE ELEMENT EFFECTS THAT TRIGGERED THE REACTION
 
-					smoke_screen->color = {1,1,1,0.2f};
-					smoke_screen->scale = {10,10,10};
-					smoke_screen->creation_delay = 0.3f;
-					smoke_screen->lifetime = 4.8f;
+			if(entity->triggered_elements_flag & EET_WATER_FLAG)
+				entity->elemental_effects[EET_WATER-1] = 0;
 
-					smoke_screen->pos = entity->pos;
-					
-					Particle_emitter particle_emitter = {0};
+			if(entity->triggered_elements_flag & EET_HEAT_FLAG)
+				entity->elemental_effects[EET_HEAT-1] = 0;
 
-					particle_emitter.particle_flags = PARTICLE_ACTIVE;
-					particle_emitter.particles_count = 1;
-					particle_emitter.emit_cooldown = memory->delta_time*2;
+			if(entity->triggered_elements_flag & EET_ELECTRIC_FLAG)
+				entity->elemental_effects[EET_ELECTRIC-1] = 0;
 
-					particle_emitter.velocity_yrotation_rng = TAU32;
-					particle_emitter.friction = 10.0f;
-					particle_emitter.initial_speed_rng = 0.8f;
-					
-					particle_emitter.acceleration = {0,20.0f, 0};
-					
-					particle_emitter.color_rng = {0.2f, 0.2f, 0.2f};
-					particle_emitter.target_color = {0.3f,0.3f,1,0};
-					particle_emitter.color_delta_multiplier = 1.0f;
+			if(entity->triggered_elements_flag & EET_COLD_FLAG)
+				entity->elemental_effects[EET_COLD-1] = 0;
 
-					particle_emitter.particle_lifetime = 1.5f;
-
-					particle_emitter.initial_angle_rng = PI32;
-					particle_emitter.angle_initial_speed_rng = 20.0f;
-					particle_emitter.angle_friction = 4.0f;
-					
-					particle_emitter.initial_scale = 0.2f;
-					particle_emitter.target_scale = .7f;
-					particle_emitter.scale_delta_multiplier = 1.0f;
-
-					UNTIL(i, 20)
-					{
-						Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
-						// Color particles_color = {0.5f, 0.5f, 0.5f, 1};
-						Color particles_color = {1,0.4f,0.2f,1};
-						particle_emitter.emit_particle(new_particle, entity->pos, {100.0f,0.0f,0}, particles_color, &memory->rng);
-					}
-				}break;
-				case EET_WATER|EET_COLD:{
-					entity->freezing_time_left = 5.0f;
-					
-					Particle_emitter particle_emitter = {0};
-
-					particle_emitter.particle_flags = PARTICLE_ACTIVE;
-					particle_emitter.particles_count = 1;
-
-					particle_emitter.target_color = {.5f,.6f,1,0};
-					particle_emitter.color_delta_multiplier = 5.0f;
-
-					particle_emitter.particle_lifetime = 1.0f;
-					
-					particle_emitter.initial_scale = 3.0f;
-					particle_emitter.target_scale = 1.5f;
-					particle_emitter.scale_delta_multiplier = 20.0f;
-
-					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
-					// Color particles_color = {0.5f, 0.5f, 0.5f, 1};
-					Color particles_color = {1,1,1,1};
-					particle_emitter.emit_particle(new_particle, entity->pos, {0,0,0}, particles_color, &memory->rng);
-				}break;
-				case EET_WATER|EET_ELECTRIC:{
-					Entity* e; // jumping lightning
-					PUSH_BACK(entities_to_create, memory->temp_arena, e);
-					e->flags = E_VISIBLE|E_NOT_TARGETABLE|E_DOES_DAMAGE
-						|E_UNCLAMP_XZ|E_TOXIC_DAMAGE_INMUNE|E_IGNORE_ALLIES
-						|P_JUMP_BETWEEN_TARGETS|E_EMIT_PARTICLES
-						;
-
-					e->element_type = EET_ELECTRIC;
-					e->elemental_damage_duration = 1.0f;
-					e->jump_change_direction = true;
-
-					e->max_health = 2;
-					e->health = e->max_health;
-					e->speed = 60;
-					e->friction = 0.0f;
-					e->lifetime = 5.0f;
-					e->weight = 100.0f;
-					e->total_power = 2.0f*entity2->total_power;
-					e->aura_radius = 2.0f;
-
-					e->pos = entity->pos;
-					e->velocity = {e->speed, 0, 0};
-					e->team_uid = entity2->team_uid;
-
-					e->ignore_sphere_pos = entity2->ignore_sphere_pos;
-					e->ignore_sphere_radius = entity2->ignore_sphere_radius;
-					e->ignore_sphere_target_pos = entity2->ignore_sphere_target_pos;
-
-					e->mesh_uid = memory->meshes.ball_mesh_uid;
-					e->texinfo_uid = memory->textures.white_tex_uid;
-					e->color = {1.0f, 1.0f, 0.0f, 1};
-					e->scale = {0.4f, 0.4f, 0.4f};
-
-					Particle_emitter particle_emitter = {0}; 
-					particle_emitter.particle_flags = PARTICLE_ACTIVE;
-					particle_emitter.particles_count = 1;
-
-					particle_emitter.target_color = {1,1,0,1};
-					particle_emitter.color_delta_multiplier = 30.0f;
-
-					//TODO: implement freeze frames/stutter to make this  more visible
-					particle_emitter.particle_lifetime = memory->delta_time*3;
-					
-					particle_emitter.initial_scale = 5.0f;
-					
-					Particle* new_particle = get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index);
-					particle_emitter.emit_particle(new_particle, entity->pos, {0,0,0}, {1,1,1,1}, &memory->rng);
-
-
-
-					particle_emitter = {0};
-
-					particle_emitter.particle_flags = PARTICLE_ACTIVE;
-					particle_emitter.particles_count = 7;
-
-					particle_emitter.velocity_yrotation_rng = TAU32;
-					particle_emitter.friction = 10.0f;
-					particle_emitter.color_rng = {.3f, .3f, .3f};
-					particle_emitter.target_color = {1,1,0,1};
-					particle_emitter.particle_lifetime = .6f;
-
-					particle_emitter.initial_scale = .3f;
-					particle_emitter.initial_scale_rng = .2f;
-					particle_emitter.target_scale = .05f;
-					particle_emitter.scale_delta_multiplier = 1.0f;
-
-					UNTIL(particle_counter, particle_emitter.particles_count)
-					{
-						
-						particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-							entity->pos, {50.0f, 0,0}, {1,1,0,1}, &memory->rng
-						);
-					}
-
-				}break;
-				case EET_HEAT|EET_COLD:{
-					Entity* explosion_hitbox; PUSH_BACK(entities_to_create, memory->temp_arena, explosion_hitbox);
-
-					explosion_hitbox->flags = E_VISIBLE|E_SKIP_ROTATION|E_SKIP_DYNAMICS|E_EXPLOSION;
-
-					explosion_hitbox->color = {1.0f, 1.0f, 0, 1.0f};
-					explosion_hitbox->scale = {8,8,8};
-					explosion_hitbox->creation_size = 1.0f;
-
-					explosion_hitbox->lifetime = memory->delta_time;
-
-					// explosion_hitbox->parent_handle.index = i;
-					// explosion_hitbox->parent_handle.generation = generations[i];
-					// explosion_hitbox->team_uid = entity->team_uid;
-					explosion_hitbox->total_power = 15.0f;
-
-					explosion_hitbox->pos = entity->pos;
-
-					// explosion_hitbox->mesh_uid = memory->meshes.centered_plane_mesh_uid;
-					explosion_hitbox->mesh_uid = memory->meshes.icosphere_mesh_uid;
-					explosion_hitbox->texinfo_uid = memory->textures.white_tex_uid;
-
-					
-					Particle_emitter particle_emitter = {0};
-					particle_emitter.fill_data(
-						PARTICLE_ACTIVE,
-						1,
-						0,
-						0,
-						{0},
-						{0},
-						0,
-						0,
-						0,
-						{0},
-						{0},
-						{1.0f, 0, 0, 0},
-						1.0f,
-						0.2f,
-						0,0,0,0,0,
-						8.0f, 0, 5.0f, 1.0f
-					);
-					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-						entity->pos, {0,0,0}, {1,1,0,1}, &memory->rng
-					);
-
-					particle_emitter.fill_data(
-						PARTICLE_ACTIVE,
-						8,
-						0,
-						0,
-						{0},
-						{0},
-						TAU32,
-						0,
-						10.0f,
-						{0, 20.0f, 0},
-						{0},
-						{1.0f,.5f,.5f,0},
-						1.0f,
-						1.0f,
-						0,0,0,0,0,
-						0.5f, 0, 1.0f,1.0f
-					);
-					UNTIL(particle_i, particle_emitter.particles_count)
-					{
-						particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-							entity->pos, {50.0f, 0,0}, {1,0.9f,0,1}, &memory->rng
-						);
-					}
-
-				}break;
-				case EET_HEAT|EET_ELECTRIC:{
-					entity->toxic_time_left = 8.0f;
-
-					Particle_emitter particle_emitter;
-					particle_emitter.fill_data(
-						PARTICLE_ACTIVE, 
-						20, 
-						0,
-						0,
-						{0},
-						{0},
-						TAU32,
-						1.0f,
-						10.0f,
-						{0,20.0f,0},
-						{0},
-						{1,0,1,0},
-						1.0f,
-						1.5f,
-						0,0,0,0,0,
-						0.2f, 0, 0.5f,1.0f
-					);
-					UNTIL(particle_count, particle_emitter.particles_count)
-					{
-						particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-							entity->pos, {50.0f, 0,0}, {0.5f,0,1,1}, &memory->rng
-						);
-					}
-
-				}break;
-				case EET_COLD|EET_ELECTRIC:{
-					entity->gravity_field_time_left = 10.0f;
-					entity->gravity_field_radius = 10.0f;
-					
-					Particle_emitter particle_emitter;
-					particle_emitter.fill_data(
-						PARTICLE_ACTIVE,
-						1,
-						0,
-						0,
-						{0},
-						{0},
-						0,
-						0,
-						0,
-						{0},
-						{0},
-						{0,0,0,1},
-						5.0f,
-						2.0f,
-						0,0,0,0,0,
-						10.0f,
-						0,
-						0.01f,
-						5.0f
-					);
-
-					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-						entity->pos, {0}, {1,1,1,1}, &memory->rng
-					);
-				}break;
-				// THE SAME ELEMENT
-				case EET_WATER:
-				case EET_HEAT:
-				case EET_COLD:
-				case EET_ELECTRIC: 
-					reaction_ocurred = false;
-				break;
-				default: // OTHER
-					ASSERT(false);
-			}
-			if(reaction_ocurred){
-				entity->reaction_cooldown = 5.0f;
-				entity->element_effect = 0;
-			}
+			entity->triggered_elements_flag = 0;
 		}
 	}
 }

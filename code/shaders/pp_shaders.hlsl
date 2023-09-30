@@ -67,20 +67,17 @@ float4 ps( PS_IN input, uint tid : SV_PrimitiveID ) : SV_TARGET
       {
          float2 sample_coord = input.texcoord + float2(i, j) / ScreenDimensions.xy;
 
-         // Sample the input texture
-         float4 tex_color = depth_texture.Sample(sampler0, sample_coord);
+         // Sample the depth texture
+         float4 depth_values = depth_texture.Sample(sampler0, sample_coord);
 
          // Apply the Sobel filter to calculate gradients
-         gradientX += tex_color.rgb * SobelHorizontal[i + 1][j + 1];
-         gradientY += tex_color.rgb * SobelVertical[i + 1][j + 1];
+         gradientX += depth_values.rgb * SobelHorizontal[i + 1][j + 1];
+         gradientY += depth_values.rgb * SobelVertical[i + 1][j + 1];
       }
    }
 
    // Calculate the magnitude of the gradient
    float magnitude = length(gradientX.rgb) + length(gradientY.rgb);
-
-   // You can adjust the threshold to control the edge detection sensitivity
-   float threshold = 0.5f; // Adjust as needed
    
 
    // higher value means less discrimination between similar depths
@@ -92,13 +89,11 @@ float4 ps( PS_IN input, uint tid : SV_PrimitiveID ) : SV_TARGET
 
    float interpolator = saturate(multiplier*(magnitude-min_value));
 
-   // clip(magnitude-threshold);
-
-
-   // Use the magnitude and threshold to create a binary edge map
    float4 original_color = color_texture.Sample(sampler0, input.texcoord);
 
+   //this is just to avoid conditionals
    result = lerp(original_color, float4(.0f , .0f, .0f,1), interpolator);
+
    // clip(magnitude-min_value);
    // result = (magnitude > min_value) ? float4(0,0,0,1) : float4(1,1,1,1);
    // result = depth_texture.Sample(sampler0, input.texcoord );

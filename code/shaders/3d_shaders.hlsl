@@ -112,6 +112,8 @@ PS_OUT ps( PS_IN input, uint tid : SV_PrimitiveID)
 	
 
 	float pixel_value = 1-(length(input.vertex_world_pos-input.camera_world_pos.xyz)/100);
+
+	// I HAVE NO IDEA WHAT THIS MULTIPLICATION IS DOING
 	result.depth = input.camera_world_pos.w * float4(pixel_value, pixel_value, pixel_value, 1);
 
 	// result.depth = float4(1,1,1,1);
