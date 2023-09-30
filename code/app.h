@@ -343,6 +343,7 @@ struct Entity{
 
 	ENTITY_ELEMENT_TYPE element;
 	f32 elemental_effects[4];
+	f32 elemental_effect_cooldowns[4];
 	b32 triggered_elements_flag;
 
 	s32 total_upgrades_cost_value;
@@ -908,12 +909,74 @@ calculate_elemental_reaction(
 
 		#define MAX_ELEMENTAL_EFFECT_DURATION 5.0f
 		entity->elemental_effects[elemental_dmg_type-1] += result_elemental_damage;
-
+		entity->elemental_effect_cooldowns[elemental_dmg_type-1] = 0.5f;
 		
 		
 		if(entity->elemental_effects[elemental_dmg_type-1] >= MAX_ELEMENTAL_EFFECT_DURATION)
 		{
-			entity->triggered_elements_flag |= element_to_element_flag(elemental_dmg_type);
+			u32 elemental_dmg_flag = element_to_element_flag(elemental_dmg_type);
+			b32 already_triggered = entity->triggered_elements_flag & elemental_dmg_flag;
+			entity->triggered_elements_flag |= elemental_dmg_flag;
+
+			if(!already_triggered)
+			{
+				Color initial_color = element_color(elemental_dmg_type);
+				Color target_color = initial_color;
+				target_color.a = 0;
+
+				Particle_emitter particle_emitter;
+
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					1,
+					0,
+					0,
+					{0},
+					{0},
+					0,
+					0,
+					0,
+					{0},
+					{0},
+					target_color,
+					1.0f,
+					.5f,
+					0,0,0,0,0,
+					1.0f,
+					0,
+					3.0f,
+					10.0f
+				);
+				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+					entity->pos,{0}, initial_color, &memory->rng);
+
+				particle_emitter.fill_data(
+					PARTICLE_ACTIVE,
+					30,
+					0,
+					0,
+					{0},
+					{0},
+					TAU32,
+					0,
+					10.0f,
+					{0},
+					{0},
+					target_color,
+					1.0f,
+					1.0f,
+					0,0,0,0,0,
+					.3f,
+					0,
+					.1f,
+					1.0f
+				);
+				UNTIL(current_particle, particle_emitter.particles_count)
+				{
+					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
+						entity->pos,{60.0f, 0,0}, initial_color, &memory->rng);
+				}
+			}
 		}
 
 		b32 reaction_ocurred = true;
@@ -1216,63 +1279,6 @@ calculate_elemental_reaction(
 			case 0:
 			{
 				reaction_ocurred = false;
-				
-				Color initial_color = element_color(elemental_dmg_type);
-				Color target_color = initial_color;
-				target_color.a = 0;
-
-
-				Particle_emitter particle_emitter;
-				particle_emitter.fill_data(
-					PARTICLE_ACTIVE,
-					30,
-					0,
-					0,
-					{0},
-					{0},
-					TAU32,
-					0,
-					10.0f,
-					{0},
-					{0},
-					target_color,
-					1.0f,
-					1.0f,
-					0,0,0,0,0,
-					.3f,
-					0,
-					.1f,
-					1.0f
-				);
-				UNTIL(current_particle, particle_emitter.particles_count)
-				{
-					particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-						entity->pos,{40.0f, 0,0}, initial_color, &memory->rng);
-				}
-
-				particle_emitter.fill_data(
-					PARTICLE_ACTIVE,
-					1,
-					0,
-					0,
-					{0},
-					{0},
-					0,
-					0,
-					0,
-					{0},
-					{0},
-					{1,1,1,1},
-					1.0f,
-					.3f,
-					0,0,0,0,0,
-					3.0f,
-					0,
-					.0f,
-					1.0f
-				);
-				particle_emitter.emit_particle(get_new_particle(memory->particles, memory->particles_max, &memory->last_used_particle_index),
-					entity->pos,{0}, initial_color, &memory->rng);
 			}
 			break;
 			default: // OTHER

@@ -1029,11 +1029,18 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 		UNTIL(element_index, 4)
 		{
-			entity->elemental_effects[element_index] -= world_delta_time;
-			if(entity->elemental_effects[element_index] <= 0)
+			
+			if(entity->elemental_effect_cooldowns[element_index])
 			{
-				entity->elemental_effects[element_index] = 0;
-				entity->triggered_elements_flag &= ~element_to_element_flag(element_index+1);
+				entity->elemental_effect_cooldowns[element_index] = 
+					MAX(0, entity->elemental_effect_cooldowns[element_index]-world_delta_time);
+			}else{
+				entity->elemental_effects[element_index] -= world_delta_time;
+				if(entity->elemental_effects[element_index] <= 0)
+				{
+					entity->elemental_effects[element_index] = 0;
+					entity->triggered_elements_flag &= ~element_to_element_flag(element_index+1);
+				}
 			}
 		}
 
