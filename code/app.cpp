@@ -1630,7 +1630,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 					if(distance < explosion_radius)
 					{
 						f32 closeness_to_center = (1 - distance/explosion_radius);
-						f32 result_damage = closeness_to_center*(MAX(20 + entity2->total_power, 10));
+						f32 result_damage = 5 + (closeness_to_center*10);
 						entity->health = CLAMP(0, entity->health - (s32)result_damage, entity->max_health);
 						// f32 outwards_force = 8*(explosion_radius-distance);
 						f32 outwards_force = 15 * closeness_to_center;

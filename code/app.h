@@ -180,6 +180,7 @@ struct Particle_emitter
 			rng->next(initial_pos_rng.z)-(initial_pos_rng.z/2),
 			};
 		particle->position = position + initial_pos_offset + pos_result_rng;
+		
 		V3 final_initial_velocity = (1-rng->next(initial_speed_rng))*initial_velocity;
 		particle->velocity = v3_rotate_y(final_initial_velocity, 
 			rng->next(velocity_yrotation_rng)-(velocity_yrotation_rng/2));
