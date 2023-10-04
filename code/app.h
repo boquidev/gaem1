@@ -567,6 +567,7 @@ ui_is_point_inside(Ui_element* ui, Int2 p)
 	// 	);
 } 
 
+
 struct User_input
 {
 	V2 cursor_pos;
@@ -791,6 +792,8 @@ struct Level_state{
 struct App_memory
 {
 	b32 is_initialized;
+
+	b32* global_running;
 	
 	Memory_arena* permanent_arena;
 	Memory_arena* temp_arena;

@@ -14,7 +14,8 @@ global_variable u64 DEFAULT_UNIT_FLAGS = E_LOOK_IN_THE_MOVING_DIRECTION
 
 void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int2 client_size)
 {
-	if(!memory->is_initialized){
+	if(!memory->is_initialized)
+	{
 		memory->is_initialized = true;
 
 		// RESETING DEFAULT VALUES
@@ -41,95 +42,99 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->team_spawn_charges[1] = 0;
 
 		// INITIALIZING MAIN ENTITIES
-		
-		Entity* player = &memory->entities[memory->player_uid];
-		default_object3d(player);
-		player->flags = E_VISIBLE|E_AUTO_AIM_BOSS
-			|E_EMIT_PARTICLES
-			|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE
-			;
-		player->pos = {-25, 0, 0};
-		player->max_health = 100;
-		player->health = player->max_health;
-		player->team_uid = 0;
 
-		player->total_power = 1.0f;
-		player->action_count = 1;
-		player->action_angle = TAU32/4;
-		player->action_cd_total_time = .1f;
-		player->action_range = 5.0f;
-
-		player->aura_radius = 3.0f;
-
-		memory->teams_resources[player->team_uid] = 50;
-		memory->base_resources_per_second = 0.5f;
-		player->creation_delay = 0.2f;
-
-		player->team_uid = 0;
-		player->speed = 5.0f;
-		player->friction = 4.0f;
-		player->weight = 10.0f;
-
-		player->mesh_uid = memory->meshes.player_mesh_uid;
-		player->texinfo_uid = memory->textures.white_tex_uid;
-		
-		global_boss_handle.index = BOSS_INDEX;
-		global_boss_handle.generation = memory->entity_generations[BOSS_INDEX];
-
-		memory->level_state.boss_timer = 0; 
-
-		Entity* boss = &memory->entities[BOSS_INDEX];
-		default_object3d(boss);
-		u64 common_boss_flags = 
-			E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|E_NOT_MOVE
-			|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST
-			|E_EMIT_PARTICLES
-			;
-		if(memory->current_level == 1)
+		if(memory->current_level)
 		{
-			boss->flags = common_boss_flags;
-			boss->speed = 60.0f;
-			boss->friction = 10.0f;
+			
+			Entity* player = &memory->entities[memory->player_uid];
+			default_object3d(player);
+			player->flags = E_VISIBLE|E_AUTO_AIM_BOSS
+				|E_EMIT_PARTICLES
+				|E_HAS_COLLIDER|E_DETECT_COLLISIONS|E_RECEIVES_DAMAGE|E_NOT_MOVE
+				;
+			player->pos = {-25, 0, 0};
+			player->max_health = 100;
+			player->health = player->max_health;
+			player->team_uid = 0;
 
-			boss->max_health = 100;
-			boss->health = boss->max_health;
-			boss->pos = {25, 0, 0};
-			boss->team_uid = 1;
-			boss->creation_delay = 0.2f;
+			player->total_power = 1.0f;
+			player->action_count = 1;
+			player->action_angle = TAU32/4;
+			player->action_cd_total_time = .1f;
+			player->action_range = 5.0f;
 
-			boss->total_power = 1.0f;
-			boss->action_count = 1;
-			boss->action_angle = TAU32/4;
-			boss->action_cd_total_time = 10.5f;
-			boss->action_range = 5.0f;
-			boss->aura_radius = 3.0f;
+			player->aura_radius = 3.0f;
 
-			boss->weight = 10.0f;
+			memory->teams_resources[player->team_uid] = 50;
+			memory->base_resources_per_second = 0.5f;
+			player->creation_delay = 0.2f;
 
-			boss->mesh_uid = memory->meshes.boss_mesh_uid;;
-			boss->texinfo_uid = memory->textures.default_tex_uid;
-		}else if (memory->current_level == 2){
-			boss->flags = common_boss_flags | E_SHOOT;
-			boss->speed = 60.0f;
-			boss->friction = 10.0f;
+			player->team_uid = 0;
+			player->speed = 5.0f;
+			player->friction = 4.0f;
+			player->weight = 10.0f;
 
-			boss->max_health = 500;
-			boss->health = boss->max_health;
-			boss->pos = {25, 0, 0};
-			boss->team_uid = 1;
-			boss->creation_delay = 0.2f;
+			player->mesh_uid = memory->meshes.player_mesh_uid;
+			player->texinfo_uid = memory->textures.white_tex_uid;
+			
+			global_boss_handle.index = BOSS_INDEX;
+			global_boss_handle.generation = memory->entity_generations[BOSS_INDEX];
 
-			boss->total_power = 1.0f;
-			boss->action_count = 1;
-			boss->action_angle = TAU32/4;
-			boss->action_cd_total_time = 1.0f;
-			boss->action_range = 5.0f;
-			boss->aura_radius = 3.0f;
+			memory->level_state.boss_timer = 0; 
 
-			boss->weight = 10.0f;
+			Entity* boss = &memory->entities[BOSS_INDEX];
+			default_object3d(boss);
+			u64 common_boss_flags = 
+				E_VISIBLE|E_DETECT_COLLISIONS|E_HAS_COLLIDER|E_RECEIVES_DAMAGE|E_NOT_MOVE
+				|E_AUTO_AIM_BOSS|E_AUTO_AIM_CLOSEST
+				|E_EMIT_PARTICLES
+				;
+			if(memory->current_level == 1)
+			{
+				boss->flags = common_boss_flags;
+				boss->speed = 60.0f;
+				boss->friction = 10.0f;
 
-			boss->mesh_uid = memory->meshes.boss_mesh_uid;;
-			boss->texinfo_uid = memory->textures.default_tex_uid;
+				boss->max_health = 100;
+				boss->health = boss->max_health;
+				boss->pos = {25, 0, 0};
+				boss->team_uid = 1;
+				boss->creation_delay = 0.2f;
+
+				boss->total_power = 1.0f;
+				boss->action_count = 1;
+				boss->action_angle = TAU32/4;
+				boss->action_cd_total_time = 10.5f;
+				boss->action_range = 5.0f;
+				boss->aura_radius = 3.0f;
+
+				boss->weight = 10.0f;
+
+				boss->mesh_uid = memory->meshes.boss_mesh_uid;;
+				boss->texinfo_uid = memory->textures.default_tex_uid;
+			}else if (memory->current_level == 2){
+				boss->flags = common_boss_flags | E_SHOOT;
+				boss->speed = 60.0f;
+				boss->friction = 10.0f;
+
+				boss->max_health = 500;
+				boss->health = boss->max_health;
+				boss->pos = {25, 0, 0};
+				boss->team_uid = 1;
+				boss->creation_delay = 0.2f;
+
+				boss->total_power = 1.0f;
+				boss->action_count = 1;
+				boss->action_angle = TAU32/4;
+				boss->action_cd_total_time = 1.0f;
+				boss->action_range = 5.0f;
+				boss->aura_radius = 3.0f;
+
+				boss->weight = 10.0f;
+
+				boss->mesh_uid = memory->meshes.boss_mesh_uid;;
+				boss->texinfo_uid = memory->textures.default_tex_uid;
+			}
 		}
 
 		//TODO: turn this into handles
@@ -140,67 +145,16 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 
 	User_input* input = memory->input;
 	User_input* holding_inputs = memory->holding_inputs;
-	Entity* entities = memory->entities;
-	u32* generations = memory->entity_generations;
 	Ui_element* ui_elements = memory->ui_elements;
-	RNG* rng = &memory->rng;
-	
-	b32 exists_selected_entity = memory->selected_entity_h.is_valid(generations);
-	Entity* selected_entity = &entities[memory->selected_entity_h.index];
-	
-	if(input->debug_speed_up_delta_time == 1)
-	{
-		memory->delta_time *= 1.5f;
-	}
-	if(input->debug_slow_down_delta_time == 1)
-	{
-		memory->delta_time /= 1.5f;
-	}
-	f32 world_delta_time = memory->delta_time;
-
-	Entity* player_entity = &entities[memory->player_uid];
-	Entity* boss_entity = &entities[BOSS_INDEX];
-
-	//TODO: this
-	if(input->T == 1)
-	{
-		memory->is_initialized = false;
-	}
-	if(input->debug_next_level == 1 )
-	{
-		memory->is_initialized = false;
-		memory->current_level = (memory->current_level+1) % memory->levels_count;
-	}
-	if(input->debug_previous_level == 1 )
-	{
-		memory->is_initialized = false;
-		memory->current_level = (memory->current_level+memory->levels_count-1) % memory->levels_count;
-	}
-
-	// f32 camera_speed = 1.0f;
-	f32 sensitivity = 2.0f;
-
-	memory->camera_rotation.y += sensitivity*(f32)input->cursor_speed.x;
-	memory->camera_rotation.x += -sensitivity*(f32)input->cursor_speed.y;
-	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);	
-
-	memory->camera_pos = v3_rotate_y(v3_rotate_x({0,0,-32}, memory->camera_rotation.x), memory->camera_rotation.y);
-
-
-	V3 screen_cursor_pos = { // fov is from side to side of the screen, not from center to side
-		memory->aspect_ratio*(memory->fov/2)*input->cursor_pos.x,
-		(memory->fov/2)*input->cursor_pos.y, 
-		0
-	};
 
 
 	// UI
 
 	// CALCULATE UI_ELEMENT RECTANGLES ?
+	// this was an autolayout thing that ryan fleury proposed in his ui series
 
 
-
-	// FIND OUT WHOS THE ACTIVE ONE
+	// FIND OUT WHOS THE ACTIVE UI_ELEMENT
 
 	
 	s32 ui_hot_element = -1;
@@ -218,6 +172,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(input->cursor_primary == 1)
 	{
 		memory->ui_pressed_uid = ui_hot_element;
+		memory->creating_entity = false;
 	}
 	
 	if(input->cursor_primary == -1)
@@ -240,13 +195,121 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		ui_elements[i] = {0};
 		memory->ui_costs[i] = 0;
 	}
+	s32 ui_last = 0;
+
+	//  INITIALIZING INPUT, SELECTED ENTITY, DELTA_TIME AND LEVEL
+
+
+	Entity* entities = memory->entities;
+	u32* generations = memory->entity_generations;
+	RNG* rng = &memory->rng;
 	
+	b32 exists_selected_entity = memory->selected_entity_h.is_valid(generations);
+	Entity* selected_entity = &entities[memory->selected_entity_h.index];
+	
+	if(input->debug_speed_up_delta_time == 1)
+	{
+		memory->delta_time *= 1.5f;
+	}
+	if(input->debug_slow_down_delta_time == 1)
+	{
+		memory->delta_time /= 1.5f;
+	}
+	f32 world_delta_time = memory->delta_time;
+
+	Entity* player_entity = &entities[memory->player_uid];
+	Entity* boss_entity = &entities[BOSS_INDEX];
+
+	if(input->T == 1)
+	{
+		memory->is_initialized = false;
+	}
+	if(input->debug_next_level == 1 )
+	{
+		memory->is_initialized = false;
+		memory->current_level = (memory->current_level+1) % memory->levels_count;
+	}
+	if(input->debug_previous_level == 1 )
+	{
+		memory->is_initialized = false;
+		memory->current_level = (memory->current_level+memory->levels_count-1) % memory->levels_count;
+	}
+
+	f32 sensitivity = 2.0f;
+
+	memory->camera_rotation.y += sensitivity*(f32)input->cursor_speed.x;
+	memory->camera_rotation.x += -sensitivity*(f32)input->cursor_speed.y;
+	memory->camera_rotation.x = CLAMP(-PI32/2, memory->camera_rotation.x, PI32/2);	
+
+	memory->camera_pos = v3_rotate_y(v3_rotate_x({0,0,-32}, memory->camera_rotation.x), memory->camera_rotation.y);
+
+
+	V3 screen_cursor_pos = { // fov is from side to side of the screen, not from center to side
+		memory->aspect_ratio*(memory->fov/2)*input->cursor_pos.x,
+		(memory->fov/2)*input->cursor_pos.y, 
+		0
+	};
+
+
+	// MAIN MENU 
+
+
+	if(!memory->current_level)
+	{
+		if(memory->ui_clicked_uid == ui_last)
+		{
+			ASSERT(true);
+		}
+	
+		Ui_element* ui_element;
+		ui_element = &ui_elements[ui_last++];
+		
+		ui_element->color = {1,1,1,1};
+
+		ui_element->flags = 1;
+		ui_element->text = string("fafafafafaf"); 
+
+		ui_element->size.x = 220;
+		ui_element->size.y = 100;
+
+		ui_element->pos = {(client_size.x - ui_element->size.x)/2, (client_size.y - ui_element->size.y)/2};
+		
+
+		if(memory->ui_clicked_uid == ui_last)
+		{
+			*memory->global_running = false;
+		}
+		ui_element = &ui_elements[ui_last++];
+
+		ui_element->color = {1,1,1,1};
+		ui_element->flags = 1;
+		ui_element->text = string("exit");
+
+		ui_element->size.x = 220;
+		ui_element->size.y = 100;
+		ui_element->pos = {
+			(client_size.x - ui_element->size.x)/2,
+			ui_element->size.y+10+(client_size.y - ui_element->size.y)/2};
+
+		
+		// highlight selected buttons
+
+		if(ui_hot_element >= 0){
+			ui_elements[ui_hot_element].color = colors_product(ui_elements[ui_hot_element].color, {0.7f,0.7f,1.0f,1.0f});
+		}
+		if(memory->ui_pressed_uid >= 0){
+			ui_elements[memory->ui_pressed_uid].color = {1,1, 0.5f, 1};
+		}
+
+		return;
+	} 	
+	
+
+	// CREATING UI BUTTONS
 
 	// CREATING RADIAL MENU
 
 	#define MENU_RADIUS 300
-	
-	s32 ui_last = 0;
 
 	if(input->R == 1){
 		// memory->radial_menu_pos = input->cursor_pixels_pos;
@@ -443,7 +506,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			{
 				memory->ui_costs[ui_last] = 10;
 			}
-
+ 
 			if(ui_last == memory->ui_clicked_uid)
 			{
 				if(exists_selected_entity)
@@ -2434,7 +2497,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// selected entity might be invalid at this point
 	FOREACH(DOUBLE_HANDLE, e_handle, update_grabbing_list)
 	{
-		if(e_handle->from.is_valid(generations) &&  e_handle->to.is_valid(generations))
+		if(e_handle->from.is_valid(generations) && e_handle->to.is_valid(generations))
 		{
 			entities[e_handle->to.index].is_grabbing = true;
 		}
@@ -2483,8 +2546,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	if(exists_selected_entity)
 	{
 
-
-		// STICK SELECTED ENTITY TO THE CLOSEST ONE
+		// GRAB CLOSEST ENTITY BY THE SELECTED
 
 		//TODO: highlight the closest entity
 		if(input->F == -1 && memory->closest_entity_to_grab_h.is_valid(generations))
@@ -2792,7 +2854,7 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// SHOW ENTITY THAT IS ABOUT TO BE CREATED
 
-	if(!exists_selected_entity && memory->input->cursor_secondary > 0)
+	if(memory->creating_entity)
 	{
 		PUSH_BACK(render_list, memory->temp_arena, request);
 		request->type_flags = REQUEST_FLAG_RENDER_OBJECT;
@@ -2968,7 +3030,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// FIRST PASS TO DRAW RECTANGLES
 
-	UNTIL(i, MAX_UI){
+	UNTIL(i, MAX_UI)
+	{
 		if(!memory->ui_elements[i].flags) continue;
 		{
 			Ui_element* current = &memory->ui_elements[i];
@@ -3034,7 +3097,8 @@ void render(App_memory* memory, LIST(Renderer_request,render_list), Int2 screen_
 
 	// SECOND PASS TO DRAW TEXT
 
-	UNTIL(i, MAX_UI){
+	UNTIL(i, MAX_UI)
+	{
 		if(!memory->ui_elements[i].flags) continue;
 		Ui_element* current = &memory->ui_elements[i];
 

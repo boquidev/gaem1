@@ -22,10 +22,10 @@
 #include "libraries/stb_truetype.h"
 // STB END
 
-b32 global_running = 0;
-HWND global_main_window = 0;
-Int2 global_client_size = {0};
-u32 error;
+global_variable b32 global_running = 0;
+global_variable HWND global_main_window = 0;
+global_variable Int2 global_client_size = {0};
+global_variable u32 error;
 
 struct App_dll
 {
@@ -248,10 +248,12 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	Memory_arena* temp_arena = &arena2;
 
 	App_memory memory = {0};
-	u32 app_size = sizeof(memory) < 65535;
+	b32 app_size = sizeof(memory) < 65535;
 	ASSERT(app_size);
 	memory.temp_arena = temp_arena;
 	memory.permanent_arena = permanent_arena;
+
+	memory.global_running = &global_running;
 	
 
 	// FRAME CAPPING SETUP
