@@ -853,7 +853,6 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 	memory.fov = 32;
 	b32 perspective_on = 0;
 	memory.lock_mouse = false;
-	Color bg_color = {0.2f, 0.2f, 0.2f, 1};
 
 	u32 sample_t = 0;
 	u32 last_byte_to_lock = 0;
@@ -1349,8 +1348,8 @@ wWinMain(HINSTANCE h_instance, HINSTANCE h_prev_instance, PWSTR cmd_line, int cm
 		{
 			Color black_color = {0,0,0,0};
 			// skip this for trippy results
-			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_POSTPROCESSING], (float*)&bg_color);
-			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_FINAL], (float*)&bg_color);
+			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_POSTPROCESSING], (float*)&memory.bg_color);
+			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_FINAL], (float*)&memory.bg_color);
 			dx->context->ClearRenderTargetView(dx->render_targets_list[RTV_DEPTH], (float*)&black_color);
 			
 			FOREACH(Depth_stencil, current_ds, depth_stencils_list){

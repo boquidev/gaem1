@@ -315,8 +315,11 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		}
 
 	} 	
-	if(!memory->current_level) return;
-	
+	if(!memory->current_level){
+		memory->bg_color = {0.05f, 0.05f, 0.05f, 1};
+		return;
+	} 
+	else memory->bg_color = {0.3f, 0.3f, 0.3f, 1};
 
 	// CREATING UI BUTTONS
 

@@ -814,6 +814,8 @@ struct App_memory
 
 	RNG rng;
 
+	Color bg_color;
+
 	f32 fov;
 	f32 aspect_ratio;
 	V3 camera_pos;
@@ -1080,7 +1082,7 @@ calculate_elemental_reaction(
 				e->elemental_damage_duration = 2.5f;
 				e->jump_change_direction = true;
 
-				e->max_health = 2;
+				e->max_health = 3;
 				e->health = e->max_health;
 				e->speed = 60;
 				e->friction = 0.0f;
