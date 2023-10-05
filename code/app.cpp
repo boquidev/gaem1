@@ -28,6 +28,7 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 		memory->camera_rotation.y = 0;
 		memory->camera_rotation.z = 0;
 		memory->camera_pos.y = 32.0f;
+		memory->is_paused = 0;
 
 		memory->last_used_entity_index = 0;
 
@@ -254,32 +255,44 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 	// MAIN MENU 
 
 
-	if(!memory->current_level)
+	if(!memory->current_level || memory->is_paused)
 	{
-		if(memory->ui_clicked_uid == ui_last)
+		s32 buttons_size = 100;
+		u32 levels_count = memory->levels_count;
+		s32 buttons_total_length = buttons_size * levels_count;
+		for(u32 lvl_button = 0; lvl_button < levels_count; lvl_button++)
 		{
-			ASSERT(true);
-		}
-	
-		Ui_element* ui_element;
-		ui_element = &ui_elements[ui_last++];
+
+			if(memory->ui_clicked_uid == ui_last)
+			{
+				memory->current_level = lvl_button;
+				memory->is_initialized = 0;
+			}
 		
-		ui_element->color = {1,1,1,1};
+			Ui_element* ui_element;
+			ui_element = &ui_elements[ui_last++];
+			
+			ui_element->color = {1,1,1,1};
 
-		ui_element->flags = 1;
-		ui_element->text = string("fafafafafaf"); 
+			ui_element->flags = 1;
+			if(!lvl_button){
+				ui_element->text = string("MAIN MENU");
+			}else{
+				ui_element->text = number_to_string(lvl_button, memory->temp_arena); 
+			}
 
-		ui_element->size.x = 220;
-		ui_element->size.y = 100;
+			ui_element->size = {buttons_size, buttons_size};
 
-		ui_element->pos = {(client_size.x - ui_element->size.x)/2, (client_size.y - ui_element->size.y)/2};
+			ui_element->pos.x = ((client_size.x - buttons_total_length)/2) + (lvl_button*buttons_size);
+			ui_element->pos.y = (client_size.y - ui_element->size.y)/2;
+		}
 		
 
 		if(memory->ui_clicked_uid == ui_last)
 		{
 			*memory->global_running = false;
 		}
-		ui_element = &ui_elements[ui_last++];
+		Ui_element* ui_element = &ui_elements[ui_last++];
 
 		ui_element->color = {1,1,1,1};
 		ui_element->flags = 1;
@@ -301,8 +314,8 @@ void update(App_memory* memory, Audio_playback* playback_list, u32 sample_t, Int
 			ui_elements[memory->ui_pressed_uid].color = {1,1, 0.5f, 1};
 		}
 
-		return;
 	} 	
+	if(!memory->current_level) return;
 	
 
 	// CREATING UI BUTTONS
